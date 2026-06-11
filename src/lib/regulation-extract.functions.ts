@@ -83,7 +83,7 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
 
     const { data: doc, error: docErr } = await supabaseAdmin
       .from("regulation_documents")
-      .select("id, file_path, file_name, doc_type, title")
+      .select("id, file_path, file_name, doc_type, title, municipality_id")
       .eq("id", data.documentId)
       .maybeSingle();
     if (docErr || !doc) throw new Error("Dokument nicht gefunden");
