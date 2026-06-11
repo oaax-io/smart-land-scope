@@ -113,6 +113,26 @@ function NewAnalysisWizard() {
     [form],
   );
 
+  // Debounce municipality/canton for the coverage lookup
+  const [debounced, setDebounced] = useState({ municipality: "", canton: "" });
+  useEffect(() => {
+    const t = setTimeout(
+      () => setDebounced({ municipality: form.municipality.trim(), canton: form.canton }),
+      350,
+    );
+    return () => clearTimeout(t);
+  }, [form.municipality, form.canton]);
+
+  const coverage = useQuery({
+    queryKey: ["municipality-coverage", debounced.municipality, debounced.canton],
+    enabled: debounced.municipality.length >= 2 && debounced.canton.length === 2,
+    queryFn: () =>
+      coverageFn({
+        data: { municipality: debounced.municipality, canton: debounced.canton },
+      }),
+    staleTime: 30_000,
+  });
+
   function addFiles(files: FileList | File[] | null) {
     if (!files) return;
     const incoming = Array.from(files);
