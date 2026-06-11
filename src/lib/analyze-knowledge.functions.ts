@@ -54,10 +54,8 @@ export const checkMunicipalityCoverage = createServerFn({ method: "POST" })
       ready,
       municipalityId: muni.id,
       municipalityName: muni.name,
-      // @ts-expect-error supabase join typing
-      cantonCode: muni.canton?.code as string | undefined,
-      // @ts-expect-error supabase join typing
-      cantonName: muni.canton?.name as string | undefined,
+      cantonCode: (muni.canton as unknown as { code?: string } | null)?.code,
+      cantonName: (muni.canton as unknown as { name?: string } | null)?.name,
       entryCount: entryCount ?? 0,
       ruleCount: ruleCount ?? 0,
       documentCount: docCount ?? 0,
