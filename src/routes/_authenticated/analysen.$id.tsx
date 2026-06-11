@@ -142,8 +142,10 @@ function AnalysisDetailPage() {
               {reanalyze.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
               Neu analysieren
             </Button>
-            <Button variant="outline" size="sm" disabled>
-              <Download className="mr-2 h-4 w-4" />Bericht exportieren
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/analysen/$id/bericht" params={{ id }}>
+                <Download className="mr-2 h-4 w-4" />Bericht exportieren
+              </Link>
             </Button>
           </div>
         </div>
