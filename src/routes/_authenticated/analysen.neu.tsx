@@ -223,7 +223,7 @@ function NewAnalysisWizard() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["analyses"] });
       toast.success("Analyse gestartet", {
-        description: "Die KI extrahiert die Daten aus Ihren Dokumenten.",
+        description: "Die KI nutzt die hinterlegte Wissensdatenbank der Gemeinde.",
       });
       navigate({ to: "/analysen/$id", params: { id: data.id } });
     },
