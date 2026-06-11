@@ -390,15 +390,31 @@ function DocumentDialog({ municipalityId, onCreated }: { municipalityId: string 
 }
 
 function DocumentsTable({ docs, onDeleted }: { docs: RegDoc[]; onDeleted: () => void }) {
-  const grouped = useMemo(() => {
-    const map = new Map<string, RegDoc[]>();
-    for (const d of docs) {
-      const key = `${d.doc_type}|${d.title}`;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(d);
-    }
-    return map;
-  }, [docs]);
+  const extractFn = useServerFn(extractRegulationDocument);
+  const qc = useQueryClient();
+  const ids = useMemo(() => docs.map((d) => d.id), [docs]);
+
+  const extractionsQ = useQuery({
+    queryKey: ["regextractions", ids],
+    enabled: ids.length > 0,
+    refetchInterval: 4000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("regulation_extractions")
+        .select("document_id, status, error_message, processed_at")
+        .in("document_id", ids);
+      if (error) throw error;
+      return data as { document_id: string; status: string; error_message: string | null; processed_at: string | null }[];
+    },
+  });
+
+  const statusByDoc = useMemo(() => {
+    const m = new Map<string, { status: string; error: string | null }>();
+    extractionsQ.data?.forEach((e) =>
+      m.set(e.document_id, { status: e.status, error: e.error_message }),
+    );
+    return m;
+  }, [extractionsQ.data]);
 
   const handleDownload = async (path: string, name: string | null) => {
     const { data, error } = await supabase.storage.from("regulation-documents").createSignedUrl(path, 60);
@@ -415,6 +431,17 @@ function DocumentsTable({ docs, onDeleted }: { docs: RegDoc[]; onDeleted: () => 
     toast.success("Gelöscht"); onDeleted();
   };
 
+  const handleReExtract = async (doc: RegDoc) => {
+    toast.info("KI-Analyse gestartet…");
+    try {
+      await extractFn({ data: { documentId: doc.id } });
+      toast.success("KI-Analyse abgeschlossen");
+      qc.invalidateQueries({ queryKey: ["regextractions"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
   if (docs.length === 0) {
     return <p className="text-sm text-muted-foreground">Noch keine Dokumente hochgeladen.</p>;
   }
@@ -425,23 +452,26 @@ function DocumentsTable({ docs, onDeleted }: { docs: RegDoc[]; onDeleted: () => 
         <TableRow>
           <TableHead>Typ</TableHead>
           <TableHead>Titel</TableHead>
+          <TableHead>KI-Status</TableHead>
           <TableHead>Version</TableHead>
-          <TableHead>Gültig ab</TableHead>
           <TableHead className="text-right">Aktionen</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {[...grouped.values()].flatMap((group) =>
-          group.map((d, idx) => (
+        {docs.map((d) => {
+          const st = statusByDoc.get(d.id);
+          return (
             <TableRow key={d.id}>
               <TableCell><Badge variant="outline">{d.doc_type}</Badge></TableCell>
-              <TableCell className="font-medium">
-                {d.title}
-                {idx > 0 && <Badge variant="secondary" className="ml-2 text-xs">ältere Version</Badge>}
+              <TableCell className="font-medium">{d.title}</TableCell>
+              <TableCell>
+                <ExtractionStatusBadge status={st?.status} error={st?.error} />
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">{d.version ?? "—"}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">{d.valid_from ?? "—"}</TableCell>
               <TableCell className="text-right">
+                <Button size="sm" variant="ghost" title="KI-Analyse erneut starten" onClick={() => handleReExtract(d)}>
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
                 <Button size="sm" variant="ghost" onClick={() => handleDownload(d.file_path, d.file_name)}>
                   <Download className="h-4 w-4" />
                 </Button>
@@ -450,9 +480,19 @@ function DocumentsTable({ docs, onDeleted }: { docs: RegDoc[]; onDeleted: () => 
                 </Button>
               </TableCell>
             </TableRow>
-          ))
-        )}
+          );
+        })}
       </TableBody>
     </Table>
   );
 }
+
+function ExtractionStatusBadge({ status, error }: { status?: string; error?: string | null }) {
+  if (!status) return <Badge variant="outline" className="gap-1"><Sparkles className="h-3 w-3" /> Bereit</Badge>;
+  if (status === "processing" || status === "pending")
+    return <Badge variant="secondary" className="gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Analyse läuft</Badge>;
+  if (status === "completed")
+    return <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700"><CheckCircle2 className="h-3 w-3" /> Analysiert</Badge>;
+  return <Badge variant="destructive" className="gap-1" title={error ?? undefined}><AlertCircle className="h-3 w-3" /> Fehler</Badge>;
+}
+
