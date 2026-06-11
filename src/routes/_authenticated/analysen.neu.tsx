@@ -486,11 +486,31 @@ function CoverageHint({
   loading,
   data,
   enabled,
+  municipality,
+  canton,
 }: {
   loading: boolean;
   data: CoverageData | undefined;
   enabled: boolean;
+  municipality: string;
+  canton: string;
 }) {
+  const { user } = useAuth();
+  const isAdminQ = useQuery({
+    queryKey: ["is-admin", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user!.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      return !!data;
+    },
+  });
+  const isAdmin = !!isAdminQ.data;
+
   if (!enabled) return null;
   if (loading) {
     return (
@@ -501,14 +521,28 @@ function CoverageHint({
   }
   if (!data) return null;
 
+  const captureBtn = isAdmin ? (
+    <Button asChild size="sm" variant="default" className="mt-2">
+      <Link
+        to="/admin/reglemente"
+        search={{ canton, gemeinde: municipality }}
+      >
+        <Upload className="mr-2 h-4 w-4" /> Reglemente erfassen
+      </Link>
+    </Button>
+  ) : null;
+
   if (!data.exists) {
     return (
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Gemeinde nicht hinterlegt</AlertTitle>
+        <AlertTitle>Gemeinde noch nicht verfügbar</AlertTitle>
         <AlertDescription>
-          Für diese Gemeinde sind noch keine Reglemente hinterlegt. Die Analyse kann erst
-          starten, sobald ein Administrator die Reglemente erfasst hat.
+          Für „{municipality}" ({canton}) sind noch keine Reglemente hinterlegt.
+          {isAdmin
+            ? " Als Administrator können Sie die Reglemente jetzt erfassen."
+            : " Sobald ein Administrator die Reglemente erfasst hat, kann die Analyse starten."}
+          {captureBtn}
         </AlertDescription>
       </Alert>
     );
@@ -522,6 +556,7 @@ function CoverageHint({
         <AlertDescription>
           {data.municipalityName} ist erfasst ({data.documentCount} Dokument(e)), aber
           es wurden noch keine Vorschriften extrahiert.
+          {captureBtn}
         </AlertDescription>
       </Alert>
     );
