@@ -17,6 +17,7 @@ export type Database = {
       analyses: {
         Row: {
           address: string | null
+          ai_answer: Json | null
           ai_summary: string | null
           analyzed_at: string | null
           area_size: number | null
@@ -58,6 +59,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          ai_answer?: Json | null
           ai_summary?: string | null
           analyzed_at?: string | null
           area_size?: number | null
@@ -101,6 +103,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          ai_answer?: Json | null
           ai_summary?: string | null
           analyzed_at?: string | null
           area_size?: number | null
