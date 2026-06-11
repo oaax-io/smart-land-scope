@@ -180,3 +180,125 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
       throw new Error(message);
     }
   });
+
+type Zone = z.infer<typeof ZoneSchema>;
+type Extraction = z.infer<typeof ExtractionSchema>;
+
+async function buildKnowledgeBase(params: {
+  municipalityId: string;
+  documentId: string;
+  extraction: Extraction;
+}) {
+  const { municipalityId, documentId, extraction } = params;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const entries: Array<{
+    municipality_id: string;
+    category: string;
+    key: string;
+    value: string;
+    source_document: string;
+    source_article: string | null;
+  }> = [];
+  const rules: Array<{
+    municipality_id: string;
+    zone: string | null;
+    rule_type: string;
+    title: string;
+    description: string | null;
+    source_document: string;
+    article_reference: string | null;
+  }> = [];
+
+  const addEntry = (category: string, key: string, value: string | null | undefined, article: string | null = null) => {
+    if (value == null || String(value).trim() === "") return;
+    entries.push({
+      municipality_id: municipalityId,
+      category,
+      key,
+      value: String(value),
+      source_document: documentId,
+      source_article: article,
+    });
+  };
+
+  // Per-zone entries
+  const zoneBuckets: Array<{ usage: string; list: Zone[] }> = [
+    { usage: "Wohnen", list: extraction.residential_zones ?? [] },
+    { usage: "Gewerbe", list: extraction.commercial_zones ?? [] },
+    { usage: "Misch", list: extraction.mixed_zones ?? [] },
+  ];
+
+  const seen = new Set<string>();
+  for (const bucket of zoneBuckets) {
+    for (const z of bucket.list) {
+      const key = (z.code || z.name).trim();
+      if (!key) continue;
+      const dedupKey = `Zone:${key}`;
+      if (!seen.has(dedupKey)) {
+        seen.add(dedupKey);
+        addEntry("Zone", key, [z.name, z.description].filter(Boolean).join(" — "));
+      }
+      addEntry("Nutzung", key, `${bucket.usage} erlaubt${z.description ? ` (${z.description})` : ""}`);
+      if (extraction.max_floors != null) addEntry("Geschossigkeit", key, `Maximal ${extraction.max_floors} Vollgeschosse`);
+      if (extraction.max_height_m != null) addEntry("Gebäudehöhe", key, `${extraction.max_height_m} Meter`);
+      if (extraction.utilization_ratio != null) addEntry("Ausnützungsziffer", key, String(extraction.utilization_ratio));
+      if (extraction.building_coverage_ratio != null) addEntry("Überbauungsziffer", key, String(extraction.building_coverage_ratio));
+
+      rules.push({
+        municipality_id: municipalityId,
+        zone: key,
+        rule_type: "Nutzung",
+        title: `${key} — ${bucket.usage}`,
+        description: z.description ?? null,
+        source_document: documentId,
+        article_reference: null,
+      });
+    }
+  }
+
+  // Additional zones not in usage buckets
+  for (const z of extraction.zones ?? []) {
+    const key = (z.code || z.name).trim();
+    if (!key) continue;
+    const dedupKey = `Zone:${key}`;
+    if (seen.has(dedupKey)) continue;
+    seen.add(dedupKey);
+    addEntry("Zone", key, [z.name, z.description].filter(Boolean).join(" — "));
+  }
+
+  // Global rules (key = "ALLGEMEIN")
+  const G = "ALLGEMEIN";
+  addEntry("Ausnützungsziffer", G, extraction.utilization_ratio?.toString());
+  addEntry("Überbauungsziffer", G, extraction.building_coverage_ratio?.toString());
+  addEntry("Geschossigkeit", G, extraction.max_floors != null ? `Maximal ${extraction.max_floors} Vollgeschosse` : null);
+  addEntry("Gebäudehöhe", G, extraction.max_height_m != null ? `${extraction.max_height_m} Meter` : null);
+
+  if (extraction.setbacks) {
+    const s = extraction.setbacks;
+    if (s.klein != null) addEntry("Grenzabstand", "klein", `${s.klein} m`);
+    if (s.gross != null) addEntry("Grenzabstand", "gross", `${s.gross} m`);
+    if (s.gewaesser != null) addEntry("Gewässerabstand", G, `${s.gewaesser} m`);
+    if (s.notes) addEntry("Grenzabstand", "Hinweise", s.notes);
+  }
+
+  addEntry("Sondervorschriften", G, extraction.special_provisions ?? null);
+  if (extraction.design_plan_required != null)
+    addEntry("Gestaltungsplanpflicht", G, extraction.design_plan_required ? "Ja" : "Nein");
+  if (extraction.heritage_protected != null)
+    addEntry("Denkmalschutz", G, extraction.heritage_protected ? "Ja" : "Nein");
+  addEntry("Gewässerschutz", G, extraction.water_protection ?? null);
+  addEntry("Lärmvorschriften", G, extraction.noise_provisions ?? null);
+
+  if (entries.length > 0) {
+    await supabaseAdmin
+      .from("knowledge_entries")
+      .upsert(entries, { onConflict: "municipality_id,category,key" });
+  }
+
+  if (rules.length > 0) {
+    // Clear old rules from this document to keep idempotent
+    await supabaseAdmin.from("regulation_rules").delete().eq("source_document", documentId);
+    await supabaseAdmin.from("regulation_rules").insert(rules);
+  }
+}
