@@ -299,6 +299,12 @@ function NewAnalysisWizard() {
                 onChange={(e) => set("parcel_number", e.target.value)} maxLength={50} />
             </div>
 
+            <CoverageHint
+              loading={coverage.isFetching}
+              data={coverage.data}
+              enabled={debounced.municipality.length >= 2 && debounced.canton.length === 2}
+            />
+
             <div className="flex justify-end pt-2">
               <Button onClick={() => setStep(2)} disabled={!stepOneValid}>
                 Weiter <ArrowRight className="ml-2 h-4 w-4" />
