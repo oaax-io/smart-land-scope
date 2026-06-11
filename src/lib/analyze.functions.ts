@@ -135,10 +135,31 @@ export const runAnalysis = createServerFn({ method: "POST" })
         `Wohnungsanzahl plausibel aus Wohnfläche ableiten (≈ 90 m² pro Einheit).`,
       ].join("\n");
 
+      // 1) Structured extraction (rich schema)
       const { object } = await generateObject({
         model: gateway("google/gemini-2.5-flash"),
         schema: AnalysisOutputSchema,
         prompt,
+      });
+
+      // 2) Dedicated AI Analysis Service — strict product JSON
+      const { analyseParcel } = await import("./ai-analysis.server");
+      const docInputs = (docs ?? []).map((d, i) => ({
+        kind: d.kind as "bzr" | "bzo" | "zonenplan" | "other",
+        file_name: d.file_name,
+        excerpt: excerpts[i]?.split("\n").slice(1).join("\n") ?? "",
+      }));
+      const aiAnswer = await analyseParcel({
+        parcel: {
+          address: analysis.address,
+          postal_code: analysis.postal_code,
+          municipality: analysis.municipality,
+          canton: analysis.canton,
+          parcel_number: analysis.parcel_number,
+          area_size: analysis.area_size,
+        },
+        documents: docInputs,
+        apiKey: key,
       });
 
       const { error: updErr } = await supabase
@@ -168,9 +189,11 @@ export const runAnalysis = createServerFn({ method: "POST" })
           restrictions: object.regulations,
           risks: object.risks,
           extracted_data: object,
+          ai_answer: aiAnswer,
         })
         .eq("id", analysis.id);
       if (updErr) throw new Error(updErr.message);
+
 
       return { ok: true, analysisId: analysis.id, by: userId };
     } catch (e) {
