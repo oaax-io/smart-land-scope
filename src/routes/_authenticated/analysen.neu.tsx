@@ -214,7 +214,7 @@ function NewAnalysisWizard() {
 
       // 3. Mark processing + fire-and-forget AI extraction
       await supabase.from("analyses").update({ status: "processing" }).eq("id", created.id);
-      analyzeFn({ data: { analysisId: created.id } }).catch((e) =>
+      analyzeFn({ data: { analysisId: created.id } }).catch((e: unknown) =>
         console.error("KI-Analyse fehlgeschlagen", e),
       );
 
