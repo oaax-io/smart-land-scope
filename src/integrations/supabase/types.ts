@@ -216,6 +216,84 @@ export type Database = {
           },
         ]
       }
+      analysis_results: {
+        Row: {
+          ai_answer: Json | null
+          analysis_id: string
+          created_at: string
+          created_by: string | null
+          extracted_data: Json | null
+          id: string
+          model: string | null
+          opportunities: Json
+          organization_id: string
+          parcel_snapshot: Json | null
+          potential_category: string | null
+          potential_score: number | null
+          recommendation: string | null
+          risks: Json
+          summary: string | null
+          unit_calculation: Json | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          ai_answer?: Json | null
+          analysis_id: string
+          created_at?: string
+          created_by?: string | null
+          extracted_data?: Json | null
+          id?: string
+          model?: string | null
+          opportunities?: Json
+          organization_id: string
+          parcel_snapshot?: Json | null
+          potential_category?: string | null
+          potential_score?: number | null
+          recommendation?: string | null
+          risks?: Json
+          summary?: string | null
+          unit_calculation?: Json | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          ai_answer?: Json | null
+          analysis_id?: string
+          created_at?: string
+          created_by?: string | null
+          extracted_data?: Json | null
+          id?: string
+          model?: string | null
+          opportunities?: Json
+          organization_id?: string
+          parcel_snapshot?: Json | null
+          potential_category?: string | null
+          potential_score?: number | null
+          recommendation?: string | null
+          risks?: Json
+          summary?: string | null
+          unit_calculation?: Json | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_results_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_results_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
