@@ -477,3 +477,62 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+type CoverageData = Awaited<ReturnType<typeof checkMunicipalityCoverage>>;
+
+function CoverageHint({
+  loading,
+  data,
+  enabled,
+}: {
+  loading: boolean;
+  data: CoverageData | undefined;
+  enabled: boolean;
+}) {
+  if (!enabled) return null;
+  if (loading) {
+    return (
+      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" /> Wissensdatenbank wird geprüft …
+      </p>
+    );
+  }
+  if (!data) return null;
+
+  if (!data.exists) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Gemeinde nicht hinterlegt</AlertTitle>
+        <AlertDescription>
+          Für diese Gemeinde sind noch keine Reglemente hinterlegt. Die Analyse kann erst
+          starten, sobald ein Administrator die Reglemente erfasst hat.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!data.ready) {
+    return (
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Wissensdatenbank noch leer</AlertTitle>
+        <AlertDescription>
+          {data.municipalityName} ist erfasst ({data.documentCount} Dokument(e)), aber
+          es wurden noch keine Vorschriften extrahiert.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <Alert className="border-secondary/40 bg-secondary/5">
+      <CheckCircle2 className="h-4 w-4 text-secondary" />
+      <AlertTitle>Wissensdatenbank verfügbar</AlertTitle>
+      <AlertDescription>
+        {data.municipalityName} ({data.cantonCode}) — {data.entryCount} Einträge,{" "}
+        {data.ruleCount} Regeln aus {data.documentCount} Reglement(en).
+      </AlertDescription>
+    </Alert>
+  );
+}
