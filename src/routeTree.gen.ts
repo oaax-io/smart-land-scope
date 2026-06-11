@@ -22,6 +22,7 @@ import { Route as AuthenticatedBerichteRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAnalysenIndexRouteImport } from './routes/_authenticated/analysen.index'
 import { Route as AuthenticatedAnalysenNeuRouteImport } from './routes/_authenticated/analysen.neu'
 import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
+import { Route as AuthenticatedAdminReglementeRouteImport } from './routes/_authenticated/admin.reglemente'
 import { Route as AuthenticatedAnalysenIdBerichtRouteImport } from './routes/_authenticated/analysen.$id.bericht'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -91,6 +92,12 @@ const AuthenticatedAnalysenIdRoute = AuthenticatedAnalysenIdRouteImport.update({
   path: '/analysen/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminReglementeRoute =
+  AuthenticatedAdminReglementeRouteImport.update({
+    id: '/admin/reglemente',
+    path: '/admin/reglemente',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAnalysenIdBerichtRoute =
   AuthenticatedAnalysenIdBerichtRouteImport.update({
     id: '/bericht',
@@ -108,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/projekte': typeof AuthenticatedProjekteRoute
   '/rechner': typeof AuthenticatedRechnerRoute
   '/team': typeof AuthenticatedTeamRoute
+  '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/analysen/': typeof AuthenticatedAnalysenIndexRoute
@@ -123,6 +131,7 @@ export interface FileRoutesByTo {
   '/projekte': typeof AuthenticatedProjekteRoute
   '/rechner': typeof AuthenticatedRechnerRoute
   '/team': typeof AuthenticatedTeamRoute
+  '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/analysen': typeof AuthenticatedAnalysenIndexRoute
@@ -140,6 +149,7 @@ export interface FileRoutesById {
   '/_authenticated/projekte': typeof AuthenticatedProjekteRoute
   '/_authenticated/rechner': typeof AuthenticatedRechnerRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
+  '/_authenticated/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
   '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/_authenticated/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/_authenticated/analysen/': typeof AuthenticatedAnalysenIndexRoute
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/projekte'
     | '/rechner'
     | '/team'
+    | '/admin/reglemente'
     | '/analysen/$id'
     | '/analysen/neu'
     | '/analysen/'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/projekte'
     | '/rechner'
     | '/team'
+    | '/admin/reglemente'
     | '/analysen/$id'
     | '/analysen/neu'
     | '/analysen'
@@ -188,6 +200,7 @@ export interface FileRouteTypes {
     | '/_authenticated/projekte'
     | '/_authenticated/rechner'
     | '/_authenticated/team'
+    | '/_authenticated/admin/reglemente'
     | '/_authenticated/analysen/$id'
     | '/_authenticated/analysen/neu'
     | '/_authenticated/analysen/'
@@ -294,6 +307,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalysenIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/reglemente': {
+      id: '/_authenticated/admin/reglemente'
+      path: '/admin/reglemente'
+      fullPath: '/admin/reglemente'
+      preLoaderRoute: typeof AuthenticatedAdminReglementeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/analysen/$id/bericht': {
       id: '/_authenticated/analysen/$id/bericht'
       path: '/bericht'
@@ -325,6 +345,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProjekteRoute: typeof AuthenticatedProjekteRoute
   AuthenticatedRechnerRoute: typeof AuthenticatedRechnerRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
+  AuthenticatedAdminReglementeRoute: typeof AuthenticatedAdminReglementeRoute
   AuthenticatedAnalysenIdRoute: typeof AuthenticatedAnalysenIdRouteWithChildren
   AuthenticatedAnalysenNeuRoute: typeof AuthenticatedAnalysenNeuRoute
   AuthenticatedAnalysenIndexRoute: typeof AuthenticatedAnalysenIndexRoute
@@ -337,6 +358,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProjekteRoute: AuthenticatedProjekteRoute,
   AuthenticatedRechnerRoute: AuthenticatedRechnerRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
+  AuthenticatedAdminReglementeRoute: AuthenticatedAdminReglementeRoute,
   AuthenticatedAnalysenIdRoute: AuthenticatedAnalysenIdRouteWithChildren,
   AuthenticatedAnalysenNeuRoute: AuthenticatedAnalysenNeuRoute,
   AuthenticatedAnalysenIndexRoute: AuthenticatedAnalysenIndexRoute,

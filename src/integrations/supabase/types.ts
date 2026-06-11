@@ -294,6 +294,65 @@ export type Database = {
           },
         ]
       }
+      cantons: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      municipalities: {
+        Row: {
+          bfs_number: number | null
+          canton_id: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          bfs_number?: number | null
+          canton_id: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          bfs_number?: number | null
+          canton_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "municipalities_canton_id_fkey"
+            columns: ["canton_id"]
+            isOneToOne: false
+            referencedRelation: "cantons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
@@ -393,6 +452,65 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      regulation_documents: {
+        Row: {
+          created_at: string
+          doc_type: Database["public"]["Enums"]["regulation_doc_type"]
+          file_name: string | null
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          municipality_id: string
+          notes: string | null
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+          valid_from: string | null
+          version: string | null
+        }
+        Insert: {
+          created_at?: string
+          doc_type: Database["public"]["Enums"]["regulation_doc_type"]
+          file_name?: string | null
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          municipality_id: string
+          notes?: string | null
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+          valid_from?: string | null
+          version?: string | null
+        }
+        Update: {
+          created_at?: string
+          doc_type?: Database["public"]["Enums"]["regulation_doc_type"]
+          file_name?: string | null
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          municipality_id?: string
+          notes?: string | null
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          valid_from?: string | null
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regulation_documents_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
             referencedColumns: ["id"]
           },
         ]
@@ -523,6 +641,7 @@ export type Database = {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       analysis_document_kind: "bzr" | "bzo" | "zonenplan" | "other"
@@ -535,6 +654,13 @@ export type Database = {
       app_role: "admin" | "owner" | "member"
       potential_level: "low" | "medium" | "high" | "very_high"
       project_status: "draft" | "active" | "completed" | "archived"
+      regulation_doc_type:
+        | "BZR"
+        | "BZO"
+        | "Zonenplan"
+        | "Gestaltungsplan"
+        | "Sondervorschriften"
+        | "Sonstige"
       subscription_plan: "trial" | "starter" | "pro" | "enterprise"
       subscription_status:
         | "trialing"
@@ -680,6 +806,14 @@ export const Constants = {
       app_role: ["admin", "owner", "member"],
       potential_level: ["low", "medium", "high", "very_high"],
       project_status: ["draft", "active", "completed", "archived"],
+      regulation_doc_type: [
+        "BZR",
+        "BZO",
+        "Zonenplan",
+        "Gestaltungsplan",
+        "Sondervorschriften",
+        "Sonstige",
+      ],
       subscription_plan: ["trial", "starter", "pro", "enterprise"],
       subscription_status: [
         "trialing",
