@@ -188,7 +188,7 @@ export const runAnalysis = createServerFn({ method: "POST" })
           water_setbacks: object.water_setbacks ?? null,
           floor_area: object.floor_area_m2,
           living_area: object.living_area_m2,
-          unit_count: object.unit_count,
+          unit_count: Math.round(object.unit_count),
           potential_level: object.potential_level,
           ai_summary: object.ai_summary,
           restrictions: object.regulations,
