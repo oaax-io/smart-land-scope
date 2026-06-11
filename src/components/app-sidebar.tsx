@@ -1,10 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, MapPinned, FolderKanban, FileText, Users, Settings, Layers, Calculator } from "lucide-react";
+import { LayoutDashboard, MapPinned, FolderKanban, FileText, Users, Settings, Layers, Calculator, BookOpen } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -19,6 +20,10 @@ const items = [
   { title: "Berichte", url: "/berichte", icon: FileText },
   { title: "Team", url: "/team", icon: Users },
   { title: "Einstellungen", url: "/einstellungen", icon: Settings },
+] as const;
+
+const adminItems = [
+  { title: "Reglemente", url: "/admin/reglemente", icon: BookOpen },
 ] as const;
 
 export function AppSidebar() {
@@ -41,6 +46,26 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
+                const active = pathname === item.url || pathname.startsWith(item.url + "/");
+                return (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
+                      <Link to={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Admin</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminItems.map((item) => {
                 const active = pathname === item.url || pathname.startsWith(item.url + "/");
                 return (
                   <SidebarMenuItem key={item.url}>
