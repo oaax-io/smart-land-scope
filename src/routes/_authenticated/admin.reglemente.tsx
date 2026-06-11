@@ -184,6 +184,9 @@ function ReglementePage() {
         <Badge variant="outline">Admin</Badge>
       </div>
 
+      <KnowledgeBaseDashboard />
+
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_320px_1fr]">
         {/* Cantons */}
         <Card>
