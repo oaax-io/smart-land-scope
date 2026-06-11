@@ -303,6 +303,8 @@ function NewAnalysisWizard() {
               loading={coverage.isFetching}
               data={coverage.data}
               enabled={debounced.municipality.length >= 2 && debounced.canton.length === 2}
+              municipality={debounced.municipality}
+              canton={debounced.canton}
             />
 
             <div className="flex justify-end pt-2">
