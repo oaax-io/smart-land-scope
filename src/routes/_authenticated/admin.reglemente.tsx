@@ -105,6 +105,53 @@ function ReglementePage() {
     if (munisQ.data && !selectedMuni && munisQ.data[0]) setSelectedMuni(munisQ.data[0].id);
   }, [munisQ.data, selectedMuni]);
 
+  // Prefill from search params (?canton=ZH&gemeinde=Zürich): select canton,
+  // then auto-create the municipality if missing.
+  useEffect(() => {
+    if (prefillHandled || !isAdmin || !cantonsQ.data) return;
+    const wantedCode = search.canton?.toUpperCase();
+    if (!wantedCode) return;
+    const c = cantonsQ.data.find((x) => x.code.toUpperCase() === wantedCode);
+    if (!c) {
+      toast.error(`Kanton ${wantedCode} ist noch nicht erfasst.`);
+      setPrefillHandled(true);
+      return;
+    }
+    setSelectedCanton(c.id);
+  }, [prefillHandled, isAdmin, cantonsQ.data, search.canton]);
+
+  useEffect(() => {
+    if (prefillHandled || !isAdmin || !selectedCanton || !munisQ.data) return;
+    const wanted = search.gemeinde?.trim();
+    if (!wanted) return;
+    const existing = munisQ.data.find(
+      (m) => m.name.toLowerCase() === wanted.toLowerCase(),
+    );
+    if (existing) {
+      setSelectedMuni(existing.id);
+      setPrefillHandled(true);
+      return;
+    }
+    // Auto-create
+    (async () => {
+      const { data, error } = await supabase
+        .from("municipalities")
+        .insert({ canton_id: selectedCanton, name: wanted })
+        .select("*")
+        .single();
+      if (error) {
+        toast.error(`Gemeinde "${wanted}" konnte nicht erstellt werden: ${error.message}`);
+      } else {
+        toast.success(`Gemeinde "${wanted}" angelegt — bitte Reglemente hochladen.`);
+        qc.invalidateQueries({ queryKey: ["munis", selectedCanton] });
+        qc.invalidateQueries({ queryKey: ["kb-stats"] });
+        setSelectedMuni((data as Municipality).id);
+      }
+      setPrefillHandled(true);
+      navigate({ search: {}, replace: true });
+    })();
+  }, [prefillHandled, isAdmin, selectedCanton, munisQ.data, search.gemeinde, qc, navigate]);
+
   if (roleLoading) return <div className="p-6 text-muted-foreground">Lade…</div>;
 
   if (!isAdmin) {
