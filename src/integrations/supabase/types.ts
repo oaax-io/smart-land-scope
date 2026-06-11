@@ -29,8 +29,10 @@ export type Database = {
           municipality: string | null
           organization_id: string
           parcel_number: string | null
+          postal_code: string | null
           project_id: string | null
           restrictions: Json | null
+          status: Database["public"]["Enums"]["analysis_status"]
           updated_at: string
           usage_type: Json | null
           utilization_ratio: number | null
@@ -50,8 +52,10 @@ export type Database = {
           municipality?: string | null
           organization_id: string
           parcel_number?: string | null
+          postal_code?: string | null
           project_id?: string | null
           restrictions?: Json | null
+          status?: Database["public"]["Enums"]["analysis_status"]
           updated_at?: string
           usage_type?: Json | null
           utilization_ratio?: number | null
@@ -71,8 +75,10 @@ export type Database = {
           municipality?: string | null
           organization_id?: string
           parcel_number?: string | null
+          postal_code?: string | null
           project_id?: string | null
           restrictions?: Json | null
+          status?: Database["public"]["Enums"]["analysis_status"]
           updated_at?: string
           usage_type?: Json | null
           utilization_ratio?: number | null
