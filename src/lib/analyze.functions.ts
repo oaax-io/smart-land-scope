@@ -176,7 +176,7 @@ export const runAnalysis = createServerFn({ method: "POST" })
           feasibility: object.feasibility,
           zone: object.zone,
           usage_type: object.usage_types,
-          max_floors: object.max_floors,
+          max_floors: Math.round(object.max_floors),
           max_height: object.max_height_m,
           utilization_ratio: object.utilization_ratio,
           building_coverage_ratio: object.building_coverage_ratio ?? null,
