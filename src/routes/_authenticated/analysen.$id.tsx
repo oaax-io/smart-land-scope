@@ -313,11 +313,15 @@ function AnalysisDetailPage() {
             <CardContent>
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
                 <FileText className="h-8 w-8 text-muted-foreground" />
-                <p className="mt-3 font-medium">Noch kein Bericht erstellt</p>
+                <p className="mt-3 font-medium">Professioneller Due-Diligence Bericht</p>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  PDF-Export folgt in einer der nächsten Iterationen.
+                  Inklusive Executive Summary, Baurecht, Wohnungsanalyse, Score &amp; Risiken. Export als PDF oder Word.
                 </p>
-                <Button className="mt-4" disabled><Download className="mr-2 h-4 w-4" />Bericht erstellen</Button>
+                <Button className="mt-4" asChild>
+                  <Link to="/analysen/$id/bericht" params={{ id }}>
+                    <FileText className="mr-2 h-4 w-4" />Bericht öffnen
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
