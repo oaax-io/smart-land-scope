@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { MapPinned, FolderKanban, Users, FileText, ArrowUpRight, Star, Search } from "lucide-react";
+import { MapPinned, FolderKanban, Users, FileText, ArrowUpRight, Star, Search, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useOrg } from "@/hooks/use-org";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -89,13 +90,13 @@ function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="font-display text-lg">Letzte Analysen</CardTitle>
+            <CardTitle className="font-display text-lg">Letzte Analysen — Live-Status</CardTitle>
             <Button variant="ghost" size="sm" asChild>
               <Link to="/analysen">Alle ansehen</Link>
             </Button>
           </CardHeader>
           <CardContent>
-            <EmptyState icon={MapPinned} title="Noch keine Analysen" description="Starten Sie Ihre erste Grundstücksanalyse über die Suche oben." />
+            <RecentAnalysesLive orgId={currentOrgId} />
           </CardContent>
         </Card>
 
