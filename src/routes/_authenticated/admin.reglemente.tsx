@@ -60,8 +60,11 @@ function useIsAdmin() {
 function ReglementePage() {
   const { data: isAdmin, isLoading: roleLoading } = useIsAdmin();
   const qc = useQueryClient();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [selectedCanton, setSelectedCanton] = useState<string | null>(null);
   const [selectedMuni, setSelectedMuni] = useState<string | null>(null);
+  const [prefillHandled, setPrefillHandled] = useState(false);
 
   const cantonsQ = useQuery({
     queryKey: ["cantons"],
