@@ -200,8 +200,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         )
         .join("\n");
 
-      // @ts-expect-error supabase join typing
-      const cantonCode = muni.canton?.code as string | undefined;
+      const cantonCode = (muni.canton as unknown as { code?: string } | null)?.code;
 
       const prompt = [
         "Du bist Experte für Schweizer Bau- und Zonenrecht und erstellst eine strukturierte Machbarkeitsanalyse AUSSCHLIESSLICH auf Basis der hinterlegten Wissensdatenbank.",
