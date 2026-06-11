@@ -139,3 +139,58 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ComponentT
     </div>
   );
 }
+
+const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; spin?: boolean }> = {
+  draft: { label: "Entwurf", variant: "outline" },
+  processing: { label: "In Analyse", variant: "secondary", spin: true },
+  pending: { label: "Wartend", variant: "secondary" },
+  completed: { label: "Abgeschlossen", variant: "default" },
+  failed: { label: "Fehlgeschlagen", variant: "destructive" },
+};
+
+function RecentAnalysesLive({ orgId }: { orgId: string | null | undefined }) {
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ["dashboard-recent-analyses", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("analyses")
+        .select("id, address, municipality, canton, status, created_at")
+        .eq("organization_id", orgId!)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: (q) =>
+      (q.state.data ?? []).some((a) => a.status === "processing" || a.status === "draft") ? 4000 : false,
+  });
+
+  if (isLoading) return <p className="text-sm text-muted-foreground">Lade …</p>;
+  if (items.length === 0) {
+    return <EmptyState icon={MapPinned} title="Noch keine Analysen" description="Starten Sie Ihre erste Grundstücksanalyse." />;
+  }
+  return (
+    <div className="divide-y rounded-lg border">
+      {items.map((a) => {
+        const s = STATUS_BADGE[a.status as string] ?? { label: a.status as string, variant: "secondary" as const };
+        return (
+          <Link key={a.id} to="/analysen/$id" params={{ id: a.id }}
+            className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{a.address ?? "Ohne Adresse"}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {[a.municipality, a.canton].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+            <Badge variant={s.variant} className="gap-1">
+              {s.spin && <Loader2 className="h-3 w-3 animate-spin" />}
+              {s.label}
+            </Badge>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
