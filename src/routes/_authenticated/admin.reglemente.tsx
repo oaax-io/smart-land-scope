@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -18,10 +19,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Building2, MapPin, FileText, Upload, Trash2, Download, Plus, ShieldAlert, Sparkles, Loader2, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { Building2, MapPin, FileText, Upload, Trash2, Download, Plus, ShieldAlert, Sparkles, Loader2, CheckCircle2, AlertCircle, RefreshCw, BookOpen, Layers } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
 
+const searchSchema = z.object({
+  canton: z.string().length(2).optional(),
+  gemeinde: z.string().trim().min(1).max(100).optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/admin/reglemente")({
+  validateSearch: (s) => searchSchema.parse(s),
   component: ReglementePage,
 });
 
@@ -53,8 +60,11 @@ function useIsAdmin() {
 function ReglementePage() {
   const { data: isAdmin, isLoading: roleLoading } = useIsAdmin();
   const qc = useQueryClient();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [selectedCanton, setSelectedCanton] = useState<string | null>(null);
   const [selectedMuni, setSelectedMuni] = useState<string | null>(null);
+  const [prefillHandled, setPrefillHandled] = useState(false);
 
   const cantonsQ = useQuery({
     queryKey: ["cantons"],
@@ -95,6 +105,53 @@ function ReglementePage() {
     if (munisQ.data && !selectedMuni && munisQ.data[0]) setSelectedMuni(munisQ.data[0].id);
   }, [munisQ.data, selectedMuni]);
 
+  // Prefill from search params (?canton=ZH&gemeinde=Zürich): select canton,
+  // then auto-create the municipality if missing.
+  useEffect(() => {
+    if (prefillHandled || !isAdmin || !cantonsQ.data) return;
+    const wantedCode = search.canton?.toUpperCase();
+    if (!wantedCode) return;
+    const c = cantonsQ.data.find((x) => x.code.toUpperCase() === wantedCode);
+    if (!c) {
+      toast.error(`Kanton ${wantedCode} ist noch nicht erfasst.`);
+      setPrefillHandled(true);
+      return;
+    }
+    setSelectedCanton(c.id);
+  }, [prefillHandled, isAdmin, cantonsQ.data, search.canton]);
+
+  useEffect(() => {
+    if (prefillHandled || !isAdmin || !selectedCanton || !munisQ.data) return;
+    const wanted = search.gemeinde?.trim();
+    if (!wanted) return;
+    const existing = munisQ.data.find(
+      (m) => m.name.toLowerCase() === wanted.toLowerCase(),
+    );
+    if (existing) {
+      setSelectedMuni(existing.id);
+      setPrefillHandled(true);
+      return;
+    }
+    // Auto-create
+    (async () => {
+      const { data, error } = await supabase
+        .from("municipalities")
+        .insert({ canton_id: selectedCanton, name: wanted })
+        .select("*")
+        .single();
+      if (error) {
+        toast.error(`Gemeinde "${wanted}" konnte nicht erstellt werden: ${error.message}`);
+      } else {
+        toast.success(`Gemeinde "${wanted}" angelegt — bitte Reglemente hochladen.`);
+        qc.invalidateQueries({ queryKey: ["munis", selectedCanton] });
+        qc.invalidateQueries({ queryKey: ["kb-stats"] });
+        setSelectedMuni((data as Municipality).id);
+      }
+      setPrefillHandled(true);
+      navigate({ search: {}, replace: true });
+    })();
+  }, [prefillHandled, isAdmin, selectedCanton, munisQ.data, search.gemeinde, qc, navigate]);
+
   if (roleLoading) return <div className="p-6 text-muted-foreground">Lade…</div>;
 
   if (!isAdmin) {
@@ -126,6 +183,9 @@ function ReglementePage() {
         </div>
         <Badge variant="outline">Admin</Badge>
       </div>
+
+      <KnowledgeBaseDashboard />
+
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_320px_1fr]">
         {/* Cantons */}
@@ -495,4 +555,91 @@ function ExtractionStatusBadge({ status, error }: { status?: string; error?: str
     return <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700"><CheckCircle2 className="h-3 w-3" /> Analysiert</Badge>;
   return <Badge variant="destructive" className="gap-1" title={error ?? undefined}><AlertCircle className="h-3 w-3" /> Fehler</Badge>;
 }
+
+function KnowledgeBaseDashboard() {
+  const stats = useQuery({
+    queryKey: ["kb-stats"],
+    queryFn: async () => {
+      const [c, m, d, e, recent] = await Promise.all([
+        supabase.from("cantons").select("id", { count: "exact", head: true }),
+        supabase.from("municipalities").select("id", { count: "exact", head: true }),
+        supabase.from("regulation_documents").select("id", { count: "exact", head: true }).eq("active", true),
+        supabase.from("knowledge_entries").select("id", { count: "exact", head: true }),
+        supabase
+          .from("municipalities")
+          .select("id, name, created_at, canton:cantons(code, name)")
+          .order("created_at", { ascending: false })
+          .limit(6),
+      ]);
+      return {
+        cantons: c.count ?? 0,
+        municipalities: m.count ?? 0,
+        documents: d.count ?? 0,
+        entries: e.count ?? 0,
+        recent: (recent.data ?? []) as Array<{
+          id: string; name: string; created_at: string;
+          canton: { code: string; name: string } | null;
+        }>,
+      };
+    },
+    staleTime: 30_000,
+  });
+
+  const tiles: Array<{ label: string; value: number; icon: typeof Building2 }> = [
+    { label: "Kantone", value: stats.data?.cantons ?? 0, icon: Layers },
+    { label: "Gemeinden", value: stats.data?.municipalities ?? 0, icon: MapPin },
+    { label: "Dokumente", value: stats.data?.documents ?? 0, icon: FileText },
+    { label: "Wissenseinträge", value: stats.data?.entries ?? 0, icon: BookOpen },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {tiles.map((t) => (
+          <Card key={t.label}>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="grid h-10 w-10 place-items-center rounded-md bg-secondary/10 text-secondary">
+                <t.icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{t.label}</p>
+                <p className="font-display text-2xl font-bold leading-tight">
+                  {stats.isLoading ? "—" : t.value.toLocaleString("de-CH")}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Zuletzt hinzugefügt</CardTitle>
+          <CardDescription>Neueste Gemeinden in der Wissensdatenbank.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-1.5">
+          {stats.isLoading && <p className="text-sm text-muted-foreground">Lade…</p>}
+          {!stats.isLoading && stats.data?.recent.length === 0 && (
+            <p className="text-sm text-muted-foreground">Noch keine Gemeinden erfasst.</p>
+          )}
+          {stats.data?.recent.map((m) => (
+            <div key={m.id} className="flex items-center justify-between text-sm">
+              <div className="min-w-0 truncate">
+                <span className="font-medium">{m.name}</span>
+                {m.canton && (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {m.canton.code}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {new Date(m.created_at).toLocaleDateString("de-CH")}
+              </span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 
