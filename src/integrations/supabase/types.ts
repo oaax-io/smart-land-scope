@@ -20,19 +20,25 @@ export type Database = {
           ai_summary: string | null
           analyzed_at: string | null
           area_size: number | null
+          building_coverage_ratio: number | null
           canton: string | null
           created_at: string
           created_by: string | null
+          design_plan_required: boolean | null
           development_potential: Json | null
           document_name: string | null
           document_path: string | null
+          error_message: string | null
+          extracted_data: Json | null
           feasibility: string | null
           floor_area: number | null
+          heritage_protected: boolean | null
           id: string
           living_area: number | null
           max_floors: number | null
           max_height: number | null
           municipality: string | null
+          noise_zone: string | null
           organization_id: string
           parcel_number: string | null
           postal_code: string | null
@@ -40,11 +46,14 @@ export type Database = {
           project_id: string | null
           restrictions: Json | null
           risks: Json | null
+          setbacks: Json | null
+          special_provisions: string | null
           status: Database["public"]["Enums"]["analysis_status"]
           unit_count: number | null
           updated_at: string
           usage_type: Json | null
           utilization_ratio: number | null
+          water_setbacks: string | null
           zone: string | null
         }
         Insert: {
@@ -52,19 +61,25 @@ export type Database = {
           ai_summary?: string | null
           analyzed_at?: string | null
           area_size?: number | null
+          building_coverage_ratio?: number | null
           canton?: string | null
           created_at?: string
           created_by?: string | null
+          design_plan_required?: boolean | null
           development_potential?: Json | null
           document_name?: string | null
           document_path?: string | null
+          error_message?: string | null
+          extracted_data?: Json | null
           feasibility?: string | null
           floor_area?: number | null
+          heritage_protected?: boolean | null
           id?: string
           living_area?: number | null
           max_floors?: number | null
           max_height?: number | null
           municipality?: string | null
+          noise_zone?: string | null
           organization_id: string
           parcel_number?: string | null
           postal_code?: string | null
@@ -74,11 +89,14 @@ export type Database = {
           project_id?: string | null
           restrictions?: Json | null
           risks?: Json | null
+          setbacks?: Json | null
+          special_provisions?: string | null
           status?: Database["public"]["Enums"]["analysis_status"]
           unit_count?: number | null
           updated_at?: string
           usage_type?: Json | null
           utilization_ratio?: number | null
+          water_setbacks?: string | null
           zone?: string | null
         }
         Update: {
@@ -86,19 +104,25 @@ export type Database = {
           ai_summary?: string | null
           analyzed_at?: string | null
           area_size?: number | null
+          building_coverage_ratio?: number | null
           canton?: string | null
           created_at?: string
           created_by?: string | null
+          design_plan_required?: boolean | null
           development_potential?: Json | null
           document_name?: string | null
           document_path?: string | null
+          error_message?: string | null
+          extracted_data?: Json | null
           feasibility?: string | null
           floor_area?: number | null
+          heritage_protected?: boolean | null
           id?: string
           living_area?: number | null
           max_floors?: number | null
           max_height?: number | null
           municipality?: string | null
+          noise_zone?: string | null
           organization_id?: string
           parcel_number?: string | null
           postal_code?: string | null
@@ -108,11 +132,14 @@ export type Database = {
           project_id?: string | null
           restrictions?: Json | null
           risks?: Json | null
+          setbacks?: Json | null
+          special_provisions?: string | null
           status?: Database["public"]["Enums"]["analysis_status"]
           unit_count?: number | null
           updated_at?: string
           usage_type?: Json | null
           utilization_ratio?: number | null
+          water_setbacks?: string | null
           zone?: string | null
         }
         Relationships: [
@@ -128,6 +155,60 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analysis_documents: {
+        Row: {
+          analysis_id: string
+          created_at: string
+          file_name: string
+          id: string
+          kind: Database["public"]["Enums"]["analysis_document_kind"]
+          mime_type: string | null
+          organization_id: string
+          size_bytes: number | null
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          analysis_id: string
+          created_at?: string
+          file_name: string
+          id?: string
+          kind?: Database["public"]["Enums"]["analysis_document_kind"]
+          mime_type?: string | null
+          organization_id: string
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          analysis_id?: string
+          created_at?: string
+          file_name?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["analysis_document_kind"]
+          mime_type?: string | null
+          organization_id?: string
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_documents_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -363,7 +444,13 @@ export type Database = {
       }
     }
     Enums: {
-      analysis_status: "pending" | "processing" | "completed" | "failed"
+      analysis_document_kind: "bzr" | "bzo" | "zonenplan" | "other"
+      analysis_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "failed"
+        | "draft"
       app_role: "admin" | "owner" | "member"
       potential_level: "low" | "medium" | "high" | "very_high"
       project_status: "draft" | "active" | "completed" | "archived"
@@ -501,7 +588,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      analysis_status: ["pending", "processing", "completed", "failed"],
+      analysis_document_kind: ["bzr", "bzo", "zonenplan", "other"],
+      analysis_status: [
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+        "draft",
+      ],
       app_role: ["admin", "owner", "member"],
       potential_level: ["low", "medium", "high", "very_high"],
       project_status: ["draft", "active", "completed", "archived"],
