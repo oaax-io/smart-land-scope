@@ -556,3 +556,90 @@ function ExtractionStatusBadge({ status, error }: { status?: string; error?: str
   return <Badge variant="destructive" className="gap-1" title={error ?? undefined}><AlertCircle className="h-3 w-3" /> Fehler</Badge>;
 }
 
+function KnowledgeBaseDashboard() {
+  const stats = useQuery({
+    queryKey: ["kb-stats"],
+    queryFn: async () => {
+      const [c, m, d, e, recent] = await Promise.all([
+        supabase.from("cantons").select("id", { count: "exact", head: true }),
+        supabase.from("municipalities").select("id", { count: "exact", head: true }),
+        supabase.from("regulation_documents").select("id", { count: "exact", head: true }).eq("active", true),
+        supabase.from("knowledge_entries").select("id", { count: "exact", head: true }),
+        supabase
+          .from("municipalities")
+          .select("id, name, created_at, canton:cantons(code, name)")
+          .order("created_at", { ascending: false })
+          .limit(6),
+      ]);
+      return {
+        cantons: c.count ?? 0,
+        municipalities: m.count ?? 0,
+        documents: d.count ?? 0,
+        entries: e.count ?? 0,
+        recent: (recent.data ?? []) as Array<{
+          id: string; name: string; created_at: string;
+          canton: { code: string; name: string } | null;
+        }>,
+      };
+    },
+    staleTime: 30_000,
+  });
+
+  const tiles: Array<{ label: string; value: number; icon: typeof Building2 }> = [
+    { label: "Kantone", value: stats.data?.cantons ?? 0, icon: Layers },
+    { label: "Gemeinden", value: stats.data?.municipalities ?? 0, icon: MapPin },
+    { label: "Dokumente", value: stats.data?.documents ?? 0, icon: FileText },
+    { label: "Wissenseinträge", value: stats.data?.entries ?? 0, icon: BookOpen },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {tiles.map((t) => (
+          <Card key={t.label}>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="grid h-10 w-10 place-items-center rounded-md bg-secondary/10 text-secondary">
+                <t.icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{t.label}</p>
+                <p className="font-display text-2xl font-bold leading-tight">
+                  {stats.isLoading ? "—" : t.value.toLocaleString("de-CH")}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Zuletzt hinzugefügt</CardTitle>
+          <CardDescription>Neueste Gemeinden in der Wissensdatenbank.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-1.5">
+          {stats.isLoading && <p className="text-sm text-muted-foreground">Lade…</p>}
+          {!stats.isLoading && stats.data?.recent.length === 0 && (
+            <p className="text-sm text-muted-foreground">Noch keine Gemeinden erfasst.</p>
+          )}
+          {stats.data?.recent.map((m) => (
+            <div key={m.id} className="flex items-center justify-between text-sm">
+              <div className="min-w-0 truncate">
+                <span className="font-medium">{m.name}</span>
+                {m.canton && (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {m.canton.code}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {new Date(m.created_at).toLocaleDateString("de-CH")}
+              </span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+
