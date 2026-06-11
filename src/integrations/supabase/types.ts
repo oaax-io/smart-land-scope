@@ -18,21 +18,30 @@ export type Database = {
         Row: {
           address: string | null
           ai_summary: string | null
+          analyzed_at: string | null
           area_size: number | null
           canton: string | null
           created_at: string
           created_by: string | null
           development_potential: Json | null
+          document_name: string | null
+          document_path: string | null
+          feasibility: string | null
+          floor_area: number | null
           id: string
+          living_area: number | null
           max_floors: number | null
           max_height: number | null
           municipality: string | null
           organization_id: string
           parcel_number: string | null
           postal_code: string | null
+          potential_level: Database["public"]["Enums"]["potential_level"] | null
           project_id: string | null
           restrictions: Json | null
+          risks: Json | null
           status: Database["public"]["Enums"]["analysis_status"]
+          unit_count: number | null
           updated_at: string
           usage_type: Json | null
           utilization_ratio: number | null
@@ -41,21 +50,32 @@ export type Database = {
         Insert: {
           address?: string | null
           ai_summary?: string | null
+          analyzed_at?: string | null
           area_size?: number | null
           canton?: string | null
           created_at?: string
           created_by?: string | null
           development_potential?: Json | null
+          document_name?: string | null
+          document_path?: string | null
+          feasibility?: string | null
+          floor_area?: number | null
           id?: string
+          living_area?: number | null
           max_floors?: number | null
           max_height?: number | null
           municipality?: string | null
           organization_id: string
           parcel_number?: string | null
           postal_code?: string | null
+          potential_level?:
+            | Database["public"]["Enums"]["potential_level"]
+            | null
           project_id?: string | null
           restrictions?: Json | null
+          risks?: Json | null
           status?: Database["public"]["Enums"]["analysis_status"]
+          unit_count?: number | null
           updated_at?: string
           usage_type?: Json | null
           utilization_ratio?: number | null
@@ -64,21 +84,32 @@ export type Database = {
         Update: {
           address?: string | null
           ai_summary?: string | null
+          analyzed_at?: string | null
           area_size?: number | null
           canton?: string | null
           created_at?: string
           created_by?: string | null
           development_potential?: Json | null
+          document_name?: string | null
+          document_path?: string | null
+          feasibility?: string | null
+          floor_area?: number | null
           id?: string
+          living_area?: number | null
           max_floors?: number | null
           max_height?: number | null
           municipality?: string | null
           organization_id?: string
           parcel_number?: string | null
           postal_code?: string | null
+          potential_level?:
+            | Database["public"]["Enums"]["potential_level"]
+            | null
           project_id?: string | null
           restrictions?: Json | null
+          risks?: Json | null
           status?: Database["public"]["Enums"]["analysis_status"]
+          unit_count?: number | null
           updated_at?: string
           usage_type?: Json | null
           utilization_ratio?: number | null
@@ -334,6 +365,7 @@ export type Database = {
     Enums: {
       analysis_status: "pending" | "processing" | "completed" | "failed"
       app_role: "admin" | "owner" | "member"
+      potential_level: "low" | "medium" | "high" | "very_high"
       project_status: "draft" | "active" | "completed" | "archived"
       subscription_plan: "trial" | "starter" | "pro" | "enterprise"
       subscription_status:
@@ -471,6 +503,7 @@ export const Constants = {
     Enums: {
       analysis_status: ["pending", "processing", "completed", "failed"],
       app_role: ["admin", "owner", "member"],
+      potential_level: ["low", "medium", "high", "very_high"],
       project_status: ["draft", "active", "completed", "archived"],
       subscription_plan: ["trial", "starter", "pro", "enterprise"],
       subscription_status: [

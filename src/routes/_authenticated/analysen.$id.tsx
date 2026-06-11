@@ -1,37 +1,36 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
+  AlertTriangle,
   ArrowLeft,
   Building2,
+  CheckCircle2,
   Download,
-  FileBarChart,
   FileText,
-  Info,
-  Layers,
-  MapPinned,
-  ScrollText,
+  Home,
+  Loader2,
+  RefreshCcw,
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { runAnalysis } from "@/lib/analyze.functions";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
   head: ({ params }) => ({ meta: [{ title: `Analyse ${params.id.slice(0, 8)} — SmarTerra` }] }),
   component: AnalysisDetailPage,
   errorComponent: ({ error }) => (
-    <div className="mx-auto max-w-2xl p-6">
-      <p className="text-sm text-destructive">Fehler: {error.message}</p>
-    </div>
+    <div className="mx-auto max-w-2xl p-6"><p className="text-sm text-destructive">Fehler: {error.message}</p></div>
   ),
   notFoundComponent: () => (
-    <div className="mx-auto max-w-2xl p-6">
-      <p className="text-sm text-muted-foreground">Analyse nicht gefunden.</p>
-    </div>
+    <div className="mx-auto max-w-2xl p-6"><p className="text-sm text-muted-foreground">Analyse nicht gefunden.</p></div>
   ),
 });
 
@@ -42,8 +41,41 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   failed: { label: "Fehlgeschlagen", variant: "destructive" },
 };
 
+const POTENTIAL: Record<string, { label: string; tone: string }> = {
+  low: { label: "Niedrig", tone: "bg-muted text-foreground" },
+  medium: { label: "Mittel", tone: "bg-secondary/20 text-secondary-foreground" },
+  high: { label: "Hoch", tone: "bg-primary/15 text-primary" },
+  very_high: { label: "Sehr Hoch", tone: "bg-primary text-primary-foreground" },
+};
+
+const SEVERITY: Record<string, { label: string; variant: "secondary" | "default" | "destructive" }> = {
+  low: { label: "Niedrig", variant: "secondary" },
+  medium: { label: "Mittel", variant: "default" },
+  high: { label: "Hoch", variant: "destructive" },
+};
+
+const RISK_CATEGORY: Record<string, string> = {
+  baurecht: "Baurecht",
+  sondervorschrift: "Sondervorschriften",
+  denkmalschutz: "Denkmalschutz",
+  abstand: "Abstände",
+  laerm: "Lärm",
+  gewaesser: "Gewässer",
+  wald: "Wald",
+  sonstiges: "Sonstiges",
+};
+
+type Risk = {
+  category: keyof typeof RISK_CATEGORY;
+  title: string;
+  description: string;
+  severity: keyof typeof SEVERITY;
+};
+
 function AnalysisDetailPage() {
   const { id } = Route.useParams();
+  const queryClient = useQueryClient();
+  const analyzeFn = useServerFn(runAnalysis);
 
   const { data: analysis, isLoading } = useQuery({
     queryKey: ["analysis", id],
@@ -53,6 +85,16 @@ function AnalysisDetailPage() {
       if (!data) throw notFound();
       return data;
     },
+    refetchInterval: (q) => (q.state.data?.status === "processing" ? 4000 : false),
+  });
+
+  const reanalyze = useMutation({
+    mutationFn: () => analyzeFn({ data: { analysisId: id } }),
+    onSuccess: () => {
+      toast.success("Analyse aktualisiert");
+      queryClient.invalidateQueries({ queryKey: ["analysis", id] });
+    },
+    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
   });
 
   if (isLoading) {
@@ -61,22 +103,19 @@ function AnalysisDetailPage() {
   if (!analysis) return null;
 
   const status = STATUS[analysis.status as string] ?? { label: analysis.status as string, variant: "secondary" as const };
-  const locationLine = [
-    analysis.postal_code,
-    analysis.municipality,
-    analysis.canton ? `(${analysis.canton})` : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const isProcessing = analysis.status === "processing";
+  const potential = analysis.potential_level ? POTENTIAL[analysis.potential_level] : null;
+  const risks: Risk[] = Array.isArray(analysis.risks) ? (analysis.risks as unknown as Risk[]) : [];
+  const regulations: string[] = Array.isArray(analysis.restrictions) ? (analysis.restrictions as string[]) : [];
+  const usageTypes: string[] = Array.isArray(analysis.usage_type) ? (analysis.usage_type as string[]) : [];
+  const locationLine = [analysis.postal_code, analysis.municipality, analysis.canton ? `(${analysis.canton})` : null]
+    .filter(Boolean).join(" ");
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link to="/analysen">
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Alle Analysen
-          </Link>
+          <Link to="/analysen"><ArrowLeft className="mr-1 h-4 w-4" />Alle Analysen</Link>
         </Button>
 
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -85,189 +124,178 @@ function AnalysisDetailPage() {
               <h1 className="truncate font-display text-3xl font-bold tracking-tight">
                 {analysis.address ?? "Ohne Adresse"}
               </h1>
-              <Badge variant={status.variant}>{status.label}</Badge>
+              <Badge variant={status.variant}>
+                {isProcessing && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                {status.label}
+              </Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {locationLine || "—"}
               {analysis.parcel_number && ` · Parzelle ${analysis.parcel_number}`}
+              {analysis.area_size && ` · ${analysis.area_size} m²`}
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => reanalyze.mutate()} disabled={reanalyze.isPending || isProcessing}>
+              {reanalyze.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+              Neu analysieren
+            </Button>
             <Button variant="outline" size="sm" disabled>
-              <Download className="mr-2 h-4 w-4" />
-              Bericht exportieren
+              <Download className="mr-2 h-4 w-4" />Bericht exportieren
             </Button>
           </div>
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:grid-cols-6">
-          <TabsTrigger value="overview"><Info className="mr-2 h-4 w-4" />Übersicht</TabsTrigger>
-          <TabsTrigger value="parcel"><MapPinned className="mr-2 h-4 w-4" />Grundstück</TabsTrigger>
-          <TabsTrigger value="zone"><Layers className="mr-2 h-4 w-4" />Zone</TabsTrigger>
-          <TabsTrigger value="rules"><ScrollText className="mr-2 h-4 w-4" />Reglemente</TabsTrigger>
-          <TabsTrigger value="potential"><TrendingUp className="mr-2 h-4 w-4" />Potenzial</TabsTrigger>
-          <TabsTrigger value="report"><FileBarChart className="mr-2 h-4 w-4" />Bericht</TabsTrigger>
+      {isProcessing && (
+        <Card className="border-secondary/40 bg-secondary/5">
+          <CardContent className="flex items-center gap-3 py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-secondary" />
+            <div>
+              <p className="text-sm font-medium">KI-Auswertung läuft …</p>
+              <p className="text-xs text-muted-foreground">Resultate erscheinen automatisch, sobald die Analyse abgeschlossen ist.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs defaultValue="feasibility" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-5">
+          <TabsTrigger value="feasibility"><CheckCircle2 className="mr-2 h-4 w-4" />Machbarkeit</TabsTrigger>
+          <TabsTrigger value="units"><Home className="mr-2 h-4 w-4" />Wohnungspotenzial</TabsTrigger>
+          <TabsTrigger value="potential"><TrendingUp className="mr-2 h-4 w-4" />Entwicklung</TabsTrigger>
+          <TabsTrigger value="risks"><AlertTriangle className="mr-2 h-4 w-4" />Risiken</TabsTrigger>
+          <TabsTrigger value="report"><FileText className="mr-2 h-4 w-4" />Bericht</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <KpiCard icon={Layers} label="Ausnützungsziffer" value="0.65" hint="Dummy-Daten" />
-            <KpiCard icon={Building2} label="Max. Geschosse" value="3" hint="Dummy-Daten" />
-            <KpiCard icon={TrendingUp} label="Entwicklungspotenzial" value="Hoch" hint="Dummy-Daten" />
+        {/* Machbarkeit */}
+        <TabsContent value="feasibility" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-4">
+            <KpiCard icon={Building2} label="Zone" value={analysis.zone ?? "—"} />
+            <KpiCard label="Ausnützungsziffer" value={analysis.utilization_ratio?.toString() ?? "—"} />
+            <KpiCard label="Max. Geschosse" value={analysis.max_floors?.toString() ?? "—"} />
+            <KpiCard label="Max. Höhe" value={analysis.max_height ? `${analysis.max_height} m` : "—"} />
           </div>
 
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-display text-lg">
-                <Sparkles className="h-4 w-4 text-secondary" />
-                KI-Zusammenfassung
+                <Sparkles className="h-4 w-4 text-secondary" />Was darf gebaut werden?
               </CardTitle>
-              <CardDescription>Generiert auf Basis der erfassten Grundstücksdaten.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Das Grundstück liegt in einer attraktiven Wohnzone mit Ausnützungsziffer 0.65 und
-                erlaubt bis zu 3 Vollgeschosse. Die maximale Gebäudehöhe beträgt 11.5 m. Es bestehen
-                keine wesentlichen Einschränkungen durch Gewässer-, Wald- oder Lärmschutzauflagen.
-                Das Entwicklungspotenzial wird als <span className="font-medium text-foreground">hoch</span> eingeschätzt;
-                eine Aufstockung oder Verdichtung wäre wirtschaftlich sinnvoll.
-              </p>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Hinweis: Diese Auswertung basiert auf Beispieldaten. Die Anbindung an Zonenpläne,
-                Reglemente und Geoinformationssysteme erfolgt in einem späteren Schritt.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="parcel">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display text-lg">Grundstücksdaten</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-                <Row label="Adresse" value={analysis.address} />
-                <Row label="PLZ / Ort" value={[analysis.postal_code, analysis.municipality].filter(Boolean).join(" ")} />
-                <Row label="Kanton" value={analysis.canton} />
-                <Row label="Parzellennummer" value={analysis.parcel_number} />
-                <Row label="Grundstücksfläche" value={analysis.area_size ? `${analysis.area_size} m²` : null} />
-                <Row label="EGRID" value="CH123456789012 (Dummy)" />
-                <Row label="Koordinaten" value="2 683 145 / 1 247 320 (Dummy)" />
-                <Row label="Eigentümerschaft" value="Privatperson (Dummy)" />
-              </dl>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="zone">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display text-lg">Zonenzuordnung</CardTitle>
-              <CardDescription>Gemäss kommunalem Zonenplan (Dummy).</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-                <Row label="Zone" value="Wohnzone W3" />
-                <Row label="Ausnützungsziffer" value="0.65" />
-                <Row label="Max. Geschosszahl" value="3 Vollgeschosse" />
-                <Row label="Max. Gebäudehöhe" value="11.5 m" />
-                <Row label="Mindestgrenzabstand" value="4.0 m" />
-                <Row label="Empfindlichkeitsstufe Lärm" value="ES II" />
-              </dl>
-              <Separator className="my-5" />
-              <div className="rounded-lg border bg-muted/30 p-4 text-sm">
-                <p className="font-medium">Erlaubte Nutzungen</p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-                  <li>Wohnen (Haupt­nutzung)</li>
-                  <li>Mässig störende Gewerbenutzungen im Erdgeschoss</li>
-                  <li>Freie Berufe, Praxen, Ateliers</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="rules">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display text-lg">Reglemente &amp; Einschränkungen</CardTitle>
+              <CardDescription>KI-Auswertung basierend auf den erfassten Daten und ggf. dem BZR/BZO-Dokument.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <RuleItem
-                title="Bau- und Zonenordnung (BZO)"
-                description="Letzte Revision: 2021. Definiert Ausnützung, Höhe und Abstände."
-              />
-              <RuleItem
-                title="Gewässerabstand"
-                description="Kein Gewässer in 30 m Umkreis — keine Auflagen."
-              />
-              <RuleItem
-                title="Waldabstand"
-                description="Kein Waldrand in 30 m Umkreis — keine Auflagen."
-              />
-              <RuleItem
-                title="Ortsbildschutz (ISOS)"
-                description="Nicht im ISOS-Perimeter — keine Schutzanforderungen."
-              />
-              <RuleItem
-                title="Denkmalpflege"
-                description="Objekt ist nicht inventarisiert."
-              />
+              {analysis.feasibility ? (
+                <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{analysis.feasibility}</p>
+              ) : (
+                <Placeholder text="Noch keine Auswertung verfügbar." />
+              )}
+
+              {usageTypes.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium">Zulässige Nutzungen</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {usageTypes.map((u) => <Badge key={u} variant="secondary">{u}</Badge>)}
+                  </div>
+                </div>
+              )}
+
+              {regulations.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-sm font-medium">Relevante Vorschriften</p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                      {regulations.map((r, i) => <li key={i}>{r}</li>)}
+                    </ul>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="potential">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-display text-lg">Maximale Ausnützung</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <Row label="Grundstücksfläche" value={analysis.area_size ? `${analysis.area_size} m²` : "850 m² (Dummy)"} />
-                <Row label="Anrechenbare Fläche" value="850 m²" />
-                <Row label="Max. Bruttogeschossfläche" value="552 m²" />
-                <Row label="Theoretische Wohneinheiten" value="5 – 6" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-display text-lg">Wirtschaftliches Potenzial</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <Row label="Geschätzter Landwert" value="CHF 1.7 Mio." />
-                <Row label="Realisierungspotenzial" value="CHF 3.4 – 4.2 Mio." />
-                <Row label="Empfehlung" value="Verdichtung / Ersatzneubau" />
-                <Row label="Risikobewertung" value="Niedrig" />
-              </CardContent>
-            </Card>
+        {/* Wohnungspotenzial */}
+        <TabsContent value="units" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <KpiCard icon={Building2} label="Geschossfläche" value={analysis.floor_area ? `${Math.round(Number(analysis.floor_area))} m²` : "—"} />
+            <KpiCard icon={Home} label="Wohnfläche (potenziell)" value={analysis.living_area ? `${Math.round(Number(analysis.living_area))} m²` : "—"} />
+            <KpiCard icon={Home} label="Anzahl Wohnungen" value={analysis.unit_count?.toString() ?? "—"} />
           </div>
+          <Card>
+            <CardHeader><CardTitle className="font-display text-lg">Wie viele Wohnungen könnten entstehen?</CardTitle></CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Geschätzt auf Basis Grundstücksfläche × Ausnützungsziffer und durchschnittlicher Wohnungs­grösse. Werte ohne Gewähr.
+            </CardContent>
+          </Card>
         </TabsContent>
 
+        {/* Entwicklungspotenzial */}
+        <TabsContent value="potential" className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="font-display text-lg">Entwicklungspotenzial</CardTitle></CardHeader>
+            <CardContent>
+              {potential ? (
+                <div className={`inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium ${potential.tone}`}>
+                  <TrendingUp className="mr-2 h-4 w-4" />{potential.label}
+                </div>
+              ) : <Placeholder text="Wird nach Abschluss der Analyse angezeigt." />}
+              {analysis.ai_summary && (
+                <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{analysis.ai_summary}</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Risiken */}
+        <TabsContent value="risks">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display text-lg">Risiken &amp; Einschränkungen</CardTitle>
+              <CardDescription>Baurechtliche Einschränkungen, Sondervorschriften, Denkmalschutz, Abstände, Lärm, Gewässer.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {risks.length === 0 ? (
+                <Placeholder text="Noch keine Risiken erfasst." />
+              ) : risks.map((r, i) => {
+                const sev = SEVERITY[r.severity] ?? SEVERITY.low;
+                return (
+                  <div key={i} className="flex items-start gap-3 rounded-lg border p-3">
+                    <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md bg-destructive/10 text-destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium">{r.title}</p>
+                        <Badge variant="outline">{RISK_CATEGORY[r.category] ?? r.category}</Badge>
+                        <Badge variant={sev.variant}>{sev.label}</Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{r.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Bericht */}
         <TabsContent value="report">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-display text-lg">
-                <FileText className="h-4 w-4 text-secondary" />
-                Bericht
+                <FileText className="h-4 w-4 text-secondary" />Bericht
               </CardTitle>
               <CardDescription>Ein PDF-Bericht kann generiert werden, sobald die Analyse abgeschlossen ist.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
-                <FileBarChart className="h-8 w-8 text-muted-foreground" />
+                <FileText className="h-8 w-8 text-muted-foreground" />
                 <p className="mt-3 font-medium">Noch kein Bericht erstellt</p>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  Sobald die KI-Auswertung abgeschlossen ist, können Sie hier einen druckfertigen PDF-Bericht erstellen.
+                  PDF-Export folgt in einer der nächsten Iterationen.
                 </p>
-                <Button className="mt-4" disabled>
-                  <Download className="mr-2 h-4 w-4" />
-                  Bericht erstellen
-                </Button>
+                <Button className="mt-4" disabled><Download className="mr-2 h-4 w-4" />Bericht erstellen</Button>
               </div>
             </CardContent>
           </Card>
@@ -278,49 +306,19 @@ function AnalysisDetailPage() {
 }
 
 function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  hint?: string;
-}) {
+  icon: Icon, label, value,
+}: { icon?: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
       </CardHeader>
-      <CardContent>
-        <div className="font-display text-2xl font-bold">{value}</div>
-        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-      </CardContent>
+      <CardContent><div className="font-display text-2xl font-bold">{value}</div></CardContent>
     </Card>
   );
 }
 
-function Row({ label, value }: { label: string; value: string | number | null | undefined }) {
-  return (
-    <div className="flex justify-between gap-4 border-b border-border/50 pb-2 last:border-0">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium">{value ?? "—"}</dd>
-    </div>
-  );
-}
-
-function RuleItem({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg border p-3">
-      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md bg-secondary/15 text-secondary">
-        <ScrollText className="h-4 w-4" />
-      </div>
-      <div>
-        <p className="text-sm font-medium">{title}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-      </div>
-    </div>
-  );
+function Placeholder({ text }: { text: string }) {
+  return <p className="rounded-md border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">{text}</p>;
 }
