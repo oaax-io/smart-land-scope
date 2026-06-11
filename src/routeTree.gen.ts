@@ -18,7 +18,9 @@ import { Route as AuthenticatedProjekteRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedEinstellungenRouteImport } from './routes/_authenticated/einstellungen'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBerichteRouteImport } from './routes/_authenticated/berichte'
-import { Route as AuthenticatedAnalysenRouteImport } from './routes/_authenticated/analysen'
+import { Route as AuthenticatedAnalysenIndexRouteImport } from './routes/_authenticated/analysen.index'
+import { Route as AuthenticatedAnalysenNeuRouteImport } from './routes/_authenticated/analysen.neu'
+import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -65,9 +67,21 @@ const AuthenticatedBerichteRoute = AuthenticatedBerichteRouteImport.update({
   path: '/berichte',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAnalysenRoute = AuthenticatedAnalysenRouteImport.update({
-  id: '/analysen',
-  path: '/analysen',
+const AuthenticatedAnalysenIndexRoute =
+  AuthenticatedAnalysenIndexRouteImport.update({
+    id: '/analysen/',
+    path: '/analysen/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAnalysenNeuRoute =
+  AuthenticatedAnalysenNeuRouteImport.update({
+    id: '/analysen/neu',
+    path: '/analysen/neu',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAnalysenIdRoute = AuthenticatedAnalysenIdRouteImport.update({
+  id: '/analysen/$id',
+  path: '/analysen/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
@@ -75,23 +89,27 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/analysen': typeof AuthenticatedAnalysenRoute
   '/berichte': typeof AuthenticatedBerichteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
   '/team': typeof AuthenticatedTeamRoute
+  '/analysen/$id': typeof AuthenticatedAnalysenIdRoute
+  '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
+  '/analysen/': typeof AuthenticatedAnalysenIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/analysen': typeof AuthenticatedAnalysenRoute
   '/berichte': typeof AuthenticatedBerichteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
   '/team': typeof AuthenticatedTeamRoute
+  '/analysen/$id': typeof AuthenticatedAnalysenIdRoute
+  '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
+  '/analysen': typeof AuthenticatedAnalysenIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -99,12 +117,14 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/_authenticated/analysen': typeof AuthenticatedAnalysenRoute
   '/_authenticated/berichte': typeof AuthenticatedBerichteRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/_authenticated/projekte': typeof AuthenticatedProjekteRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
+  '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRoute
+  '/_authenticated/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
+  '/_authenticated/analysen/': typeof AuthenticatedAnalysenIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -112,35 +132,41 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
-    | '/analysen'
     | '/berichte'
     | '/dashboard'
     | '/einstellungen'
     | '/projekte'
     | '/team'
+    | '/analysen/$id'
+    | '/analysen/neu'
+    | '/analysen/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/reset-password'
-    | '/analysen'
     | '/berichte'
     | '/dashboard'
     | '/einstellungen'
     | '/projekte'
     | '/team'
+    | '/analysen/$id'
+    | '/analysen/neu'
+    | '/analysen'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
-    | '/_authenticated/analysen'
     | '/_authenticated/berichte'
     | '/_authenticated/dashboard'
     | '/_authenticated/einstellungen'
     | '/_authenticated/projekte'
     | '/_authenticated/team'
+    | '/_authenticated/analysen/$id'
+    | '/_authenticated/analysen/neu'
+    | '/_authenticated/analysen/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -215,32 +241,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBerichteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/analysen': {
-      id: '/_authenticated/analysen'
+    '/_authenticated/analysen/': {
+      id: '/_authenticated/analysen/'
       path: '/analysen'
-      fullPath: '/analysen'
-      preLoaderRoute: typeof AuthenticatedAnalysenRouteImport
+      fullPath: '/analysen/'
+      preLoaderRoute: typeof AuthenticatedAnalysenIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/analysen/neu': {
+      id: '/_authenticated/analysen/neu'
+      path: '/analysen/neu'
+      fullPath: '/analysen/neu'
+      preLoaderRoute: typeof AuthenticatedAnalysenNeuRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/analysen/$id': {
+      id: '/_authenticated/analysen/$id'
+      path: '/analysen/$id'
+      fullPath: '/analysen/$id'
+      preLoaderRoute: typeof AuthenticatedAnalysenIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAnalysenRoute: typeof AuthenticatedAnalysenRoute
   AuthenticatedBerichteRoute: typeof AuthenticatedBerichteRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEinstellungenRoute: typeof AuthenticatedEinstellungenRoute
   AuthenticatedProjekteRoute: typeof AuthenticatedProjekteRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
+  AuthenticatedAnalysenIdRoute: typeof AuthenticatedAnalysenIdRoute
+  AuthenticatedAnalysenNeuRoute: typeof AuthenticatedAnalysenNeuRoute
+  AuthenticatedAnalysenIndexRoute: typeof AuthenticatedAnalysenIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAnalysenRoute: AuthenticatedAnalysenRoute,
   AuthenticatedBerichteRoute: AuthenticatedBerichteRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEinstellungenRoute: AuthenticatedEinstellungenRoute,
   AuthenticatedProjekteRoute: AuthenticatedProjekteRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
+  AuthenticatedAnalysenIdRoute: AuthenticatedAnalysenIdRoute,
+  AuthenticatedAnalysenNeuRoute: AuthenticatedAnalysenNeuRoute,
+  AuthenticatedAnalysenIndexRoute: AuthenticatedAnalysenIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -255,3 +299,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
