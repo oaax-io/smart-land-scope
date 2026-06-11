@@ -299,6 +299,7 @@ function MunicipalityDialog({ cantonId, onCreated }: { cantonId: string | null; 
 }
 
 function DocumentDialog({ municipalityId, onCreated }: { municipalityId: string | null; onCreated: () => void }) {
+  const extractFn = useServerFn(extractRegulationDocument);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [docType, setDocType] = useState<DocType>("BZR");
@@ -316,7 +317,7 @@ function DocumentDialog({ municipalityId, onCreated }: { municipalityId: string 
       const { error: upErr } = await supabase.storage.from("regulation-documents").upload(path, file);
       if (upErr) throw upErr;
       const { data: u } = await supabase.auth.getUser();
-      const { error: insErr } = await supabase.from("regulation_documents").insert({
+      const { data: inserted, error: insErr } = await supabase.from("regulation_documents").insert({
         municipality_id: municipalityId,
         doc_type: docType,
         title,
@@ -328,11 +329,16 @@ function DocumentDialog({ municipalityId, onCreated }: { municipalityId: string 
         mime_type: file.type,
         notes: notes || null,
         uploaded_by: u.user?.id ?? null,
-      });
+      }).select("id").single();
       if (insErr) throw insErr;
-      toast.success("Dokument hochgeladen");
+      toast.success("Dokument hochgeladen — KI-Analyse läuft im Hintergrund");
       setTitle(""); setVersion(""); setValidFrom(""); setNotes(""); setFile(null);
       setOpen(false); onCreated();
+
+      // Fire-and-forget AI extraction
+      extractFn({ data: { documentId: inserted.id } })
+        .then(() => { toast.success("KI-Analyse abgeschlossen"); onCreated(); })
+        .catch((e: Error) => toast.error(`KI-Analyse fehlgeschlagen: ${e.message}`));
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
