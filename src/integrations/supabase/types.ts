@@ -515,6 +515,89 @@ export type Database = {
           },
         ]
       }
+      regulation_extractions: {
+        Row: {
+          building_coverage_ratio: number | null
+          commercial_zones: Json
+          created_at: string
+          design_plan_required: boolean | null
+          document_id: string
+          error_message: string | null
+          heritage_protected: boolean | null
+          id: string
+          max_floors: number | null
+          max_height_m: number | null
+          mixed_zones: Json
+          noise_provisions: string | null
+          processed_at: string | null
+          raw_extraction: Json | null
+          residential_zones: Json
+          setbacks: Json | null
+          special_provisions: string | null
+          status: Database["public"]["Enums"]["extraction_status"]
+          updated_at: string
+          utilization_ratio: number | null
+          water_protection: string | null
+          zones: Json
+        }
+        Insert: {
+          building_coverage_ratio?: number | null
+          commercial_zones?: Json
+          created_at?: string
+          design_plan_required?: boolean | null
+          document_id: string
+          error_message?: string | null
+          heritage_protected?: boolean | null
+          id?: string
+          max_floors?: number | null
+          max_height_m?: number | null
+          mixed_zones?: Json
+          noise_provisions?: string | null
+          processed_at?: string | null
+          raw_extraction?: Json | null
+          residential_zones?: Json
+          setbacks?: Json | null
+          special_provisions?: string | null
+          status?: Database["public"]["Enums"]["extraction_status"]
+          updated_at?: string
+          utilization_ratio?: number | null
+          water_protection?: string | null
+          zones?: Json
+        }
+        Update: {
+          building_coverage_ratio?: number | null
+          commercial_zones?: Json
+          created_at?: string
+          design_plan_required?: boolean | null
+          document_id?: string
+          error_message?: string | null
+          heritage_protected?: boolean | null
+          id?: string
+          max_floors?: number | null
+          max_height_m?: number | null
+          mixed_zones?: Json
+          noise_provisions?: string | null
+          processed_at?: string | null
+          raw_extraction?: Json | null
+          residential_zones?: Json
+          setbacks?: Json | null
+          special_provisions?: string | null
+          status?: Database["public"]["Enums"]["extraction_status"]
+          updated_at?: string
+          utilization_ratio?: number | null
+          water_protection?: string | null
+          zones?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regulation_extractions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: true
+            referencedRelation: "regulation_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           analysis_id: string
@@ -652,6 +735,7 @@ export type Database = {
         | "failed"
         | "draft"
       app_role: "admin" | "owner" | "member"
+      extraction_status: "pending" | "processing" | "completed" | "failed"
       potential_level: "low" | "medium" | "high" | "very_high"
       project_status: "draft" | "active" | "completed" | "archived"
       regulation_doc_type:
@@ -804,6 +888,7 @@ export const Constants = {
         "draft",
       ],
       app_role: ["admin", "owner", "member"],
+      extraction_status: ["pending", "processing", "completed", "failed"],
       potential_level: ["low", "medium", "high", "very_high"],
       project_status: ["draft", "active", "completed", "archived"],
       regulation_doc_type: [
