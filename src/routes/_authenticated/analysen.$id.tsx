@@ -178,6 +178,9 @@ function AnalysisDetailPage() {
             <KpiCard label="Max. Höhe" value={analysis.max_height ? `${analysis.max_height} m` : "—"} />
           </div>
 
+          <AiAnswerCard answer={analysis.ai_answer as AiAnswer | null} />
+
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-display text-lg">
