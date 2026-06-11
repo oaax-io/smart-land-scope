@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Building2, MapPin, FileText, Upload, Trash2, Download, Plus, ShieldAlert } from "lucide-react";
+import { Building2, MapPin, FileText, Upload, Trash2, Download, Plus, ShieldAlert, Sparkles, Loader2, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/reglemente")({
   component: ReglementePage,
