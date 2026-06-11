@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
@@ -21,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -32,7 +34,10 @@ import { cn } from "@/lib/utils";
 import { useOrg } from "@/hooks/use-org";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { runAnalysis } from "@/lib/analyze.functions";
+import {
+  checkMunicipalityCoverage,
+  runKnowledgeAnalysis,
+} from "@/lib/analyze-knowledge.functions";
 
 export const Route = createFileRoute("/_authenticated/analysen/neu")({
   head: () => ({ meta: [{ title: "Neue Analyse — SmarTerra" }] }),
@@ -88,7 +93,8 @@ function NewAnalysisWizard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const analyzeFn = useServerFn(runAnalysis);
+  const analyzeFn = useServerFn(runKnowledgeAnalysis);
+  const coverageFn = useServerFn(checkMunicipalityCoverage);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -106,6 +112,26 @@ function NewAnalysisWizard() {
     () => formSchema.safeParse(form).success,
     [form],
   );
+
+  // Debounce municipality/canton for the coverage lookup
+  const [debounced, setDebounced] = useState({ municipality: "", canton: "" });
+  useEffect(() => {
+    const t = setTimeout(
+      () => setDebounced({ municipality: form.municipality.trim(), canton: form.canton }),
+      350,
+    );
+    return () => clearTimeout(t);
+  }, [form.municipality, form.canton]);
+
+  const coverage = useQuery({
+    queryKey: ["municipality-coverage", debounced.municipality, debounced.canton],
+    enabled: debounced.municipality.length >= 2 && debounced.canton.length === 2,
+    queryFn: () =>
+      coverageFn({
+        data: { municipality: debounced.municipality, canton: debounced.canton },
+      }),
+    staleTime: 30_000,
+  });
 
   function addFiles(files: FileList | File[] | null) {
     if (!files) return;
@@ -188,7 +214,7 @@ function NewAnalysisWizard() {
 
       // 3. Mark processing + fire-and-forget AI extraction
       await supabase.from("analyses").update({ status: "processing" }).eq("id", created.id);
-      analyzeFn({ data: { analysisId: created.id } }).catch((e) =>
+      analyzeFn({ data: { analysisId: created.id } }).catch((e: unknown) =>
         console.error("KI-Analyse fehlgeschlagen", e),
       );
 
@@ -197,7 +223,7 @@ function NewAnalysisWizard() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["analyses"] });
       toast.success("Analyse gestartet", {
-        description: "Die KI extrahiert die Daten aus Ihren Dokumenten.",
+        description: "Die KI nutzt die hinterlegte Wissensdatenbank der Gemeinde.",
       });
       navigate({ to: "/analysen/$id", params: { id: data.id } });
     },
@@ -272,6 +298,12 @@ function NewAnalysisWizard() {
               <Input id="parc" placeholder="z. B. 1234" value={form.parcel_number}
                 onChange={(e) => set("parcel_number", e.target.value)} maxLength={50} />
             </div>
+
+            <CoverageHint
+              loading={coverage.isFetching}
+              data={coverage.data}
+              enabled={debounced.municipality.length >= 2 && debounced.canton.length === 2}
+            />
 
             <div className="flex justify-end pt-2">
               <Button onClick={() => setStep(2)} disabled={!stepOneValid}>
@@ -443,5 +475,64 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-0.5 font-medium">{value || "—"}</p>
     </div>
+  );
+}
+
+type CoverageData = Awaited<ReturnType<typeof checkMunicipalityCoverage>>;
+
+function CoverageHint({
+  loading,
+  data,
+  enabled,
+}: {
+  loading: boolean;
+  data: CoverageData | undefined;
+  enabled: boolean;
+}) {
+  if (!enabled) return null;
+  if (loading) {
+    return (
+      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" /> Wissensdatenbank wird geprüft …
+      </p>
+    );
+  }
+  if (!data) return null;
+
+  if (!data.exists) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Gemeinde nicht hinterlegt</AlertTitle>
+        <AlertDescription>
+          Für diese Gemeinde sind noch keine Reglemente hinterlegt. Die Analyse kann erst
+          starten, sobald ein Administrator die Reglemente erfasst hat.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!data.ready) {
+    return (
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Wissensdatenbank noch leer</AlertTitle>
+        <AlertDescription>
+          {data.municipalityName} ist erfasst ({data.documentCount} Dokument(e)), aber
+          es wurden noch keine Vorschriften extrahiert.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <Alert className="border-secondary/40 bg-secondary/5">
+      <CheckCircle2 className="h-4 w-4 text-secondary" />
+      <AlertTitle>Wissensdatenbank verfügbar</AlertTitle>
+      <AlertDescription>
+        {data.municipalityName} ({data.cantonCode}) — {data.entryCount} Einträge,{" "}
+        {data.ruleCount} Regeln aus {data.documentCount} Reglement(en).
+      </AlertDescription>
+    </Alert>
   );
 }
