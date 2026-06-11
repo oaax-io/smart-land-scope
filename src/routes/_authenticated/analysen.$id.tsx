@@ -326,3 +326,65 @@ function KpiCard({
 function Placeholder({ text }: { text: string }) {
   return <p className="rounded-md border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">{text}</p>;
 }
+
+type AiAnswer = {
+  allowed_use: string;
+  zone: string;
+  max_floors: string;
+  max_height: string;
+  restrictions: string[];
+  development_potential: "low" | "medium" | "high" | "very_high";
+  reasoning: string;
+};
+
+function AiAnswerCard({ answer }: { answer: AiAnswer | null }) {
+  if (!answer) return null;
+  const potential = POTENTIAL[answer.development_potential] ?? { label: answer.development_potential, tone: "bg-muted text-foreground" };
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-display text-lg">
+          <Sparkles className="h-4 w-4 text-secondary" />
+          KI-Antwort
+        </CardTitle>
+        <CardDescription>Strukturierte Antwort des AI Analysis Service.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <KpiCard label="Zone" value={answer.zone || "—"} />
+          <KpiCard label="Max. Geschosse" value={answer.max_floors || "—"} />
+          <KpiCard label="Max. Höhe" value={answer.max_height || "—"} />
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Entwicklungspotenzial</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Badge className={potential.tone}>{potential.label}</Badge>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium">Was darf gebaut werden?</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{answer.allowed_use}</p>
+        </div>
+
+        {answer.restrictions.length > 0 && (
+          <div>
+            <p className="text-sm font-medium">Einschränkungen</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              {answer.restrictions.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          </div>
+        )}
+
+        <Separator />
+        <div>
+          <p className="text-sm font-medium">Begründung</p>
+          <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{answer.reasoning}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
