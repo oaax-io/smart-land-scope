@@ -172,6 +172,21 @@ function AnalysisDetailPage() {
 
         {/* Machbarkeit */}
         <TabsContent value="feasibility" className="space-y-4">
+          <DevelopmentScoreCard
+            input={{
+              zone: analysis.zone,
+              utilization_ratio: analysis.utilization_ratio as number | null,
+              max_floors: analysis.max_floors as number | null,
+              area_size: analysis.area_size as number | null,
+              usage_type: analysis.usage_type,
+              restrictions: analysis.restrictions,
+              special_provisions: analysis.special_provisions as string | null,
+              heritage_protected: analysis.heritage_protected as boolean | null,
+              design_plan_required: analysis.design_plan_required as boolean | null,
+              risks: analysis.risks,
+            }}
+          />
+
           <div className="grid gap-4 md:grid-cols-4">
             <KpiCard icon={Building2} label="Zone" value={analysis.zone ?? "—"} />
             <KpiCard label="Ausnützungsziffer" value={analysis.utilization_ratio?.toString() ?? "—"} />
@@ -180,6 +195,8 @@ function AnalysisDetailPage() {
           </div>
 
           <AiAnswerCard answer={analysis.ai_answer as AiAnswer | null} />
+
+
 
 
           <Card>
