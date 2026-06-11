@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { runAnalysis } from "@/lib/analyze.functions";
+import { DevelopmentScoreCard } from "@/components/development-score-card";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
   head: ({ params }) => ({ meta: [{ title: `Analyse ${params.id.slice(0, 8)} — SmarTerra` }] }),
