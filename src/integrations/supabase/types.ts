@@ -318,6 +318,57 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_entries: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          key: string
+          municipality_id: string
+          source_article: string | null
+          source_document: string | null
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          key: string
+          municipality_id: string
+          source_article?: string | null
+          source_document?: string | null
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          key?: string
+          municipality_id?: string
+          source_article?: string | null
+          source_document?: string | null
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_entries_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_entries_source_document_fkey"
+            columns: ["source_document"]
+            isOneToOne: false
+            referencedRelation: "regulation_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       municipalities: {
         Row: {
           bfs_number: number | null
@@ -458,6 +509,7 @@ export type Database = {
       }
       regulation_documents: {
         Row: {
+          active: boolean
           created_at: string
           doc_type: Database["public"]["Enums"]["regulation_doc_type"]
           file_name: string | null
@@ -474,6 +526,7 @@ export type Database = {
           version: string | null
         }
         Insert: {
+          active?: boolean
           created_at?: string
           doc_type: Database["public"]["Enums"]["regulation_doc_type"]
           file_name?: string | null
@@ -490,6 +543,7 @@ export type Database = {
           version?: string | null
         }
         Update: {
+          active?: boolean
           created_at?: string
           doc_type?: Database["public"]["Enums"]["regulation_doc_type"]
           file_name?: string | null
@@ -593,6 +647,60 @@ export type Database = {
             foreignKeyName: "regulation_extractions_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: true
+            referencedRelation: "regulation_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      regulation_rules: {
+        Row: {
+          article_reference: string | null
+          created_at: string
+          description: string | null
+          id: string
+          municipality_id: string
+          rule_type: string
+          source_document: string | null
+          title: string
+          updated_at: string
+          zone: string | null
+        }
+        Insert: {
+          article_reference?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          municipality_id: string
+          rule_type: string
+          source_document?: string | null
+          title: string
+          updated_at?: string
+          zone?: string | null
+        }
+        Update: {
+          article_reference?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          municipality_id?: string
+          rule_type?: string
+          source_document?: string | null
+          title?: string
+          updated_at?: string
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regulation_rules_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regulation_rules_source_document_fkey"
+            columns: ["source_document"]
+            isOneToOne: false
             referencedRelation: "regulation_documents"
             referencedColumns: ["id"]
           },
