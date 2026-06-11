@@ -34,11 +34,12 @@ export const Route = createFileRoute("/_authenticated/analysen/$id")({
   ),
 });
 
-const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
-  processing: { label: "In Bearbeitung", variant: "secondary" },
+const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "Entwurf", variant: "outline" },
+  processing: { label: "In Analyse", variant: "secondary" },
   pending: { label: "Wartend", variant: "secondary" },
-  completed: { label: "Abgeschlossen", variant: "default" },
-  failed: { label: "Fehlgeschlagen", variant: "destructive" },
+  completed: { label: "Analyse abgeschlossen", variant: "default" },
+  failed: { label: "Analyse fehlgeschlagen", variant: "destructive" },
 };
 
 const POTENTIAL: Record<string, { label: string; tone: string }> = {

@@ -1,14 +1,26 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { ArrowLeft, FileUp, Loader2, Sparkles, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  FileUp,
+  Loader2,
+  MapPin,
+  Sparkles,
+  Upload,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -16,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { useOrg } from "@/hooks/use-org";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +36,7 @@ import { runAnalysis } from "@/lib/analyze.functions";
 
 export const Route = createFileRoute("/_authenticated/analysen/neu")({
   head: () => ({ meta: [{ title: "Neue Analyse — SmarTerra" }] }),
-  component: NewAnalysisPage,
+  component: NewAnalysisWizard,
 });
 
 const KANTONE = [
@@ -36,75 +49,145 @@ const KANTONE = [
   ["UR","Uri"],["VD","Waadt"],["VS","Wallis"],["ZG","Zug"],["ZH","Zürich"],
 ] as const;
 
-const MAX_DOC_BYTES = 15 * 1024 * 1024; // 15 MB
+const MAX_DOC_BYTES = 20 * 1024 * 1024;
+const MAX_FILES = 10;
 
-const schema = z.object({
+const KIND_OPTIONS = [
+  { value: "bzr", label: "BZR" },
+  { value: "bzo", label: "BZO" },
+  { value: "zonenplan", label: "Zonenplan" },
+  { value: "other", label: "Sonstiges" },
+] as const;
+type DocKind = (typeof KIND_OPTIONS)[number]["value"];
+
+const formSchema = z.object({
   address: z.string().trim().min(2, "Adresse ist erforderlich").max(200),
-  postal_code: z.string().trim().regex(/^\d{4}$/, "4-stellige PLZ"),
-  municipality: z.string().trim().min(1, "Ort ist erforderlich").max(100),
+  municipality: z.string().trim().min(1, "Gemeinde ist erforderlich").max(100),
   canton: z.string().length(2, "Kanton wählen"),
+  area_size: z
+    .string()
+    .trim()
+    .min(1, "Grundstücksfläche erforderlich")
+    .refine((v) => Number(v) > 0, "Fläche > 0"),
   parcel_number: z.string().trim().max(50).optional().or(z.literal("")),
-  area_size: z.string().trim().optional().or(z.literal("")),
+  postal_code: z.string().trim().optional().or(z.literal("")),
 });
 
-function NewAnalysisPage() {
+type DocItem = { id: string; file: File; kind: DocKind };
+
+function inferKind(name: string): DocKind {
+  const n = name.toLowerCase();
+  if (n.includes("bzr")) return "bzr";
+  if (n.includes("bzo")) return "bzo";
+  if (n.includes("zonen") || n.includes("zonenplan")) return "zonenplan";
+  return "other";
+}
+
+function NewAnalysisWizard() {
   const { currentOrgId } = useOrg();
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const analyzeFn = useServerFn(runAnalysis);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [form, setForm] = useState({
     address: "", postal_code: "", municipality: "",
     canton: "", parcel_number: "", area_size: "",
   });
-  const [doc, setDoc] = useState<File | null>(null);
+  const [docs, setDocs] = useState<DocItem[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const set = <K extends keyof typeof form>(k: K, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const mutation = useMutation({
-    mutationFn: async (values: z.infer<typeof schema>) => {
-      if (!currentOrgId) throw new Error("Keine aktive Organisation");
-      const area = values.area_size ? Number(values.area_size) : null;
+  const stepOneValid = useMemo(
+    () => formSchema.safeParse(form).success,
+    [form],
+  );
 
+  function addFiles(files: FileList | File[] | null) {
+    if (!files) return;
+    const incoming = Array.from(files);
+    const next: DocItem[] = [];
+    for (const f of incoming) {
+      if (docs.length + next.length >= MAX_FILES) {
+        toast.error(`Maximal ${MAX_FILES} Dateien`);
+        break;
+      }
+      if (f.size > MAX_DOC_BYTES) {
+        toast.error(`Datei zu gross: ${f.name}`, { description: "Max. 20 MB" });
+        continue;
+      }
+      next.push({
+        id: crypto.randomUUID(),
+        file: f,
+        kind: inferKind(f.name),
+      });
+    }
+    setDocs((d) => [...d, ...next]);
+  }
+
+  function removeDoc(id: string) {
+    setDocs((d) => d.filter((x) => x.id !== id));
+  }
+
+  function setKind(id: string, kind: DocKind) {
+    setDocs((d) => d.map((x) => (x.id === id ? { ...x, kind } : x)));
+  }
+
+  const submit = useMutation({
+    mutationFn: async () => {
+      if (!currentOrgId) throw new Error("Keine aktive Organisation");
+      const parsed = formSchema.safeParse(form);
+      if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Formular ungültig");
+
+      // 1. Create analysis (draft)
       const { data: created, error } = await supabase
         .from("analyses")
         .insert({
           organization_id: currentOrgId,
-          address: values.address,
-          postal_code: values.postal_code,
-          municipality: values.municipality,
-          canton: values.canton,
-          parcel_number: values.parcel_number || null,
-          area_size: area,
-          status: "processing",
+          address: parsed.data.address,
+          postal_code: parsed.data.postal_code || null,
+          municipality: parsed.data.municipality,
+          canton: parsed.data.canton,
+          parcel_number: parsed.data.parcel_number || null,
+          area_size: Number(parsed.data.area_size),
+          status: "draft",
           created_by: user?.id ?? null,
         })
         .select("id")
         .single();
       if (error) throw error;
 
-      let documentPath: string | null = null;
-      let documentName: string | null = null;
-      if (doc) {
-        const safeName = doc.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
-        const path = `${currentOrgId}/${created.id}/${Date.now()}-${safeName}`;
+      // 2. Upload all docs to Storage + insert analysis_documents rows
+      let done = 0;
+      const total = Math.max(docs.length, 1);
+      for (const d of docs) {
+        const safeName = d.file.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
+        const path = `${currentOrgId}/${created.id}/${Date.now()}-${d.id.slice(0, 8)}-${safeName}`;
         const { error: upErr } = await supabase.storage
           .from("analysis-documents")
-          .upload(path, doc, { upsert: false, contentType: doc.type || undefined });
+          .upload(path, d.file, { upsert: false, contentType: d.file.type || undefined });
         if (upErr) throw upErr;
-        documentPath = path;
-        documentName = doc.name;
-        const { error: updErr } = await supabase
-          .from("analyses")
-          .update({ document_path: documentPath, document_name: documentName })
-          .eq("id", created.id);
-        if (updErr) throw updErr;
+        const { error: insErr } = await supabase.from("analysis_documents").insert({
+          analysis_id: created.id,
+          organization_id: currentOrgId,
+          kind: d.kind,
+          file_name: d.file.name,
+          storage_path: path,
+          mime_type: d.file.type || null,
+          size_bytes: d.file.size,
+          uploaded_by: user?.id ?? null,
+        });
+        if (insErr) throw insErr;
+        done += 1;
+        setUploadProgress(Math.round((done / total) * 100));
       }
 
-      // Fire-and-forget KI-Auswertung
+      // 3. Mark processing + fire-and-forget AI extraction
+      await supabase.from("analyses").update({ status: "processing" }).eq("id", created.id);
       analyzeFn({ data: { analysisId: created.id } }).catch((e) =>
         console.error("KI-Analyse fehlgeschlagen", e),
       );
@@ -114,31 +197,12 @@ function NewAnalysisPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["analyses"] });
       toast.success("Analyse gestartet", {
-        description: "Die KI wertet die Daten aus — das dauert ca. 10 – 30 Sek.",
+        description: "Die KI extrahiert die Daten aus Ihren Dokumenten.",
       });
       navigate({ to: "/analysen/$id", params: { id: data.id } });
     },
     onError: (e: Error) => toast.error("Fehler", { description: e.message }),
   });
-
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const parsed = schema.safeParse(form);
-    if (!parsed.success) {
-      toast.error("Bitte Formular prüfen", { description: parsed.error.issues[0]?.message });
-      return;
-    }
-    mutation.mutate(parsed.data);
-  }
-
-  function pickFile(f: File | null) {
-    if (!f) { setDoc(null); return; }
-    if (f.size > MAX_DOC_BYTES) {
-      toast.error("Datei zu gross", { description: "Maximale Grösse: 15 MB" });
-      return;
-    }
-    setDoc(f);
-  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -146,20 +210,24 @@ function NewAnalysisPage() {
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link to="/analysen"><ArrowLeft className="mr-1 h-4 w-4" />Zurück</Link>
         </Button>
-        <h1 className="font-display text-3xl font-bold tracking-tight">Neue Machbarkeitsanalyse</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight">Schnellanalyse</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Erfassen Sie das Grundstück und laden Sie optional das kommunale BZR/BZO-Dokument hoch.
-          Die KI erstellt anschliessend automatisch die Auswertung.
+          In drei Schritten zur KI-gestützten Machbarkeitsanalyse.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-display text-lg">Grundstücksdaten</CardTitle>
-          <CardDescription>Felder mit * sind erforderlich.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-5">
+      <Stepper step={step} />
+
+      {step === 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display text-lg">
+              <MapPin className="h-4 w-4 text-secondary" />
+              Schritt 1 — Grundstücksdaten
+            </CardTitle>
+            <CardDescription>Felder mit * sind erforderlich.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
             <div className="space-y-1.5">
               <Label htmlFor="address">Adresse *</Label>
               <Input id="address" placeholder="z. B. Bahnhofstrasse 1" value={form.address}
@@ -168,95 +236,212 @@ function NewAnalysisPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[140px_1fr]">
               <div className="space-y-1.5">
-                <Label htmlFor="plz">PLZ *</Label>
+                <Label htmlFor="plz">PLZ</Label>
                 <Input id="plz" inputMode="numeric" placeholder="8001" value={form.postal_code}
                   onChange={(e) => set("postal_code", e.target.value.replace(/\D/g, "").slice(0, 4))}
                   maxLength={4} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="ort">Gemeinde / Ort *</Label>
+                <Label htmlFor="ort">Gemeinde *</Label>
                 <Input id="ort" placeholder="Zürich" value={form.municipality}
                   onChange={(e) => set("municipality", e.target.value)} maxLength={100} />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="kanton">Kanton *</Label>
-              <Select value={form.canton} onValueChange={(v) => set("canton", v)}>
-                <SelectTrigger id="kanton"><SelectValue placeholder="Kanton wählen" /></SelectTrigger>
-                <SelectContent>
-                  {KANTONE.map(([code, name]) => (
-                    <SelectItem key={code} value={code}>{code} — {name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="kanton">Kanton *</Label>
+                <Select value={form.canton} onValueChange={(v) => set("canton", v)}>
+                  <SelectTrigger id="kanton"><SelectValue placeholder="Kanton wählen" /></SelectTrigger>
+                  <SelectContent>
+                    {KANTONE.map(([code, name]) => (
+                      <SelectItem key={code} value={code}>{code} — {name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="area">Grundstücksfläche (m²) *</Label>
                 <Input id="area" inputMode="decimal" placeholder="z. B. 850" value={form.area_size}
                   onChange={(e) => set("area_size", e.target.value.replace(/[^\d.]/g, ""))} />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="parc">Parzellennummer (optional)</Label>
-                <Input id="parc" placeholder="z. B. 1234" value={form.parcel_number}
-                  onChange={(e) => set("parcel_number", e.target.value)} maxLength={50} />
-              </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label>BZR / BZO-Dokument (optional)</Label>
-              <div className="rounded-lg border border-dashed bg-muted/30 p-4">
-                {doc ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{doc.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(doc.size / 1024).toFixed(0)} KB
-                      </p>
+              <Label htmlFor="parc">Parzellennummer (optional)</Label>
+              <Input id="parc" placeholder="z. B. 1234" value={form.parcel_number}
+                onChange={(e) => set("parcel_number", e.target.value)} maxLength={50} />
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button onClick={() => setStep(2)} disabled={!stepOneValid}>
+                Weiter <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 2 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display text-lg">
+              <Upload className="h-4 w-4 text-secondary" />
+              Schritt 2 — Dokumente hochladen
+            </CardTitle>
+            <CardDescription>
+              BZR, BZO, Zonenplan oder weitere PDFs — mehrere Dateien gleichzeitig möglich. Optional, aber empfohlen.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div
+              className="rounded-lg border border-dashed bg-muted/30 p-6 text-center"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
+            >
+              <FileUp className="mx-auto h-7 w-7 text-muted-foreground" />
+              <p className="mt-2 text-sm text-muted-foreground">
+                Dateien hierher ziehen oder auswählen (PDF / DOCX / TXT, max. 20 MB pro Datei)
+              </p>
+              <Button type="button" variant="outline" size="sm" className="mt-3"
+                onClick={() => fileInputRef.current?.click()}>
+                Dateien auswählen
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.txt,.doc,.docx"
+                className="hidden"
+                onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+              />
+            </div>
+
+            {docs.length > 0 && (
+              <div className="space-y-2">
+                {docs.map((d) => (
+                  <div key={d.id} className="flex items-center gap-3 rounded-md border bg-card p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{d.file.name}</p>
+                      <p className="text-xs text-muted-foreground">{(d.file.size / 1024).toFixed(0)} KB</p>
                     </div>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => pickFile(null)}>
+                    <Select value={d.kind} onValueChange={(v) => setKind(d.id, v as DocKind)}>
+                      <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {KIND_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeDoc(d.id)}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 py-2 text-center">
-                    <FileUp className="h-6 w-6 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      Bau- und Zonenreglement der Gemeinde hochladen (PDF, TXT, DOCX, max. 15 MB)
-                    </p>
-                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                      Datei auswählen
-                    </Button>
-                  </div>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.txt,.doc,.docx"
-                  className="hidden"
-                  onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-                />
+                ))}
               </div>
+            )}
+
+            <div className="flex justify-between pt-2">
+              <Button variant="ghost" onClick={() => setStep(1)}>
+                <ArrowLeft className="mr-2 h-4 w-4" />Zurück
+              </Button>
+              <Button onClick={() => setStep(3)}>
+                Weiter <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 3 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display text-lg">
+              <CheckCircle2 className="h-4 w-4 text-secondary" />
+              Schritt 3 — Übersicht & Start
+            </CardTitle>
+            <CardDescription>Bitte prüfen Sie Ihre Angaben vor dem Start der Analyse.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <SummaryRow label="Adresse" value={form.address} />
+              <SummaryRow label="PLZ / Ort" value={[form.postal_code, form.municipality].filter(Boolean).join(" ")} />
+              <SummaryRow label="Kanton" value={form.canton} />
+              <SummaryRow label="Fläche" value={form.area_size ? `${form.area_size} m²` : "—"} />
+              <SummaryRow label="Parzelle" value={form.parcel_number || "—"} />
+              <SummaryRow label="Dokumente" value={`${docs.length}`} />
             </div>
 
-            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-              <Button variant="ghost" type="button" asChild>
-                <Link to="/analysen">Abbrechen</Link>
+            {docs.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {docs.map((d) => (
+                  <Badge key={d.id} variant="secondary">{d.kind.toUpperCase()} · {d.file.name}</Badge>
+                ))}
+              </div>
+            )}
+
+            {submit.isPending && (
+              <div className="space-y-2">
+                <Progress value={uploadProgress} />
+                <p className="text-xs text-muted-foreground">
+                  Dokumente werden hochgeladen … {uploadProgress}%
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-between pt-2">
+              <Button variant="ghost" onClick={() => setStep(2)} disabled={submit.isPending}>
+                <ArrowLeft className="mr-2 h-4 w-4" />Zurück
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
-                )}
-                KI-Analyse starten
+              <Button onClick={() => submit.mutate()} disabled={submit.isPending || !stepOneValid}>
+                {submit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Analyse starten
               </Button>
             </div>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function Stepper({ step }: { step: 1 | 2 | 3 }) {
+  const items = [
+    { n: 1, label: "Grundstück" },
+    { n: 2, label: "Dokumente" },
+    { n: 3, label: "Start" },
+  ];
+  return (
+    <ol className="flex items-center gap-2 text-sm">
+      {items.map((it, idx) => (
+        <li key={it.n} className="flex items-center gap-2">
+          <div
+            className={cn(
+              "grid h-7 w-7 place-items-center rounded-full border text-xs font-medium",
+              step === it.n
+                ? "border-primary bg-primary text-primary-foreground"
+                : step > it.n
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground",
+            )}
+          >
+            {step > it.n ? <CheckCircle2 className="h-4 w-4" /> : it.n}
+          </div>
+          <span className={cn("hidden sm:inline", step === it.n ? "font-medium" : "text-muted-foreground")}>
+            {it.label}
+          </span>
+          {idx < items.length - 1 && <div className="mx-2 h-px w-8 bg-border sm:w-12" />}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-medium">{value || "—"}</p>
     </div>
   );
 }
