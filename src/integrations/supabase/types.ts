@@ -16,69 +16,74 @@ export type Database = {
     Tables: {
       analyses: {
         Row: {
-          ausnuetzungsziffer: number | null
+          address: string | null
+          ai_summary: string | null
+          area_size: number | null
+          canton: string | null
           created_at: string
           created_by: string | null
-          einschraenkungen: Json | null
-          entwicklungspotenzial: Json | null
-          gebaeudehoehe_m: number | null
-          geschossigkeit: number | null
+          development_potential: Json | null
           id: string
-          nutzungsmoeglichkeiten: Json | null
-          org_id: string
-          parcel_id: string | null
+          max_floors: number | null
+          max_height: number | null
+          municipality: string | null
+          organization_id: string
+          parcel_number: string | null
           project_id: string | null
-          raw_data: Json | null
-          status: Database["public"]["Enums"]["analysis_status"]
+          restrictions: Json | null
           updated_at: string
+          usage_type: Json | null
+          utilization_ratio: number | null
+          zone: string | null
         }
         Insert: {
-          ausnuetzungsziffer?: number | null
+          address?: string | null
+          ai_summary?: string | null
+          area_size?: number | null
+          canton?: string | null
           created_at?: string
           created_by?: string | null
-          einschraenkungen?: Json | null
-          entwicklungspotenzial?: Json | null
-          gebaeudehoehe_m?: number | null
-          geschossigkeit?: number | null
+          development_potential?: Json | null
           id?: string
-          nutzungsmoeglichkeiten?: Json | null
-          org_id: string
-          parcel_id?: string | null
+          max_floors?: number | null
+          max_height?: number | null
+          municipality?: string | null
+          organization_id: string
+          parcel_number?: string | null
           project_id?: string | null
-          raw_data?: Json | null
-          status?: Database["public"]["Enums"]["analysis_status"]
+          restrictions?: Json | null
           updated_at?: string
+          usage_type?: Json | null
+          utilization_ratio?: number | null
+          zone?: string | null
         }
         Update: {
-          ausnuetzungsziffer?: number | null
+          address?: string | null
+          ai_summary?: string | null
+          area_size?: number | null
+          canton?: string | null
           created_at?: string
           created_by?: string | null
-          einschraenkungen?: Json | null
-          entwicklungspotenzial?: Json | null
-          gebaeudehoehe_m?: number | null
-          geschossigkeit?: number | null
+          development_potential?: Json | null
           id?: string
-          nutzungsmoeglichkeiten?: Json | null
-          org_id?: string
-          parcel_id?: string | null
+          max_floors?: number | null
+          max_height?: number | null
+          municipality?: string | null
+          organization_id?: string
+          parcel_number?: string | null
           project_id?: string | null
-          raw_data?: Json | null
-          status?: Database["public"]["Enums"]["analysis_status"]
+          restrictions?: Json | null
           updated_at?: string
+          usage_type?: Json | null
+          utilization_ratio?: number | null
+          zone?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "analyses_org_id_fkey"
-            columns: ["org_id"]
+            foreignKeyName: "analyses_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "analyses_parcel_id_fkey"
-            columns: ["parcel_id"]
-            isOneToOne: false
-            referencedRelation: "parcels"
             referencedColumns: ["id"]
           },
           {
@@ -90,280 +95,62 @@ export type Database = {
           },
         ]
       }
-      audit_log: {
-        Row: {
-          action: string
-          created_at: string
-          entity: string | null
-          entity_id: string | null
-          id: string
-          meta: Json | null
-          org_id: string
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          entity?: string | null
-          entity_id?: string | null
-          id?: string
-          meta?: Json | null
-          org_id: string
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          entity?: string | null
-          entity_id?: string | null
-          id?: string
-          meta?: Json | null
-          org_id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "audit_log_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      favorites: {
-        Row: {
-          analysis_id: string
-          created_at: string
-          org_id: string
-          user_id: string
-        }
-        Insert: {
-          analysis_id: string
-          created_at?: string
-          org_id: string
-          user_id: string
-        }
-        Update: {
-          analysis_id?: string
-          created_at?: string
-          org_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "favorites_analysis_id_fkey"
-            columns: ["analysis_id"]
-            isOneToOne: false
-            referencedRelation: "analyses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "favorites_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      invitations: {
-        Row: {
-          created_at: string
-          email: string
-          expires_at: string
-          id: string
-          invited_by: string | null
-          org_id: string
-          role: Database["public"]["Enums"]["app_role"]
-          token: string
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          expires_at?: string
-          id?: string
-          invited_by?: string | null
-          org_id: string
-          role?: Database["public"]["Enums"]["app_role"]
-          token?: string
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          expires_at?: string
-          id?: string
-          invited_by?: string | null
-          org_id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          token?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "invitations_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      organization_members: {
-        Row: {
-          invited_at: string | null
-          joined_at: string
-          org_id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          invited_at?: string | null
-          joined_at?: string
-          org_id: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          invited_at?: string | null
-          joined_at?: string
-          org_id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "organization_members_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       organizations: {
         Row: {
           created_at: string
-          created_by: string | null
           id: string
           name: string
-          plan: Database["public"]["Enums"]["subscription_plan"]
           slug: string
-          stripe_customer_id: string | null
-          trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
-          created_by?: string | null
           id?: string
           name: string
-          plan?: Database["public"]["Enums"]["subscription_plan"]
           slug: string
-          stripe_customer_id?: string | null
-          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
-          created_by?: string | null
           id?: string
           name?: string
-          plan?: Database["public"]["Enums"]["subscription_plan"]
           slug?: string
-          stripe_customer_id?: string | null
-          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
       }
-      parcels: {
-        Row: {
-          address: string | null
-          area_m2: number | null
-          canton: string | null
-          created_at: string
-          created_by: string | null
-          egrid: string | null
-          id: string
-          lat: number | null
-          lng: number | null
-          municipality: string | null
-          org_id: string
-          parcel_number: string | null
-          updated_at: string
-          zone_code: string | null
-        }
-        Insert: {
-          address?: string | null
-          area_m2?: number | null
-          canton?: string | null
-          created_at?: string
-          created_by?: string | null
-          egrid?: string | null
-          id?: string
-          lat?: number | null
-          lng?: number | null
-          municipality?: string | null
-          org_id: string
-          parcel_number?: string | null
-          updated_at?: string
-          zone_code?: string | null
-        }
-        Update: {
-          address?: string | null
-          area_m2?: number | null
-          canton?: string | null
-          created_at?: string
-          created_by?: string | null
-          egrid?: string | null
-          id?: string
-          lat?: number | null
-          lng?: number | null
-          municipality?: string | null
-          org_id?: string
-          parcel_number?: string | null
-          updated_at?: string
-          zone_code?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "parcels_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
-          avatar_url: string | null
           created_at: string
-          default_org_id: string | null
-          full_name: string | null
+          email: string
+          first_name: string | null
           id: string
+          last_name: string | null
+          organization_id: string
           updated_at: string
         }
         Insert: {
-          avatar_url?: string | null
           created_at?: string
-          default_org_id?: string | null
-          full_name?: string | null
+          email: string
+          first_name?: string | null
           id: string
+          last_name?: string | null
+          organization_id: string
           updated_at?: string
         }
         Update: {
-          avatar_url?: string | null
           created_at?: string
-          default_org_id?: string | null
-          full_name?: string | null
+          email?: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
+          organization_id?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_default_org_id_fkey"
-            columns: ["default_org_id"]
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
@@ -376,10 +163,9 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
-          name: string
-          org_id: string
+          organization_id: string
           status: Database["public"]["Enums"]["project_status"]
-          team_id: string | null
+          title: string
           updated_at: string
         }
         Insert: {
@@ -387,10 +173,9 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
-          name: string
-          org_id: string
+          organization_id: string
           status?: Database["public"]["Enums"]["project_status"]
-          team_id?: string | null
+          title: string
           updated_at?: string
         }
         Update: {
@@ -398,73 +183,49 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
-          name?: string
-          org_id?: string
+          organization_id?: string
           status?: Database["public"]["Enums"]["project_status"]
-          team_id?: string | null
+          title?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "projects_org_id_fkey"
-            columns: ["org_id"]
+            foreignKeyName: "projects_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "projects_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
       }
       reports: {
         Row: {
-          content: Json | null
+          analysis_id: string
           created_at: string
           created_by: string | null
           id: string
-          org_id: string
-          project_id: string | null
-          title: string
-          updated_at: string
+          report_url: string
         }
         Insert: {
-          content?: Json | null
+          analysis_id: string
           created_at?: string
           created_by?: string | null
           id?: string
-          org_id: string
-          project_id?: string | null
-          title: string
-          updated_at?: string
+          report_url: string
         }
         Update: {
-          content?: Json | null
+          analysis_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
-          org_id?: string
-          project_id?: string | null
-          title?: string
-          updated_at?: string
+          report_url?: string
         }
         Relationships: [
           {
-            foreignKeyName: "reports_org_id_fkey"
-            columns: ["org_id"]
+            foreignKeyName: "reports_analysis_id_fkey"
+            columns: ["analysis_id"]
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
+            referencedRelation: "analyses"
             referencedColumns: ["id"]
           },
         ]
@@ -474,9 +235,10 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           id: string
-          org_id: string
+          organization_id: string
           plan: Database["public"]["Enums"]["subscription_plan"]
           status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string | null
           stripe_subscription_id: string | null
           updated_at: string
         }
@@ -484,9 +246,10 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           id?: string
-          org_id: string
+          organization_id: string
           plan?: Database["public"]["Enums"]["subscription_plan"]
           status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           updated_at?: string
         }
@@ -494,77 +257,49 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           id?: string
-          org_id?: string
+          organization_id?: string
           plan?: Database["public"]["Enums"]["subscription_plan"]
           status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "subscriptions_org_id_fkey"
-            columns: ["org_id"]
+            foreignKeyName: "subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
       }
-      team_members: {
+      user_roles: {
         Row: {
-          joined_at: string
-          team_id: string
+          created_at: string
+          id: string
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
-          joined_at?: string
-          team_id: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
-          joined_at?: string
-          team_id?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "team_members_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      teams: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          name: string
-          org_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          name: string
-          org_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          name?: string
-          org_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "teams_org_id_fkey"
-            columns: ["org_id"]
+            foreignKeyName: "user_roles_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
@@ -576,6 +311,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_org: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _org_id: string
@@ -592,8 +328,8 @@ export type Database = {
     Enums: {
       analysis_status: "pending" | "processing" | "completed" | "failed"
       app_role: "admin" | "owner" | "member"
-      project_status: "draft" | "active" | "on_hold" | "completed" | "archived"
-      subscription_plan: "trial" | "free" | "starter" | "pro" | "enterprise"
+      project_status: "draft" | "active" | "completed" | "archived"
+      subscription_plan: "trial" | "starter" | "pro" | "enterprise"
       subscription_status:
         | "trialing"
         | "active"
@@ -729,8 +465,8 @@ export const Constants = {
     Enums: {
       analysis_status: ["pending", "processing", "completed", "failed"],
       app_role: ["admin", "owner", "member"],
-      project_status: ["draft", "active", "on_hold", "completed", "archived"],
-      subscription_plan: ["trial", "free", "starter", "pro", "enterprise"],
+      project_status: ["draft", "active", "completed", "archived"],
+      subscription_plan: ["trial", "starter", "pro", "enterprise"],
       subscription_status: [
         "trialing",
         "active",
