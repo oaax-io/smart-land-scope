@@ -7,19 +7,21 @@ import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 const InputSchema = z.object({ analysisId: z.string().uuid() });
 
 const RiskSchema = z.object({
-  category: z.enum([
-    "baurecht",
-    "sondervorschrift",
-    "denkmalschutz",
-    "abstand",
-    "laerm",
-    "gewaesser",
-    "wald",
-    "sonstiges",
-  ]),
-  title: z.string().min(2).max(120),
-  description: z.string().min(2).max(600),
-  severity: z.enum(["low", "medium", "high"]),
+  category: z
+    .enum([
+      "baurecht",
+      "sondervorschrift",
+      "denkmalschutz",
+      "abstand",
+      "laerm",
+      "gewaesser",
+      "wald",
+      "sonstiges",
+    ])
+    .catch("sonstiges"),
+  title: z.string().min(1).max(200),
+  description: z.string().min(1).max(1000),
+  severity: z.enum(["low", "medium", "high"]).catch("medium"),
 });
 
 const SetbacksSchema = z
@@ -28,31 +30,34 @@ const SetbacksSchema = z
     ost: z.number().nullable().optional(),
     sued: z.number().nullable().optional(),
     west: z.number().nullable().optional(),
-    notes: z.string().max(400).optional(),
+    notes: z.string().max(1000).nullable().optional(),
   })
-  .partial();
+  .partial()
+  .nullable()
+  .optional();
 
+// Loose schema — accept what the model can produce; we clamp/normalize after.
 const AnalysisOutputSchema = z.object({
-  feasibility: z.string().min(20).max(1500),
-  zone: z.string().min(1).max(100),
-  usage_types: z.array(z.string().min(1).max(80)).min(1).max(8),
-  max_floors: z.number().int().min(0).max(20),
-  max_height_m: z.number().min(0).max(120),
-  utilization_ratio: z.number().min(0).max(5),
-  building_coverage_ratio: z.number().min(0).max(2).nullable().optional(),
-  setbacks: SetbacksSchema.optional(),
-  special_provisions: z.string().max(2000).nullable().optional(),
+  feasibility: z.string().min(1).max(4000),
+  zone: z.string().min(1).max(200),
+  usage_types: z.array(z.string().min(1).max(200)).default([]),
+  max_floors: z.number().min(0).max(50),
+  max_height_m: z.number().min(0).max(300),
+  utilization_ratio: z.number().min(0).max(10),
+  building_coverage_ratio: z.number().min(0).max(5).nullable().optional(),
+  setbacks: SetbacksSchema,
+  special_provisions: z.string().max(4000).nullable().optional(),
   design_plan_required: z.boolean().nullable().optional(),
   heritage_protected: z.boolean().nullable().optional(),
-  noise_zone: z.string().max(200).nullable().optional(),
-  water_setbacks: z.string().max(400).nullable().optional(),
-  floor_area_m2: z.number().min(0).max(100000),
-  living_area_m2: z.number().min(0).max(100000),
-  unit_count: z.number().int().min(0).max(2000),
-  potential_level: z.enum(["low", "medium", "high", "very_high"]),
-  ai_summary: z.string().min(20).max(2000),
-  regulations: z.array(z.string().min(2).max(300)).min(1).max(15),
-  risks: z.array(RiskSchema).min(0).max(15),
+  noise_zone: z.string().max(400).nullable().optional(),
+  water_setbacks: z.string().max(1000).nullable().optional(),
+  floor_area_m2: z.number().min(0).max(1000000),
+  living_area_m2: z.number().min(0).max(1000000),
+  unit_count: z.number().min(0).max(10000),
+  potential_level: z.enum(["low", "medium", "high", "very_high"]).catch("medium"),
+  ai_summary: z.string().min(1).max(4000),
+  regulations: z.array(z.string().min(1).max(600)).default([]),
+  risks: z.array(RiskSchema).default([]),
 });
 
 const MAX_DOC_CHARS = 12000;
