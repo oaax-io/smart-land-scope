@@ -163,6 +163,13 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
         .eq("id", extr.id);
       if (saveErr) throw saveErr;
 
+      // ===== Knowledge Base Engine: derive structured entries =====
+      await buildKnowledgeBase({
+        municipalityId: doc.municipality_id,
+        documentId: doc.id,
+        extraction: object,
+      });
+
       return { skipped: false, extractionId: extr.id };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
