@@ -93,7 +93,8 @@ function NewAnalysisWizard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const analyzeFn = useServerFn(runAnalysis);
+  const analyzeFn = useServerFn(runKnowledgeAnalysis);
+  const coverageFn = useServerFn(checkMunicipalityCoverage);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
