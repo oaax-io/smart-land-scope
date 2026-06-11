@@ -12,19 +12,35 @@ export const Route = createFileRoute("/_authenticated/team")({
   component: TeamPage,
 });
 
+type Member = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+  created_at: string;
+  role: "admin" | "owner" | "member" | null;
+};
+
 function TeamPage() {
   const { currentOrgId } = useOrg();
 
-  const { data: members = [] } = useQuery({
+  const { data: members = [] } = useQuery<Member[]>({
     queryKey: ["org-members", currentOrgId],
     enabled: !!currentOrgId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("organization_members")
-        .select("user_id, role, joined_at")
-        .eq("org_id", currentOrgId!);
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email, created_at")
+        .eq("organization_id", currentOrgId!);
       if (error) throw error;
-      return data ?? [];
+
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .eq("organization_id", currentOrgId!);
+
+      const roleMap = new Map((roles ?? []).map((r) => [r.user_id, r.role as Member["role"]]));
+      return (profiles ?? []).map((p) => ({ ...p, role: roleMap.get(p.id) ?? null }));
     },
   });
 
@@ -53,24 +69,30 @@ function TeamPage() {
             <p className="text-sm text-muted-foreground">Keine Mitglieder gefunden.</p>
           ) : (
             <div className="divide-y">
-              {members.map((m) => (
-                <div key={m.user_id} className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-full bg-secondary/15 text-secondary text-sm font-semibold">
-                      {m.user_id.slice(0, 2).toUpperCase()}
+              {members.map((m) => {
+                const name = [m.first_name, m.last_name].filter(Boolean).join(" ") || m.email;
+                const initials = (m.first_name?.[0] ?? m.email[0] ?? "U").toUpperCase();
+                return (
+                  <div key={m.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-9 w-9 place-items-center rounded-full bg-secondary/15 text-secondary text-sm font-semibold">
+                        {initials}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Beigetreten {new Date(m.created_at).toLocaleDateString("de-CH")}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">Benutzer · {m.user_id.slice(0, 8)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Beigetreten {new Date(m.joined_at).toLocaleDateString("de-CH")}
-                      </p>
-                    </div>
+                    {m.role && (
+                      <Badge variant={m.role === "owner" ? "default" : "secondary"} className="capitalize">
+                        {m.role}
+                      </Badge>
+                    )}
                   </div>
-                  <Badge variant={m.role === "owner" ? "default" : "secondary"} className="capitalize">
-                    {m.role}
-                  </Badge>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

@@ -21,10 +21,10 @@ function Dashboard() {
     queryFn: async () => {
       const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
       const [a, am, p, m] = await Promise.all([
-        supabase.from("analyses").select("id", { count: "exact", head: true }).eq("org_id", currentOrgId!),
-        supabase.from("analyses").select("id", { count: "exact", head: true }).eq("org_id", currentOrgId!).gte("created_at", startOfMonth),
-        supabase.from("projects").select("id", { count: "exact", head: true }).eq("org_id", currentOrgId!).eq("status", "active"),
-        supabase.from("organization_members").select("user_id", { count: "exact", head: true }).eq("org_id", currentOrgId!),
+        supabase.from("analyses").select("id", { count: "exact", head: true }).eq("organization_id", currentOrgId!),
+        supabase.from("analyses").select("id", { count: "exact", head: true }).eq("organization_id", currentOrgId!).gte("created_at", startOfMonth),
+        supabase.from("projects").select("id", { count: "exact", head: true }).eq("organization_id", currentOrgId!).eq("status", "active"),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("organization_id", currentOrgId!),
       ]);
       return { total: a.count ?? 0, month: am.count ?? 0, projects: p.count ?? 0, members: m.count ?? 0 };
     },

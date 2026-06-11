@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/einstellungen")({
 
 function EinstellungenPage() {
   const { user } = useAuth();
-  const { currentOrg } = useOrg();
+  const { currentOrg, subscription } = useOrg();
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -74,7 +74,7 @@ function EinstellungenPage() {
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div>
               <p className="text-sm font-medium">Aktueller Plan</p>
-              <p className="text-xs text-muted-foreground capitalize">{currentOrg?.plan ?? "trial"}</p>
+              <p className="text-xs text-muted-foreground capitalize">{subscription?.plan ?? "trial"}</p>
             </div>
             <Badge variant="secondary">Trial aktiv</Badge>
           </div>
