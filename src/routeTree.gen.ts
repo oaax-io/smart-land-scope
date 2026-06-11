@@ -22,6 +22,7 @@ import { Route as AuthenticatedBerichteRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAnalysenIndexRouteImport } from './routes/_authenticated/analysen.index'
 import { Route as AuthenticatedAnalysenNeuRouteImport } from './routes/_authenticated/analysen.neu'
 import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
+import { Route as AuthenticatedAnalysenIdBerichtRouteImport } from './routes/_authenticated/analysen.$id.bericht'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -90,6 +91,12 @@ const AuthenticatedAnalysenIdRoute = AuthenticatedAnalysenIdRouteImport.update({
   path: '/analysen/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAnalysenIdBerichtRoute =
+  AuthenticatedAnalysenIdBerichtRouteImport.update({
+    id: '/bericht',
+    path: '/bericht',
+    getParentRoute: () => AuthenticatedAnalysenIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -101,9 +108,10 @@ export interface FileRoutesByFullPath {
   '/projekte': typeof AuthenticatedProjekteRoute
   '/rechner': typeof AuthenticatedRechnerRoute
   '/team': typeof AuthenticatedTeamRoute
-  '/analysen/$id': typeof AuthenticatedAnalysenIdRoute
+  '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/analysen/': typeof AuthenticatedAnalysenIndexRoute
+  '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -115,9 +123,10 @@ export interface FileRoutesByTo {
   '/projekte': typeof AuthenticatedProjekteRoute
   '/rechner': typeof AuthenticatedRechnerRoute
   '/team': typeof AuthenticatedTeamRoute
-  '/analysen/$id': typeof AuthenticatedAnalysenIdRoute
+  '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/analysen': typeof AuthenticatedAnalysenIndexRoute
+  '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,9 +140,10 @@ export interface FileRoutesById {
   '/_authenticated/projekte': typeof AuthenticatedProjekteRoute
   '/_authenticated/rechner': typeof AuthenticatedRechnerRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
-  '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRoute
+  '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/_authenticated/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/_authenticated/analysen/': typeof AuthenticatedAnalysenIndexRoute
+  '/_authenticated/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/analysen/$id'
     | '/analysen/neu'
     | '/analysen/'
+    | '/analysen/$id/bericht'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/analysen/$id'
     | '/analysen/neu'
     | '/analysen'
+    | '/analysen/$id/bericht'
   id:
     | '__root__'
     | '/'
@@ -179,6 +191,7 @@ export interface FileRouteTypes {
     | '/_authenticated/analysen/$id'
     | '/_authenticated/analysen/neu'
     | '/_authenticated/analysen/'
+    | '/_authenticated/analysen/$id/bericht'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -281,8 +294,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalysenIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/analysen/$id/bericht': {
+      id: '/_authenticated/analysen/$id/bericht'
+      path: '/bericht'
+      fullPath: '/analysen/$id/bericht'
+      preLoaderRoute: typeof AuthenticatedAnalysenIdBerichtRouteImport
+      parentRoute: typeof AuthenticatedAnalysenIdRoute
+    }
   }
 }
+
+interface AuthenticatedAnalysenIdRouteChildren {
+  AuthenticatedAnalysenIdBerichtRoute: typeof AuthenticatedAnalysenIdBerichtRoute
+}
+
+const AuthenticatedAnalysenIdRouteChildren: AuthenticatedAnalysenIdRouteChildren =
+  {
+    AuthenticatedAnalysenIdBerichtRoute: AuthenticatedAnalysenIdBerichtRoute,
+  }
+
+const AuthenticatedAnalysenIdRouteWithChildren =
+  AuthenticatedAnalysenIdRoute._addFileChildren(
+    AuthenticatedAnalysenIdRouteChildren,
+  )
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBerichteRoute: typeof AuthenticatedBerichteRoute
@@ -291,7 +325,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProjekteRoute: typeof AuthenticatedProjekteRoute
   AuthenticatedRechnerRoute: typeof AuthenticatedRechnerRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
-  AuthenticatedAnalysenIdRoute: typeof AuthenticatedAnalysenIdRoute
+  AuthenticatedAnalysenIdRoute: typeof AuthenticatedAnalysenIdRouteWithChildren
   AuthenticatedAnalysenNeuRoute: typeof AuthenticatedAnalysenNeuRoute
   AuthenticatedAnalysenIndexRoute: typeof AuthenticatedAnalysenIndexRoute
 }
@@ -303,7 +337,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProjekteRoute: AuthenticatedProjekteRoute,
   AuthenticatedRechnerRoute: AuthenticatedRechnerRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
-  AuthenticatedAnalysenIdRoute: AuthenticatedAnalysenIdRoute,
+  AuthenticatedAnalysenIdRoute: AuthenticatedAnalysenIdRouteWithChildren,
   AuthenticatedAnalysenNeuRoute: AuthenticatedAnalysenNeuRoute,
   AuthenticatedAnalysenIndexRoute: AuthenticatedAnalysenIndexRoute,
 }
