@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { LogOut, User as UserIcon, Building2, Check } from "lucide-react";
+import { LogOut, User as UserIcon, Building2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
