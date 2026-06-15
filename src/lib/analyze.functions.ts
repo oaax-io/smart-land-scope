@@ -33,6 +33,65 @@ type AnalysisObject = {
 const MAX_DOC_CHARS = 12000;
 const MAX_TOTAL_CHARS = 40000;
 
+const clamp = (n: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, Number.isFinite(n) ? n : 0));
+
+function normalizePotential(value: unknown): AnalysisObject["potential_level"] {
+  const text = readString(value, "medium").toLowerCase();
+  if (text.includes("very") || text.includes("sehr")) return "very_high";
+  if (text.includes("high") || text.includes("hoch")) return "high";
+  if (text.includes("low") || text.includes("gering") || text.includes("niedrig")) return "low";
+  return "medium";
+}
+
+function normalizeSeverity(value: unknown): "low" | "medium" | "high" {
+  const text = readString(value, "medium").toLowerCase();
+  if (text.includes("high") || text.includes("hoch")) return "high";
+  if (text.includes("low") || text.includes("gering") || text.includes("niedrig")) return "low";
+  return "medium";
+}
+
+function normalizeAnalysisObject(value: unknown, areaSize: number | null): AnalysisObject {
+  const record = asRecord(value);
+  const livingArea = clamp(readNumber(record.living_area_m2, 0), 0, 1_000_000);
+  const floorArea = clamp(readNumber(record.floor_area_m2, livingArea), 0, 1_000_000);
+  const fallbackUnits = livingArea > 0 ? Math.round(livingArea / 90) : 0;
+  const risks = Array.isArray(record.risks) ? record.risks : [];
+
+  return {
+    feasibility: readString(record.feasibility, "Auf Basis der verfügbaren Reglemente konnte eine erste Machbarkeit erstellt werden."),
+    zone: readString(record.zone, "Unbekannt"),
+    usage_types: readStringArray(record.usage_types),
+    max_floors: clamp(readNumber(record.max_floors), 0, 50),
+    max_height_m: clamp(readNumber(record.max_height_m), 0, 300),
+    utilization_ratio: clamp(readNumber(record.utilization_ratio), 0, 10),
+    building_coverage_ratio: record.building_coverage_ratio == null ? null : clamp(readNumber(record.building_coverage_ratio), 0, 5),
+    setbacks: record.setbacks && typeof record.setbacks === "object" && !Array.isArray(record.setbacks)
+      ? asRecord(record.setbacks)
+      : null,
+    special_provisions: readNullableString(record.special_provisions),
+    design_plan_required: readBoolean(record.design_plan_required),
+    heritage_protected: readBoolean(record.heritage_protected),
+    noise_zone: readNullableString(record.noise_zone),
+    water_setbacks: readNullableString(record.water_setbacks),
+    floor_area_m2: floorArea || clamp((areaSize ?? 0) * readNumber(record.utilization_ratio), 0, 1_000_000),
+    living_area_m2: livingArea,
+    unit_count: clamp(Math.round(readNumber(record.unit_count, fallbackUnits)), 0, 10_000),
+    potential_level: normalizePotential(record.potential_level),
+    ai_summary: readString(record.ai_summary, "Zusammenfassung anhand der vorhandenen Reglemente."),
+    regulations: readStringArray(record.regulations),
+    risks: risks.map((risk) => {
+      const item = asRecord(risk);
+      return {
+        category: readString(item.category, "sonstiges"),
+        title: readString(item.title, "Risiko"),
+        description: readString(item.description),
+        severity: normalizeSeverity(item.severity),
+      };
+    }),
+  };
+}
+
 export const runAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
