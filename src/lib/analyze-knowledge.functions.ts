@@ -280,11 +280,30 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
       if (!apiKey) throw new Error("LOVABLE_API_KEY fehlt");
       const gateway = createLovableAiGatewayProvider(apiKey);
 
-      const { object } = await generateObject({
+      const result = await generateText({
         model: gateway("google/gemini-2.5-flash"),
-        schema: KnowledgeAnalysisSchema,
-        prompt,
+        prompt: `${prompt}
+
+Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
+{
+  "feasibility": "string",
+  "zone": "string",
+  "usage_types": ["string"],
+  "max_floors": 0,
+  "max_height_m": 0,
+  "utilization_ratio": 0,
+  "floor_area_m2": 0,
+  "living_area_m2": 0,
+  "unit_count": 0,
+  "potential_level": "low | medium | high | very_high",
+  "ai_summary": "string",
+  "regulations": ["string"],
+  "risks": [{ "category": "sonstiges", "title": "string", "description": "string", "severity": "low | medium | high", "sources": [] }],
+  "sources": [{ "document": "string", "article": "string", "category": "string", "key": "string" }]
+}`,
+        maxOutputTokens: 8000,
       });
+      const object = normalizeKnowledgeAnalysis(parseJsonObject(result.text));
 
       // 4) Persist
       const { error: updErr } = await supabase
