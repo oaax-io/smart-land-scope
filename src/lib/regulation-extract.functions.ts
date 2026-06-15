@@ -153,12 +153,13 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
         object = r.object;
       } catch (primaryErr) {
         console.warn("[extract] gemini-2.5-pro structured failed, retrying flash:", primaryErr);
-        const r2 = await generateObject({
-          model: gateway("google/gemini-2.5-flash"),
-          schema: ExtractionSchema,
-          messages,
-        });
-        object = r2.object;
+        try {
+          const r2 = await generateObject({
+            model: gateway("google/gemini-2.5-flash"),
+            schema: ExtractionSchema,
+            messages,
+          });
+          object = r2.object;
         } catch (fallbackErr) {
           console.warn("[extract] structured extraction failed completely, using safe fallback:", fallbackErr);
           object = createFallbackExtraction(doc.title, doc.file_name ?? null);
