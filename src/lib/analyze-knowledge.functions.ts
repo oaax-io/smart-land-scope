@@ -68,48 +68,55 @@ export const checkMunicipalityCoverage = createServerFn({ method: "POST" })
 
 const RunInput = z.object({ analysisId: z.string().uuid() });
 
-const SourceRefSchema = z.object({
-  document: z.string().max(200).nullable().optional(),
-  article: z.string().max(100).nullable().optional(),
-  category: z.string().max(100).nullable().optional(),
-  key: z.string().max(100).nullable().optional(),
-});
+const SourceRefSchema = z
+  .object({
+    document: z.string().nullable().optional(),
+    article: z.string().nullable().optional(),
+    category: z.string().nullable().optional(),
+    key: z.string().nullable().optional(),
+  })
+  .partial();
 
 const RiskSchema = z.object({
-  category: z
-    .enum([
-      "baurecht",
-      "sondervorschrift",
-      "denkmalschutz",
-      "abstand",
-      "laerm",
-      "gewaesser",
-      "wald",
-      "sonstiges",
-    ])
-    .catch("sonstiges"),
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(1000),
-  severity: z.enum(["low", "medium", "high"]).catch("medium"),
-  sources: z.array(SourceRefSchema).max(10).default([]),
+  category: z.string().default("sonstiges"),
+  title: z.string().default("Risiko"),
+  description: z.string().default(""),
+  severity: z.string().default("medium"),
+  sources: z.array(SourceRefSchema).default([]).optional(),
 });
 
 const KnowledgeAnalysisSchema = z.object({
-  feasibility: z.string().min(1).max(4000),
-  zone: z.string().min(1).max(200),
-  usage_types: z.array(z.string().min(1).max(200)).default([]),
-  max_floors: z.number().min(0).max(50),
-  max_height_m: z.number().min(0).max(300),
-  utilization_ratio: z.number().min(0).max(10),
-  floor_area_m2: z.number().min(0).max(1000000),
-  living_area_m2: z.number().min(0).max(1000000),
-  unit_count: z.number().min(0).max(10000),
-  potential_level: z.enum(["low", "medium", "high", "very_high"]).catch("medium"),
-  ai_summary: z.string().min(1).max(4000),
-  regulations: z.array(z.string().min(1).max(600)).default([]),
+  feasibility: z.string().default(""),
+  zone: z.string().default(""),
+  usage_types: z.array(z.string()).default([]),
+  max_floors: z.number().default(0),
+  max_height_m: z.number().default(0),
+  utilization_ratio: z.number().default(0),
+  floor_area_m2: z.number().default(0),
+  living_area_m2: z.number().default(0),
+  unit_count: z.number().default(0),
+  potential_level: z.string().default("medium"),
+  ai_summary: z.string().default(""),
+  regulations: z.array(z.string()).default([]),
   risks: z.array(RiskSchema).default([]),
-  sources: z.array(SourceRefSchema).max(50).default([]),
+  sources: z.array(SourceRefSchema).default([]),
 });
+
+const clamp = (n: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, Number.isFinite(n) ? n : 0));
+const normalizePotential = (v: string): "low" | "medium" | "high" | "very_high" => {
+  const s = (v ?? "").toLowerCase();
+  if (s.includes("very") || s.includes("sehr")) return "very_high";
+  if (s.includes("high") || s.includes("hoch")) return "high";
+  if (s.includes("low") || s.includes("gering") || s.includes("niedrig")) return "low";
+  return "medium";
+};
+const normalizeSeverity = (v: string): "low" | "medium" | "high" => {
+  const s = (v ?? "").toLowerCase();
+  if (s.includes("high") || s.includes("hoch")) return "high";
+  if (s.includes("low") || s.includes("gering") || s.includes("niedrig")) return "low";
+  return "medium";
+};
 
 export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -248,16 +255,16 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
           feasibility: object.feasibility,
           zone: object.zone,
           usage_type: object.usage_types,
-          max_floors: Math.round(object.max_floors),
-          max_height: object.max_height_m,
-          utilization_ratio: object.utilization_ratio,
-          floor_area: object.floor_area_m2,
-          living_area: object.living_area_m2,
-          unit_count: Math.round(object.unit_count),
-          potential_level: object.potential_level,
+          max_floors: clamp(Math.round(object.max_floors), 0, 50),
+          max_height: clamp(object.max_height_m, 0, 300),
+          utilization_ratio: clamp(object.utilization_ratio, 0, 10),
+          floor_area: clamp(object.floor_area_m2, 0, 1_000_000),
+          living_area: clamp(object.living_area_m2, 0, 1_000_000),
+          unit_count: clamp(Math.round(object.unit_count), 0, 10_000),
+          potential_level: normalizePotential(object.potential_level),
           ai_summary: object.ai_summary,
           restrictions: object.regulations,
-          risks: object.risks,
+          risks: object.risks.map((r) => ({ ...r, severity: normalizeSeverity(r.severity) })),
           extracted_data: {
             knowledge_based: true,
             municipality_id: muni.id,
