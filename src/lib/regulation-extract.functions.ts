@@ -39,6 +39,7 @@ const ExtractionSchema = z.object({
   water_protection: z.string().nullable().optional(),
   noise_provisions: z.string().nullable().optional(),
   summary: z.string().nullable().optional(),
+  fallback: z.boolean().optional(),
 });
 
 const SYSTEM_PROMPT = `Du bist Experte für Schweizer Bau- und Zonenrecht (BZR, BZO, Zonenpläne, Gestaltungspläne, Sondervorschriften).
@@ -97,13 +98,15 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
     // completed run is treated as redo-able.
     const { data: existing } = await supabaseAdmin
       .from("regulation_extractions")
-      .select("id, status, zones")
+      .select("id, status, zones, raw_extraction")
       .eq("document_id", doc.id)
       .maybeSingle();
+    const existingRaw = existing?.raw_extraction as { fallback?: boolean } | null | undefined;
     if (
       existing?.status === "completed" &&
       Array.isArray(existing.zones) &&
-      (existing.zones as unknown[]).length > 0
+      (existing.zones as unknown[]).length > 0 &&
+      existingRaw?.fallback !== true
     ) {
       return { skipped: true, extractionId: existing.id };
     }
@@ -153,14 +156,23 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
         object = r.object;
       } catch (primaryErr) {
         console.warn("[extract] gemini-2.5-pro structured failed, retrying flash:", primaryErr);
-        const r2 = await generateObject({
-          model: gateway("google/gemini-2.5-flash"),
-          schema: ExtractionSchema,
-          messages,
-        });
-        object = r2.object;
+        try {
+          const r2 = await generateObject({
+            model: gateway("google/gemini-2.5-flash"),
+            schema: ExtractionSchema,
+            messages,
+          });
+          object = r2.object;
+        } catch (fallbackErr) {
+          console.warn(
+            "[extract] structured extraction failed completely, using safe fallback:",
+            fallbackErr,
+          );
+          object = createFallbackExtraction(doc.title, doc.file_name ?? null);
+        }
       }
 
+      object = normalizeExtraction(object);
 
       // Persist raw extraction (back-compat: keep legacy columns nullable)
       const { error: saveErr } = await supabaseAdmin
@@ -212,6 +224,50 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
 type Zone = z.infer<typeof ZoneSchema>;
 type Extraction = z.infer<typeof ExtractionSchema>;
 
+function normalizeExtraction(extraction: Extraction): Extraction {
+  const zones = (extraction.zones ?? [])
+    .filter((zone) => zone && (zone.code?.trim() || zone.name?.trim()))
+    .map((zone) => ({
+      ...zone,
+      code: zone.code?.trim() || zone.name?.trim() || null,
+      name: zone.name?.trim() || zone.code?.trim() || "Zone",
+      usage_category: zone.usage_category?.trim() || "sonstige",
+      allowed_uses: Array.isArray(zone.allowed_uses)
+        ? zone.allowed_uses
+            .filter((use) => typeof use === "string" && use.trim())
+            .map((use) => use.trim())
+        : [],
+      article_reference: zone.article_reference?.trim() || null,
+    }));
+
+  return { ...extraction, zones };
+}
+
+function createFallbackExtraction(title: string, fileName: string | null): Extraction {
+  const label = title || fileName || "Reglement";
+  return {
+    zones: [
+      {
+        code: "DOKUMENT",
+        name: label,
+        description:
+          "Das Dokument wurde gespeichert, aber die automatische Tabellen-Extraktion konnte kein valides Schema erzeugen. Bitte Werte im Wiki manuell prüfen oder später erneut analysieren.",
+        usage_category: "sonstige",
+        allowed_uses: ["Reglement als Quelle verfügbar"],
+        article_reference: "Dokument",
+      },
+    ],
+    special_provisions:
+      "Automatische Extraktion ist fehlgeschlagen; das Dokument bleibt als Quelle erfasst und kann in der Wissensdatenbank nachbearbeitet werden.",
+    design_plan_required: null,
+    heritage_protected: null,
+    water_protection: null,
+    noise_provisions: null,
+    summary: `Fallback-Eintrag für ${label}: Upload gespeichert, strukturierte KI-Extraktion konnte nicht validiert werden.`,
+    fallback: true,
+  };
+}
+
 async function buildKnowledgeBase(params: {
   municipalityId: string;
   documentId: string;
@@ -256,12 +312,17 @@ async function buildKnowledgeBase(params: {
   };
 
   const usageLabel = (u?: Zone["usage_category"]) =>
-    u === "wohnen" ? "Wohnen"
-    : u === "gewerbe" ? "Gewerbe"
-    : u === "misch" ? "Wohnen + Gewerbe"
-    : u === "oeffentlich" ? "Öffentliche Zwecke"
-    : u === "landwirtschaft" ? "Landwirtschaft"
-    : "Sonstige";
+    u === "wohnen"
+      ? "Wohnen"
+      : u === "gewerbe"
+        ? "Gewerbe"
+        : u === "misch"
+          ? "Wohnen + Gewerbe"
+          : u === "oeffentlich"
+            ? "Öffentliche Zwecke"
+            : u === "landwirtschaft"
+              ? "Landwirtschaft"
+              : "Sonstige";
 
   for (const z of extraction.zones ?? []) {
     const key = (z.code || z.name || "").trim();
@@ -271,12 +332,16 @@ async function buildKnowledgeBase(params: {
     addEntry("Zone", key, [z.name, z.description].filter(Boolean).join(" — "), art);
     addEntry("Nutzung", key, usageLabel(z.usage_category), art);
     if (z.allowed_uses?.length) addEntry("Erlaubte Nutzungen", key, z.allowed_uses.join(", "), art);
-    if (z.max_floors != null) addEntry("Geschossigkeit", key, `Maximal ${Math.round(z.max_floors)} Vollgeschosse`, art);
+    if (z.max_floors != null)
+      addEntry("Geschossigkeit", key, `Maximal ${Math.round(z.max_floors)} Vollgeschosse`, art);
     if (z.max_height_m != null) addEntry("Gebäudehöhe", key, `${z.max_height_m} Meter`, art);
     if (z.utilization_ratio != null) addEntry("Ausnützungsziffer", key, z.utilization_ratio, art);
-    if (z.building_coverage_ratio != null) addEntry("Überbauungsziffer", key, z.building_coverage_ratio, art);
-    if (z.setback_small_m != null) addEntry("Grenzabstand klein", key, `${z.setback_small_m} m`, art);
-    if (z.setback_large_m != null) addEntry("Grenzabstand gross", key, `${z.setback_large_m} m`, art);
+    if (z.building_coverage_ratio != null)
+      addEntry("Überbauungsziffer", key, z.building_coverage_ratio, art);
+    if (z.setback_small_m != null)
+      addEntry("Grenzabstand klein", key, `${z.setback_small_m} m`, art);
+    if (z.setback_large_m != null)
+      addEntry("Grenzabstand gross", key, `${z.setback_large_m} m`, art);
     if (z.noise_sensitivity) addEntry("Lärmempfindlichkeit", key, z.noise_sensitivity, art);
 
     rules.push({
@@ -294,11 +359,31 @@ async function buildKnowledgeBase(params: {
   const G = "ALLGEMEIN";
   addEntry("Ausnützungsziffer", G, extraction.utilization_ratio);
   addEntry("Überbauungsziffer", G, extraction.building_coverage_ratio);
-  addEntry("Geschossigkeit", G, extraction.max_floors != null ? `Maximal ${extraction.max_floors} Vollgeschosse` : null);
-  addEntry("Gebäudehöhe", G, extraction.max_height_m != null ? `${extraction.max_height_m} Meter` : null);
-  addEntry("Grenzabstand klein", G, extraction.setback_small_m != null ? `${extraction.setback_small_m} m` : null);
-  addEntry("Grenzabstand gross", G, extraction.setback_large_m != null ? `${extraction.setback_large_m} m` : null);
-  addEntry("Gewässerabstand", G, extraction.setback_water_m != null ? `${extraction.setback_water_m} m` : null);
+  addEntry(
+    "Geschossigkeit",
+    G,
+    extraction.max_floors != null ? `Maximal ${extraction.max_floors} Vollgeschosse` : null,
+  );
+  addEntry(
+    "Gebäudehöhe",
+    G,
+    extraction.max_height_m != null ? `${extraction.max_height_m} Meter` : null,
+  );
+  addEntry(
+    "Grenzabstand klein",
+    G,
+    extraction.setback_small_m != null ? `${extraction.setback_small_m} m` : null,
+  );
+  addEntry(
+    "Grenzabstand gross",
+    G,
+    extraction.setback_large_m != null ? `${extraction.setback_large_m} m` : null,
+  );
+  addEntry(
+    "Gewässerabstand",
+    G,
+    extraction.setback_water_m != null ? `${extraction.setback_water_m} m` : null,
+  );
   addEntry("Sondervorschriften", G, extraction.special_provisions);
   if (extraction.design_plan_required != null)
     addEntry("Gestaltungsplanpflicht", G, extraction.design_plan_required ? "Ja" : "Nein");
@@ -308,13 +393,13 @@ async function buildKnowledgeBase(params: {
   addEntry("Lärmvorschriften", G, extraction.noise_provisions);
   addEntry("Zusammenfassung", G, extraction.summary);
 
+  // Idempotent rebuild per document. There is no unique constraint across
+  // municipality/category/key, so delete+insert is safer than upsert here.
+  await supabaseAdmin.from("knowledge_entries").delete().eq("source_document", documentId);
   if (entries.length > 0) {
-    await supabaseAdmin
-      .from("knowledge_entries")
-      .upsert(entries, { onConflict: "municipality_id,category,key" });
+    await supabaseAdmin.from("knowledge_entries").insert(entries);
   }
 
-  // Idempotent rule rebuild per document
   await supabaseAdmin.from("regulation_rules").delete().eq("source_document", documentId);
   if (rules.length > 0) {
     await supabaseAdmin.from("regulation_rules").insert(rules);
