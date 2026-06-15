@@ -242,7 +242,7 @@ function MunicipalityWiki(props: {
     if (!q.trim()) return entries;
     const needle = q.toLowerCase();
     return entries.filter((e) =>
-      [e.category, e.key, e.value, e.source_article ?? ""]
+      [e.category, e.key, e.value ?? "", e.source_article ?? ""]
         .join(" ")
         .toLowerCase()
         .includes(needle),
