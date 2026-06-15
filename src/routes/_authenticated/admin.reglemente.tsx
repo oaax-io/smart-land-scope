@@ -544,63 +544,89 @@ function AddRegulationDialog({
         }).select("id").single();
       if (insErr) throw insErr;
 
-      // 4) Run extraction synchronously and show result
-      try {
-        await extractFn({ data: { documentId: inserted.id } });
-      } catch (e) {
-        // Still continue to result page with error
-        const canton = cantonsQ.data?.find((c) => c.id === cantonId);
-        setResult({
-          documentId: inserted.id, municipalityId: muniId,
-          municipalityName: muniName.trim(),
-          cantonCode: canton?.code ?? "",
-          zones: 0, entries: 0, rules: 0,
-          status: "failed", errorMessage: (e as Error).message,
-        });
-        setStep("result");
-        qc.invalidateQueries({ queryKey: ["all-regdocs"] });
-        qc.invalidateQueries({ queryKey: ["kb-stats"] });
-        return;
-      }
-
-      // 5) Load extraction summary + counts
-      const [{ data: extr }, { count: entryCount }, { count: ruleCount }] = await Promise.all([
-        supabase.from("regulation_extractions")
-          .select("status, error_message, zones, residential_zones, commercial_zones, mixed_zones")
-          .eq("document_id", inserted.id).maybeSingle(),
-        supabase.from("knowledge_entries")
-          .select("id", { count: "exact", head: true })
-          .eq("source_document", inserted.id),
-        supabase.from("regulation_rules")
-          .select("id", { count: "exact", head: true })
-          .eq("source_document", inserted.id),
-      ]);
-      const zoneCount =
-        ((extr?.zones as unknown[] | null)?.length ?? 0) +
-        ((extr?.residential_zones as unknown[] | null)?.length ?? 0) +
-        ((extr?.commercial_zones as unknown[] | null)?.length ?? 0) +
-        ((extr?.mixed_zones as unknown[] | null)?.length ?? 0);
-
+      // 4) Immediately show result page in "processing" state — extraction
+      //    runs in background and is observed via polling (see useEffect).
       const canton = cantonsQ.data?.find((c) => c.id === cantonId);
       setResult({
         documentId: inserted.id,
         municipalityId: muniId,
         municipalityName: muniName.trim(),
         cantonCode: canton?.code ?? "",
-        zones: zoneCount,
-        entries: entryCount ?? 0,
-        rules: ruleCount ?? 0,
-        status: extr?.status === "completed" ? "completed" : "failed",
-        errorMessage: extr?.error_message ?? null,
+        zones: 0, entries: 0, rules: 0,
+        status: "processing",
+        errorMessage: null,
       });
       setStep("result");
       qc.invalidateQueries({ queryKey: ["all-regdocs"] });
       qc.invalidateQueries({ queryKey: ["kb-stats"] });
+
+      // 5) Fire extraction without awaiting — the dialog stays open and the
+      //    polling effect below picks up the final status.
+      extractFn({ data: { documentId: inserted.id } }).catch((e) => {
+        console.error("[extract] background run failed", e);
+        setResult((prev) =>
+          prev && prev.documentId === inserted.id
+            ? { ...prev, status: "failed", errorMessage: (e as Error).message }
+            : prev,
+        );
+      });
     } catch (e) {
       toast.error((e as Error).message);
       setStep("form");
     }
   };
+
+  // Poll extraction status while the result is "processing".
+  useEffect(() => {
+    if (step !== "result" || !result || result.status !== "processing") return;
+    const docId = result.documentId;
+    let cancelled = false;
+
+    const tick = async () => {
+      const [{ data: extr }, { count: entryCount }, { count: ruleCount }] = await Promise.all([
+        supabase.from("regulation_extractions")
+          .select("status, error_message, zones, residential_zones, commercial_zones, mixed_zones")
+          .eq("document_id", docId).maybeSingle(),
+        supabase.from("knowledge_entries")
+          .select("id", { count: "exact", head: true })
+          .eq("source_document", docId),
+        supabase.from("regulation_rules")
+          .select("id", { count: "exact", head: true })
+          .eq("source_document", docId),
+      ]);
+      if (cancelled) return;
+      const zoneCount =
+        ((extr?.zones as unknown[] | null)?.length ?? 0) +
+        ((extr?.residential_zones as unknown[] | null)?.length ?? 0) +
+        ((extr?.commercial_zones as unknown[] | null)?.length ?? 0) +
+        ((extr?.mixed_zones as unknown[] | null)?.length ?? 0);
+      const status = extr?.status;
+      setResult((prev) =>
+        prev && prev.documentId === docId
+          ? {
+              ...prev,
+              zones: zoneCount,
+              entries: entryCount ?? 0,
+              rules: ruleCount ?? 0,
+              status:
+                status === "completed" ? "completed"
+                : status === "failed" ? "failed"
+                : "processing",
+              errorMessage: extr?.error_message ?? prev.errorMessage,
+            }
+          : prev,
+      );
+      if (status === "completed" || status === "failed") {
+        qc.invalidateQueries({ queryKey: ["all-regdocs"] });
+        qc.invalidateQueries({ queryKey: ["kb-stats"] });
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 3000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [step, result, qc]);
+
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) close(); else onOpenChange(true); }}>
