@@ -1,64 +1,34 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { asRecord, parseJsonObject, readBoolean, readNullableString, readNumber, readString, readStringArray } from "./ai-json.server";
 
 const InputSchema = z.object({ analysisId: z.string().uuid() });
 
-const RiskSchema = z.object({
-  category: z
-    .enum([
-      "baurecht",
-      "sondervorschrift",
-      "denkmalschutz",
-      "abstand",
-      "laerm",
-      "gewaesser",
-      "wald",
-      "sonstiges",
-    ])
-    .catch("sonstiges"),
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(1000),
-  severity: z.enum(["low", "medium", "high"]).catch("medium"),
-});
-
-const SetbacksSchema = z
-  .object({
-    nord: z.number().nullable().optional(),
-    ost: z.number().nullable().optional(),
-    sued: z.number().nullable().optional(),
-    west: z.number().nullable().optional(),
-    notes: z.string().max(1000).nullable().optional(),
-  })
-  .partial()
-  .nullable()
-  .optional();
-
-// Loose schema — accept what the model can produce; we clamp/normalize after.
-const AnalysisOutputSchema = z.object({
-  feasibility: z.string().min(1).max(4000),
-  zone: z.string().min(1).max(200),
-  usage_types: z.array(z.string().min(1).max(200)).default([]),
-  max_floors: z.number().min(0).max(50),
-  max_height_m: z.number().min(0).max(300),
-  utilization_ratio: z.number().min(0).max(10),
-  building_coverage_ratio: z.number().min(0).max(5).nullable().optional(),
-  setbacks: SetbacksSchema,
-  special_provisions: z.string().max(4000).nullable().optional(),
-  design_plan_required: z.boolean().nullable().optional(),
-  heritage_protected: z.boolean().nullable().optional(),
-  noise_zone: z.string().max(400).nullable().optional(),
-  water_setbacks: z.string().max(1000).nullable().optional(),
-  floor_area_m2: z.number().min(0).max(1000000),
-  living_area_m2: z.number().min(0).max(1000000),
-  unit_count: z.number().min(0).max(10000),
-  potential_level: z.enum(["low", "medium", "high", "very_high"]).catch("medium"),
-  ai_summary: z.string().min(1).max(4000),
-  regulations: z.array(z.string().min(1).max(600)).default([]),
-  risks: z.array(RiskSchema).default([]),
-});
+type AnalysisObject = {
+  feasibility: string;
+  zone: string;
+  usage_types: string[];
+  max_floors: number;
+  max_height_m: number;
+  utilization_ratio: number;
+  building_coverage_ratio: number | null;
+  setbacks: Record<string, unknown> | null;
+  special_provisions: string | null;
+  design_plan_required: boolean | null;
+  heritage_protected: boolean | null;
+  noise_zone: string | null;
+  water_setbacks: string | null;
+  floor_area_m2: number;
+  living_area_m2: number;
+  unit_count: number;
+  potential_level: "low" | "medium" | "high" | "very_high";
+  ai_summary: string;
+  regulations: string[];
+  risks: Array<{ category: string; title: string; description: string; severity: "low" | "medium" | "high" }>;
+};
 
 const MAX_DOC_CHARS = 12000;
 const MAX_TOTAL_CHARS = 40000;
