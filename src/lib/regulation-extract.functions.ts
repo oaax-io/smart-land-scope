@@ -393,13 +393,13 @@ async function buildKnowledgeBase(params: {
   addEntry("Lärmvorschriften", G, extraction.noise_provisions);
   addEntry("Zusammenfassung", G, extraction.summary);
 
+  // Idempotent rebuild per document. There is no unique constraint across
+  // municipality/category/key, so delete+insert is safer than upsert here.
+  await supabaseAdmin.from("knowledge_entries").delete().eq("source_document", documentId);
   if (entries.length > 0) {
-    await supabaseAdmin
-      .from("knowledge_entries")
-      .upsert(entries, { onConflict: "municipality_id,category,key" });
+    await supabaseAdmin.from("knowledge_entries").insert(entries);
   }
 
-  // Idempotent rule rebuild per document
   await supabaseAdmin.from("regulation_rules").delete().eq("source_document", documentId);
   if (rules.length > 0) {
     await supabaseAdmin.from("regulation_rules").insert(rules);
