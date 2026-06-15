@@ -169,12 +169,38 @@ export const runAnalysis = createServerFn({ method: "POST" })
         `Wohnungsanzahl plausibel aus Wohnfläche ableiten (≈ 90 m² pro Einheit).`,
       ].join("\n");
 
-      // 1) Structured extraction (rich schema)
-      const { object } = await generateObject({
+      // 1) Robust JSON extraction. We avoid strict constrained decoding here because
+      // long Swiss regulations can make the model miss the schema and abort.
+      const result = await generateText({
         model: gateway("google/gemini-2.5-flash"),
-        schema: AnalysisOutputSchema,
-        prompt,
+        prompt: `${prompt}
+
+Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
+{
+  "feasibility": "string",
+  "zone": "string",
+  "usage_types": ["string"],
+  "max_floors": 0,
+  "max_height_m": 0,
+  "utilization_ratio": 0,
+  "building_coverage_ratio": null,
+  "setbacks": { "nord": null, "ost": null, "sued": null, "west": null, "notes": "string" },
+  "special_provisions": null,
+  "design_plan_required": null,
+  "heritage_protected": null,
+  "noise_zone": null,
+  "water_setbacks": null,
+  "floor_area_m2": 0,
+  "living_area_m2": 0,
+  "unit_count": 0,
+  "potential_level": "low | medium | high | very_high",
+  "ai_summary": "string",
+  "regulations": ["string"],
+  "risks": [{ "category": "sonstiges", "title": "string", "description": "string", "severity": "low | medium | high" }]
+}`,
+        maxOutputTokens: 8000,
       });
+      const object = normalizeAnalysisObject(parseJsonObject(result.text), analysis.area_size);
 
       // 2) Dedicated AI Analysis Service — strict product JSON
       const { analyseParcel } = await import("./ai-analysis.server");
