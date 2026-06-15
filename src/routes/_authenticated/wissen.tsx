@@ -179,7 +179,7 @@ type Entry = {
   id: string;
   category: string;
   key: string;
-  value: string;
+  value: string | null;
   source_article: string | null;
   source_document: string | null;
 };
