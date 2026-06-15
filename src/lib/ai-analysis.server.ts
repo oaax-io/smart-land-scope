@@ -1,6 +1,7 @@
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { asRecord, parseJsonObject, readString, readStringArray } from "./ai-json.server";
 
 // Strict response shape requested by the product spec.
 export const AnalysisAnswerSchema = z.object({
@@ -33,9 +34,32 @@ export type DocumentInput = {
 const SYSTEM_PROMPT = [
   "Du bist ein Experte für Schweizer Bau- und Zonenrecht.",
   "Antworte ausschliesslich auf Deutsch (Schweizer Hochdeutsch, kein ß).",
-  "Antworte ausschliesslich als gültiges JSON gemäss vorgegebenem Schema — keinen Fliesstext ausserhalb.",
+  "Antworte ausschliesslich als gültiges JSON — keine Markdown-Fences, kein Fliesstext ausserhalb.",
   "Wenn Werte aus den Dokumenten nicht klar hervorgehen, formuliere plausible Annahmen für eine typische Wohnzone und kennzeichne Unsicherheiten im Feld 'reasoning'.",
 ].join(" ");
+
+function normalizePotential(value: unknown): AnalysisAnswer["development_potential"] {
+  const text = readString(value, "medium").toLowerCase();
+  if (text.includes("very") || text.includes("sehr")) return "very_high";
+  if (text.includes("high") || text.includes("hoch")) return "high";
+  if (text.includes("low") || text.includes("gering") || text.includes("niedrig")) return "low";
+  return "medium";
+}
+
+function normalizeAnalysisAnswer(value: unknown): AnalysisAnswer {
+  const record = asRecord(value);
+  const answer = {
+    allowed_use: readString(record.allowed_use, "Keine eindeutige Nutzung aus den verfügbaren Daten ableitbar."),
+    zone: readString(record.zone, "Unbekannt"),
+    max_floors: readString(record.max_floors, "Unbekannt"),
+    max_height: readString(record.max_height, "Unbekannt"),
+    restrictions: readStringArray(record.restrictions).slice(0, 20),
+    development_potential: normalizePotential(record.development_potential),
+    reasoning: readString(record.reasoning, "Die Einschätzung basiert auf den verfügbaren Reglementen und Grundstücksdaten."),
+  };
+
+  return AnalysisAnswerSchema.parse(answer);
+}
 
 function buildUserPrompt(parcel: ParcelInput, docs: DocumentInput[]): string {
   const docBlock = docs.length
@@ -77,11 +101,22 @@ export async function analyseParcel(params: {
   model?: string;
 }): Promise<AnalysisAnswer> {
   const gateway = createLovableAiGatewayProvider(params.apiKey);
-  const { object } = await generateObject({
+  const result = await generateText({
     model: gateway(params.model ?? "google/gemini-2.5-flash"),
-    schema: AnalysisAnswerSchema,
     system: SYSTEM_PROMPT,
-    prompt: buildUserPrompt(params.parcel, params.documents),
+    prompt: `${buildUserPrompt(params.parcel, params.documents)}
+
+Gib exakt dieses JSON-Objekt zurück:
+{
+  "allowed_use": "string",
+  "zone": "string",
+  "max_floors": "string",
+  "max_height": "string",
+  "restrictions": ["string"],
+  "development_potential": "low | medium | high | very_high",
+  "reasoning": "string"
+}`,
+    maxOutputTokens: 6000,
   });
-  return object;
+  return normalizeAnalysisAnswer(parseJsonObject(result.text));
 }
