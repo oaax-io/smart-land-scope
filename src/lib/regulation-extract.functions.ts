@@ -9,22 +9,19 @@ const InputSchema = z.object({ documentId: z.string().uuid() });
 // Per-zone schema — carries the actual density metrics PER zone (e.g. WO3, WA4).
 // Most Swiss BZRs define these per Ordnungsnummer in an appendix, not globally.
 const ZoneSchema = z.object({
-  code: z.string().max(50).nullable().optional(),
-  name: z.string().min(1).max(200),
-  description: z.string().max(1000).nullable().optional(),
-  usage_category: z
-    .enum(["wohnen", "gewerbe", "misch", "oeffentlich", "landwirtschaft", "sonstige"])
-    .catch("sonstige")
-    .optional(),
-  allowed_uses: z.array(z.string().max(200)).max(20).default([]),
-  max_floors: z.number().min(0).max(80).nullable().optional(),
-  max_height_m: z.number().min(0).max(300).nullable().optional(),
-  utilization_ratio: z.number().min(0).max(10).nullable().optional(),
-  building_coverage_ratio: z.number().min(0).max(5).nullable().optional(),
-  setback_small_m: z.number().min(0).max(50).nullable().optional(),
-  setback_large_m: z.number().min(0).max(50).nullable().optional(),
-  noise_sensitivity: z.string().max(50).nullable().optional(),
-  article_reference: z.string().max(100).nullable().optional(),
+  code: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  usage_category: z.string().nullable().optional(),
+  allowed_uses: z.array(z.string()).nullable().optional(),
+  max_floors: z.number().nullable().optional(),
+  max_height_m: z.number().nullable().optional(),
+  utilization_ratio: z.number().nullable().optional(),
+  building_coverage_ratio: z.number().nullable().optional(),
+  setback_small_m: z.number().nullable().optional(),
+  setback_large_m: z.number().nullable().optional(),
+  noise_sensitivity: z.string().nullable().optional(),
+  article_reference: z.string().nullable().optional(),
 });
 
 const ExtractionSchema = z.object({
