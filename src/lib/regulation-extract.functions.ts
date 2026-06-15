@@ -128,51 +128,86 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
       const { base64, mime } = await loadDocumentAsBase64(doc.file_path);
       const gateway = createLovableAiGatewayProvider(apiKey);
 
+      // Strategy: use generateText with explicit JSON instructions instead of
+      // generateObject. Gemini frequently fails schema validation on long
+      // multi-zone BZRs ("response did not match schema" / "too many states"
+      // in the structured-decoding state machine). Asking for plain JSON and
+      // parsing manually is far more robust.
+      const userInstruction = `Dokumenttyp: ${doc.doc_type}
+Titel: ${doc.title}
+
+Lies das gesamte Reglement INKLUSIVE Anhang/Tabellen.
+Extrahiere ALLE Nutzungszonen mit ihren spezifischen Bauvorschriften.
+Schweizer BZRs definieren Dichtewerte (Geschosse, Höhe, AZ, ÜZ, Grenzabstände)
+typischerweise im ANHANG pro Ordnungsnummer (z. B. WO3, WA4, AR312). Erzeuge
+pro Ordnungsnummer EINEN Eintrag mit den dort genannten Werten.
+
+Antworte AUSSCHLIESSLICH mit reinem JSON in genau dieser Form (keine Markdown-Fences):
+{
+  "zones": [
+    {
+      "code": "WO3",
+      "name": "Wohnzone 3",
+      "description": "kurzer Text",
+      "usage_category": "wohnen" | "gewerbe" | "misch" | "oeffentlich" | "landwirtschaft" | "sonstige",
+      "allowed_uses": ["Wohnen"],
+      "max_floors": 3,
+      "max_height_m": 10.5,
+      "utilization_ratio": 0.6,
+      "building_coverage_ratio": 0.35,
+      "setback_small_m": 3.5,
+      "setback_large_m": 7,
+      "noise_sensitivity": "II",
+      "article_reference": "Art. 12 / Anhang 1"
+    }
+  ],
+  "special_provisions": "string oder null",
+  "design_plan_required": true | false | null,
+  "heritage_protected": true | false | null,
+  "water_protection": "string oder null",
+  "noise_provisions": "string oder null",
+  "summary": "kurze Gesamtzusammenfassung"
+}
+
+Nicht im Dokument vorhandene Werte: setze null. KEINE Werte erfinden.`;
+
       const messages = [
         { role: "system" as const, content: SYSTEM_PROMPT },
         {
           role: "user" as const,
           content: [
-            {
-              type: "text" as const,
-              text: `Dokumenttyp: ${doc.doc_type}\nTitel: ${doc.title}\n\nLies das gesamte Dokument inklusive Anhang/Tabellen. Extrahiere ALLE Zonen mit ihren spezifischen Werten (Geschosse, Höhe, AZ, ÜZ, Grenzabstände).`,
-            },
-            {
-              type: "file" as const,
-              data: base64,
-              mediaType: mime || "application/pdf",
-            },
+            { type: "text" as const, text: userInstruction },
+            { type: "file" as const, data: base64, mediaType: mime || "application/pdf" },
           ],
         },
       ];
 
-      let object: z.infer<typeof ExtractionSchema>;
-      try {
-        const r = await generateObject({
-          model: gateway("google/gemini-2.5-pro"),
-          schema: ExtractionSchema,
-          messages,
-        });
-        object = r.object;
-      } catch (primaryErr) {
-        console.warn("[extract] gemini-2.5-pro structured failed, retrying flash:", primaryErr);
+      let object: Extraction | null = null;
+      const models = ["google/gemini-2.5-pro", "google/gemini-2.5-flash"] as const;
+      for (const modelId of models) {
         try {
-          const r2 = await generateObject({
-            model: gateway("google/gemini-2.5-flash"),
-            schema: ExtractionSchema,
+          const r = await generateText({
+            model: gateway(modelId),
             messages,
+            maxOutputTokens: 16000,
           });
-          object = r2.object;
-        } catch (fallbackErr) {
-          console.warn(
-            "[extract] structured extraction failed completely, using safe fallback:",
-            fallbackErr,
-          );
-          object = createFallbackExtraction(doc.title, doc.file_name ?? null);
+          const parsed = parseExtractionJson(r.text);
+          if (parsed && (parsed.zones?.length ?? 0) > 0) {
+            object = parsed;
+            break;
+          }
+          console.warn(`[extract] ${modelId} returned no zones, trying next model`);
+        } catch (err) {
+          console.warn(`[extract] ${modelId} failed:`, err);
         }
+      }
+      if (!object) {
+        console.warn("[extract] all models failed, using fallback");
+        object = createFallbackExtraction(doc.title, doc.file_name ?? null);
       }
 
       object = normalizeExtraction(object);
+
 
       // Persist raw extraction (back-compat: keep legacy columns nullable)
       const { error: saveErr } = await supabaseAdmin
