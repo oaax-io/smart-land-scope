@@ -303,7 +303,13 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
 }`,
         maxOutputTokens: 8000,
       });
-      const object = normalizeKnowledgeAnalysis(parseJsonObject(result.text));
+      let parsedResult: unknown = {};
+      try {
+        parsedResult = parseJsonObject(result.text);
+      } catch (parseError) {
+        console.warn("[knowledge-analysis] AI JSON parse failed, using normalized fallback", parseError);
+      }
+      const object = normalizeKnowledgeAnalysis(parsedResult);
 
       // 4) Persist
       const { error: updErr } = await supabase
