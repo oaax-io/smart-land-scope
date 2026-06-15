@@ -27,6 +27,7 @@ import {
   CloudUpload, X,
 } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
+import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
 
 export const Route = createFileRoute("/_authenticated/admin/reglemente")({
   component: ReglementePage,
