@@ -16,6 +16,7 @@ const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Analysen", url: "/analysen", icon: MapPinned },
   { title: "Wohnungsrechner", url: "/rechner", icon: Calculator },
+  { title: "Wissensdatenbank", url: "/wissen", icon: BookOpen },
   { title: "Projekte", url: "/projekte", icon: FolderKanban },
   { title: "Berichte", url: "/berichte", icon: FileText },
   { title: "Team", url: "/team", icon: Users },
