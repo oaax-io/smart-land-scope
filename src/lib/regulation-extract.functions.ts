@@ -61,14 +61,28 @@ Zonen-Kategorien (usage_category):
 
 Antworte ausschliesslich im vorgegebenen JSON-Format.`;
 
-async function loadDocumentAsBase64(filePath: string) {
+async function loadDocumentAsBase64(filePath: string, fileName?: string | null) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.storage
     .from("regulation-documents")
     .download(filePath);
   if (error || !data) throw new Error(`Download fehlgeschlagen: ${error?.message ?? "leer"}`);
   const buf = Buffer.from(await data.arrayBuffer());
-  return { base64: buf.toString("base64"), mime: data.type || "application/pdf" };
+  const ext = (fileName ?? filePath).toLowerCase().split(".").pop() ?? "";
+  let mime = data.type || "";
+  if (!mime || mime === "application/octet-stream") {
+    if (ext === "md" || ext === "markdown") mime = "text/markdown";
+    else if (ext === "txt") mime = "text/plain";
+    else if (ext === "pdf") mime = "application/pdf";
+    else mime = "application/pdf";
+  }
+  const isText = mime.startsWith("text/") || ext === "md" || ext === "markdown" || ext === "txt";
+  return {
+    base64: buf.toString("base64"),
+    mime,
+    isText,
+    text: isText ? buf.toString("utf-8") : null,
+  };
 }
 
 export const extractRegulationDocument = createServerFn({ method: "POST" })
@@ -125,7 +139,7 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
       const apiKey = process.env.LOVABLE_API_KEY;
       if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
 
-      const { base64, mime } = await loadDocumentAsBase64(doc.file_path);
+      const { base64, mime, isText, text } = await loadDocumentAsBase64(doc.file_path, doc.file_name);
       const gateway = createLovableAiGatewayProvider(apiKey);
 
       // Strategy: use generateText with explicit JSON instructions instead of
@@ -171,15 +185,19 @@ Antworte AUSSCHLIESSLICH mit reinem JSON in genau dieser Form (keine Markdown-Fe
 
 Nicht im Dokument vorhandene Werte: setze null. KEINE Werte erfinden.`;
 
-      const messages = [
-        { role: "system" as const, content: SYSTEM_PROMPT },
-        {
-          role: "user" as const,
-          content: [
+      const userContent = isText && text
+        ? [
+            { type: "text" as const, text: userInstruction },
+            { type: "text" as const, text: `\n\n=== DOKUMENTINHALT (${mime}) ===\n${text}` },
+          ]
+        : [
             { type: "text" as const, text: userInstruction },
             { type: "file" as const, data: base64, mediaType: mime || "application/pdf" },
-          ],
-        },
+          ];
+
+      const messages = [
+        { role: "system" as const, content: SYSTEM_PROMPT },
+        { role: "user" as const, content: userContent },
       ];
 
       let object: Extraction | null = null;
