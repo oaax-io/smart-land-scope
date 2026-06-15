@@ -64,21 +64,42 @@ function WissenPage() {
   const { data: munis = [], isLoading } = useMunicipalities();
 
   const [muniFilter, setMuniFilter] = useState("");
+  const [cantonFilter, setCantonFilter] = useState<string>("all");
+  const [onlyWith, setOnlyWith] = useState<"all" | "with" | "without">("all");
+
+  const cantons = useMemo(() => {
+    const m = new Map<string, string>();
+    munis.forEach((mu) => {
+      if (mu.canton) m.set(mu.canton.code, mu.canton.name);
+    });
+    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [munis]);
+
   const filteredMunis = useMemo(
     () =>
-      munis.filter((m) => {
-        if (!muniFilter.trim()) return true;
-        const q = muniFilter.toLowerCase();
-        return (
-          m.name.toLowerCase().includes(q) ||
-          (m.canton?.code ?? "").toLowerCase().includes(q) ||
-          (m.canton?.name ?? "").toLowerCase().includes(q)
-        );
-      }),
-    [munis, muniFilter],
+      munis
+        .filter((m) => {
+          if (cantonFilter !== "all" && m.canton?.code !== cantonFilter) return false;
+          if (onlyWith === "with" && m.entry_count === 0) return false;
+          if (onlyWith === "without" && m.entry_count > 0) return false;
+          if (!muniFilter.trim()) return true;
+          const q = muniFilter.toLowerCase();
+          return (
+            m.name.toLowerCase().includes(q) ||
+            (m.canton?.code ?? "").toLowerCase().includes(q) ||
+            (m.canton?.name ?? "").toLowerCase().includes(q)
+          );
+        })
+        .sort((a, b) => {
+          if ((b.entry_count > 0 ? 1 : 0) !== (a.entry_count > 0 ? 1 : 0))
+            return (b.entry_count > 0 ? 1 : 0) - (a.entry_count > 0 ? 1 : 0);
+          return a.name.localeCompare(b.name);
+        }),
+    [munis, muniFilter, cantonFilter, onlyWith],
   );
 
-  const selectedId = search.m || munis[0]?.id || "";
+  const withData = munis.filter((m) => m.entry_count > 0).length;
+  const selectedId = search.m || filteredMunis[0]?.id || munis[0]?.id || "";
 
   return (
     <div className="space-y-6">
@@ -91,11 +112,13 @@ function WissenPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <Card className="h-fit lg:sticky lg:top-4">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Gemeinden</CardTitle>
-            <CardDescription>{munis.length} erfasst</CardDescription>
+            <CardDescription>
+              {withData} / {munis.length} mit Daten
+            </CardDescription>
             <div className="relative pt-2">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -104,6 +127,25 @@ function WissenPage() {
                 placeholder="Gemeinde / Kanton…"
                 className="pl-8"
               />
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <Select value={cantonFilter} onValueChange={setCantonFilter}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Kanton" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle Kantone</SelectItem>
+                  {cantons.map(([code, name]) => (
+                    <SelectItem key={code} value={code}>{code} — {name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={onlyWith} onValueChange={(v) => setOnlyWith(v as "all" | "with" | "without")}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle</SelectItem>
+                  <SelectItem value="with">Mit Daten</SelectItem>
+                  <SelectItem value="without">Ohne Daten</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
           <CardContent className="max-h-[70vh] overflow-y-auto p-2">
@@ -114,6 +156,7 @@ function WissenPage() {
             <ul className="space-y-1">
               {filteredMunis.map((m) => {
                 const active = m.id === selectedId;
+                const empty = m.entry_count === 0;
                 return (
                   <li key={m.id}>
                     <button
@@ -123,7 +166,7 @@ function WissenPage() {
                       }
                       className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent ${
                         active ? "bg-accent font-medium" : ""
-                      }`}
+                      } ${empty && !active ? "text-muted-foreground" : ""}`}
                     >
                       <span className="flex items-center gap-2 truncate">
                         <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -136,7 +179,7 @@ function WissenPage() {
                           </Badge>
                         )}
                         <span className="text-xs text-muted-foreground tabular-nums">
-                          {m.entry_count}
+                          {empty ? "—" : m.entry_count}
                         </span>
                       </span>
                     </button>
@@ -146,6 +189,7 @@ function WissenPage() {
             </ul>
           </CardContent>
         </Card>
+
 
         <div>
           {selectedId ? (
