@@ -186,20 +186,32 @@ type MuniGroup = {
 
 function DocumentsList() {
   const [openMuni, setOpenMuni] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [cantonFilter, setCantonFilter] = useState<string>("all");
+  const [onlyWith, setOnlyWith] = useState<"all" | "with" | "without">("all");
 
   const q = useQuery({
     queryKey: ["all-regdocs"],
     refetchInterval: 5000,
     queryFn: async () => {
-      const { data: docs, error } = await supabase
-        .from("regulation_documents")
-        .select(
-          "id, doc_type, title, version, file_path, file_name, created_at, municipality_id, municipality:municipalities(id, name, canton:cantons(code, name))",
-        )
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      const ids = (docs ?? []).map((d) => d.id);
-      const muniIds = Array.from(new Set((docs ?? []).map((d) => d.municipality_id)));
+      const [munisRes, docsRes] = await Promise.all([
+        supabase
+          .from("municipalities")
+          .select("id, name, canton:cantons(code, name)")
+          .order("name"),
+        supabase
+          .from("regulation_documents")
+          .select(
+            "id, doc_type, title, version, file_path, file_name, created_at, municipality_id",
+          )
+          .order("created_at", { ascending: false }),
+      ]);
+      if (munisRes.error) throw munisRes.error;
+      if (docsRes.error) throw docsRes.error;
+      const docs = docsRes.data ?? [];
+      const munis = munisRes.data ?? [];
+      const ids = docs.map((d) => d.id);
+      const muniIds = munis.map((m) => m.id);
 
       const [extr, entries] = await Promise.all([
         ids.length
@@ -225,96 +237,165 @@ function DocumentsList() {
       });
 
       const groups = new Map<string, MuniGroup>();
-      for (const d of docs ?? []) {
-        const g = groups.get(d.municipality_id) ?? {
-          id: d.municipality_id,
-          name: d.municipality?.name ?? "—",
-          cantonCode: d.municipality?.canton?.code ?? "—",
-          cantonName: d.municipality?.canton?.name ?? "",
+      for (const m of munis) {
+        const canton = m.canton as { code: string; name: string } | null;
+        groups.set(m.id, {
+          id: m.id,
+          name: m.name,
+          cantonCode: canton?.code ?? "—",
+          cantonName: canton?.name ?? "",
           doc_count: 0,
-          entry_count: entryCount.get(d.municipality_id) ?? 0,
+          entry_count: entryCount.get(m.id) ?? 0,
           latest: null,
           has_failed: false,
           has_processing: false,
-        };
+        });
+      }
+      for (const d of docs) {
+        const g = groups.get(d.municipality_id);
+        if (!g) continue;
         g.doc_count += 1;
         if (!g.latest || d.created_at > g.latest) g.latest = d.created_at;
         const st = extrMap.get(d.id);
         if (st === "failed") g.has_failed = true;
         if (st === "processing" || st === "pending") g.has_processing = true;
-        groups.set(d.municipality_id, g);
       }
-      return Array.from(groups.values()).sort((a, b) =>
-        (b.latest ?? "").localeCompare(a.latest ?? ""),
-      );
+      return Array.from(groups.values());
     },
   });
+
+  const cantons = useMemo(() => {
+    const s = new Map<string, string>();
+    (q.data ?? []).forEach((g) => {
+      if (g.cantonCode && g.cantonCode !== "—") s.set(g.cantonCode, g.cantonName);
+    });
+    return Array.from(s.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [q.data]);
+
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (q.data ?? [])
+      .filter((g) => {
+        if (cantonFilter !== "all" && g.cantonCode !== cantonFilter) return false;
+        if (onlyWith === "with" && g.doc_count === 0) return false;
+        if (onlyWith === "without" && g.doc_count > 0) return false;
+        if (!needle) return true;
+        return (
+          g.name.toLowerCase().includes(needle) ||
+          g.cantonCode.toLowerCase().includes(needle) ||
+          g.cantonName.toLowerCase().includes(needle)
+        );
+      })
+      .sort((a, b) => {
+        if ((b.doc_count > 0 ? 1 : 0) !== (a.doc_count > 0 ? 1 : 0))
+          return (b.doc_count > 0 ? 1 : 0) - (a.doc_count > 0 ? 1 : 0);
+        if (a.doc_count > 0 && b.doc_count > 0)
+          return (b.latest ?? "").localeCompare(a.latest ?? "");
+        return a.name.localeCompare(b.name);
+      });
+  }, [q.data, search, cantonFilter, onlyWith]);
+
+  const total = q.data?.length ?? 0;
+  const withDocs = (q.data ?? []).filter((g) => g.doc_count > 0).length;
 
   return (
     <>
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4" /> Gemeinden mit Reglementen
+            <FileText className="h-4 w-4" /> Gemeinden ({withDocs} / {total} mit Reglement)
           </CardTitle>
           <CardDescription>
-            Klicke auf eine Gemeinde, um Details, Versionen und Erlass-Daten zu öffnen.
+            Klicke auf eine Gemeinde, um Versionen anzusehen oder ein Reglement hochzuladen.
           </CardDescription>
+          <div className="grid gap-2 pt-3 sm:grid-cols-[1fr_180px_200px]">
+            <Input
+              placeholder="Gemeinde / Kanton suchen…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <Select value={cantonFilter} onValueChange={setCantonFilter}>
+              <SelectTrigger><SelectValue placeholder="Kanton" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle Kantone</SelectItem>
+                {cantons.map(([code, name]) => (
+                  <SelectItem key={code} value={code}>{code} — {name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={onlyWith} onValueChange={(v) => setOnlyWith(v as "all" | "with" | "without")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle anzeigen</SelectItem>
+                <SelectItem value="with">Nur mit Reglement</SelectItem>
+                <SelectItem value="without">Nur ohne Reglement</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           {q.isLoading ? (
             <p className="text-sm text-muted-foreground">Lade…</p>
-          ) : (q.data?.length ?? 0) === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
-              Noch keine Reglemente erfasst. Klicke oben auf <strong>Reglement hinzufügen</strong>.
+              Keine Treffer.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Gemeinde</TableHead>
-                  <TableHead>Kt.</TableHead>
-                  <TableHead className="text-right">Versionen</TableHead>
-                  <TableHead className="text-right">Wissen</TableHead>
-                  <TableHead>Letzte Erfassung</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {q.data?.map((g) => (
-                  <TableRow
-                    key={g.id}
-                    className="cursor-pointer hover:bg-muted/40"
-                    onClick={() => setOpenMuni(g.id)}
-                  >
-                    <TableCell className="font-medium">{g.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-mono">{g.cantonCode}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{g.doc_count}</TableCell>
-                    <TableCell className="text-right tabular-nums">{g.entry_count}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {g.latest ? new Date(g.latest).toLocaleDateString("de-CH") : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {g.has_processing ? (
-                        <Badge variant="secondary" className="gap-1">
-                          <Loader2 className="h-3 w-3 animate-spin" /> Analyse
-                        </Badge>
-                      ) : g.has_failed ? (
-                        <Badge variant="destructive" className="gap-1">
-                          <AlertCircle className="h-3 w-3" /> Teilfehler
-                        </Badge>
-                      ) : (
-                        <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
-                          <CheckCircle2 className="h-3 w-3" /> OK
-                        </Badge>
-                      )}
-                    </TableCell>
+            <div className="max-h-[65vh] overflow-y-auto">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-background">
+                  <TableRow>
+                    <TableHead>Gemeinde</TableHead>
+                    <TableHead>Kt.</TableHead>
+                    <TableHead className="text-right">Versionen</TableHead>
+                    <TableHead className="text-right">Wissen</TableHead>
+                    <TableHead>Letzte Erfassung</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((g) => {
+                    const empty = g.doc_count === 0;
+                    return (
+                      <TableRow
+                        key={g.id}
+                        className={`cursor-pointer hover:bg-muted/40 ${empty ? "text-muted-foreground" : ""}`}
+                        onClick={() => setOpenMuni(g.id)}
+                      >
+                        <TableCell className="font-medium">{g.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="font-mono">{g.cantonCode}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{g.doc_count}</TableCell>
+                        <TableCell className="text-right tabular-nums">{g.entry_count}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {g.latest ? new Date(g.latest).toLocaleDateString("de-CH") : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {empty ? (
+                            <Badge variant="outline" className="gap-1 text-muted-foreground">
+                              <Upload className="h-3 w-3" /> Noch nicht hochgeladen
+                            </Badge>
+                          ) : g.has_processing ? (
+                            <Badge variant="secondary" className="gap-1">
+                              <Loader2 className="h-3 w-3 animate-spin" /> Analyse
+                            </Badge>
+                          ) : g.has_failed ? (
+                            <Badge variant="destructive" className="gap-1">
+                              <AlertCircle className="h-3 w-3" /> Teilfehler
+                            </Badge>
+                          ) : (
+                            <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
+                              <CheckCircle2 className="h-3 w-3" /> OK
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
