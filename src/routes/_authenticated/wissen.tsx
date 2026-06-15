@@ -1,16 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { BookOpen, Search, MapPin, FileText, Layers } from "lucide-react";
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  BookOpen, Search, MapPin, FileText, Layers, X, ChevronsDownUp, ChevronsUpDown,
+} from "lucide-react";
 
 type RouteSearch = { m: string; q: string };
 
@@ -88,9 +91,9 @@ function WissenPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <Card className="h-fit">
-          <CardHeader>
+      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+        <Card className="h-fit lg:sticky lg:top-4">
+          <CardHeader className="pb-3">
             <CardTitle className="text-base">Gemeinden</CardTitle>
             <CardDescription>{munis.length} erfasst</CardDescription>
             <div className="relative pt-2">
@@ -118,7 +121,7 @@ function WissenPage() {
                       onClick={() =>
                         navigate({ search: (prev: RouteSearch) => ({ ...prev, m: m.id }) })
                       }
-                      className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                      className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent ${
                         active ? "bg-accent font-medium" : ""
                       }`}
                     >
@@ -132,7 +135,7 @@ function WissenPage() {
                             {m.canton.code}
                           </Badge>
                         )}
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground tabular-nums">
                           {m.entry_count}
                         </span>
                       </span>
@@ -186,12 +189,37 @@ type Entry = {
 
 type Doc = { id: string; title: string; doc_type: string; version: string | null };
 
+function highlight(text: string, needle: string) {
+  if (!needle.trim()) return text;
+  const re = new RegExp(`(${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "ig");
+  const parts = text.split(re);
+  return parts.map((p, i) =>
+    re.test(p) ? (
+      <mark key={i} className="rounded bg-yellow-200 px-0.5 text-foreground dark:bg-yellow-500/40">
+        {p}
+      </mark>
+    ) : (
+      <span key={i}>{p}</span>
+    ),
+  );
+}
+
 function MunicipalityWiki(props: {
   municipalityId: string;
   q: string;
   onSearch: (q: string) => void;
 }) {
   const { municipalityId, q, onSearch } = props;
+
+  // Debounced local input for instant feel without thrashing URL
+  const [localQ, setLocalQ] = useState(q);
+  useEffect(() => setLocalQ(q), [q]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (localQ !== q) onSearch(localQ);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [localQ, q, onSearch]);
 
   const { data: muni } = useQuery({
     queryKey: ["wissen-muni", municipalityId],
@@ -233,24 +261,21 @@ function MunicipalityWiki(props: {
     },
   });
 
-  const docMap = useMemo(
-    () => new Map(docs.map((d) => [d.id, d])),
-    [docs],
-  );
+  const docMap = useMemo(() => new Map(docs.map((d) => [d.id, d])), [docs]);
 
   const filtered = useMemo(() => {
-    if (!q.trim()) return entries;
-    const needle = q.toLowerCase();
+    if (!localQ.trim()) return entries;
+    const needle = localQ.toLowerCase();
     return entries.filter((e) =>
       [e.category, e.key, e.value ?? "", e.source_article ?? ""]
         .join(" ")
         .toLowerCase()
         .includes(needle),
     );
-  }, [entries, q]);
+  }, [entries, localQ]);
 
-  // Group by zone-key when category is per-zone, else by category
-  const byZone = useMemo(() => {
+  // Group by key (zone or "ALLGEMEIN")
+  const groups = useMemo(() => {
     const m = new Map<string, Entry[]>();
     for (const e of filtered) {
       const k = e.key && e.key !== "ALLGEMEIN" ? e.key : "ALLGEMEIN";
@@ -265,6 +290,16 @@ function MunicipalityWiki(props: {
     });
   }, [filtered]);
 
+  const groupKeys = useMemo(() => groups.map(([k]) => k), [groups]);
+  const [openItems, setOpenItems] = useState<string[]>([]);
+
+  // When searching, auto-expand all matching groups
+  useEffect(() => {
+    if (localQ.trim()) setOpenItems(groupKeys);
+  }, [localQ, groupKeys]);
+
+  const allOpen = openItems.length === groupKeys.length && groupKeys.length > 0;
+
   return (
     <div className="space-y-4">
       <Card>
@@ -272,24 +307,39 @@ function MunicipalityWiki(props: {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="text-2xl">{muni?.name ?? "—"}</CardTitle>
-              <CardDescription className="flex items-center gap-2">
+              <CardDescription className="flex flex-wrap items-center gap-2">
                 {muni?.canton && (
                   <Badge variant="outline">
                     {(muni.canton as { code?: string }).code} —{" "}
                     {(muni.canton as { name?: string }).name}
                   </Badge>
                 )}
-                <span>{entries.length} Einträge · {docs.length} Dokument(e)</span>
+                <span>
+                  {entries.length} Einträge · {docs.length} Dokument(e)
+                  {localQ.trim() && (
+                    <span className="ml-1 text-foreground">· {filtered.length} Treffer</span>
+                  )}
+                </span>
               </CardDescription>
             </div>
             <div className="relative w-full max-w-sm">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                value={q}
-                onChange={(e) => onSearch(e.target.value)}
+                value={localQ}
+                onChange={(e) => setLocalQ(e.target.value)}
                 placeholder="Im Reglement suchen…"
-                className="pl-8"
+                className="pl-8 pr-8"
               />
+              {localQ && (
+                <button
+                  type="button"
+                  onClick={() => setLocalQ("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-accent"
+                  aria-label="Suche löschen"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -328,48 +378,90 @@ function MunicipalityWiki(props: {
       {!isLoading && entries.length > 0 && filtered.length === 0 && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            Keine Treffer für „{q}".
+            Keine Treffer für „{localQ}".
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {byZone.map(([zoneKey, list]) => (
-          <Card key={zoneKey}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground" />
-                {zoneKey}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="space-y-2 text-sm">
-                {list.map((e) => (
-                  <div
-                    key={e.id}
-                    className="grid grid-cols-[140px_1fr] gap-2 border-b border-border/50 pb-2 last:border-0 last:pb-0"
-                  >
-                    <dt className="font-medium text-muted-foreground">
-                      {e.category}
-                    </dt>
-                    <dd>
-                      <div>{e.value}</div>
-                      {(e.source_article || e.source_document) && (
-                        <div className="mt-0.5 text-xs text-muted-foreground">
-                          {e.source_article ? `Art. ${e.source_article}` : ""}
-                          {e.source_document && docMap.get(e.source_document)
-                            ? `${e.source_article ? " · " : ""}${docMap.get(e.source_document)!.doc_type}`
-                            : ""}
-                        </div>
-                      )}
-                    </dd>
+      {!isLoading && groups.length > 0 && (
+        <>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {groups.length} {groups.length === 1 ? "Bereich" : "Bereiche"}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenItems(allOpen ? [] : groupKeys)}
+              className="gap-1.5 text-xs"
+            >
+              {allOpen ? (
+                <>
+                  <ChevronsDownUp className="h-3.5 w-3.5" /> Alle schliessen
+                </>
+              ) : (
+                <>
+                  <ChevronsUpDown className="h-3.5 w-3.5" /> Alle öffnen
+                </>
+              )}
+            </Button>
+          </div>
+
+          <Accordion
+            type="multiple"
+            value={openItems}
+            onValueChange={setOpenItems}
+            className="space-y-2"
+          >
+            {groups.map(([zoneKey, list]) => (
+              <AccordionItem
+                key={zoneKey}
+                value={zoneKey}
+                className="rounded-lg border bg-card px-4"
+              >
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex flex-1 items-center justify-between gap-3 pr-2">
+                    <span className="flex items-center gap-2 text-left font-medium">
+                      <Layers className="h-4 w-4 text-muted-foreground" />
+                      {highlight(zoneKey, localQ)}
+                    </span>
+                    <Badge variant="outline" className="shrink-0 tabular-nums">
+                      {list.length}
+                    </Badge>
                   </div>
-                ))}
-              </dl>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <dl className="divide-y divide-border/60 text-sm">
+                    {list.map((e) => (
+                      <div
+                        key={e.id}
+                        className="grid grid-cols-1 gap-1 py-2.5 sm:grid-cols-[180px_1fr] sm:gap-3"
+                      >
+                        <dt className="font-medium text-muted-foreground">
+                          {highlight(e.category, localQ)}
+                        </dt>
+                        <dd>
+                          <div className="whitespace-pre-wrap">
+                            {highlight(e.value ?? "—", localQ)}
+                          </div>
+                          {(e.source_article || e.source_document) && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {e.source_article ? `Art. ${e.source_article}` : ""}
+                              {e.source_document && docMap.get(e.source_document)
+                                ? `${e.source_article ? " · " : ""}${docMap.get(e.source_document)!.doc_type}`
+                                : ""}
+                            </div>
+                          )}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </>
+      )}
     </div>
   );
 }
