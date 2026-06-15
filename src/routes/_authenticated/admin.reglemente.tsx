@@ -573,6 +573,18 @@ function AddRegulationDialog({
                 <Label>Titel</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="BZR 2024" />
               </div>
+              <div>
+                <Label>Version / Erlass</Label>
+                <Input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="z. B. 2024-1" />
+              </div>
+              <div>
+                <Label>Gültig ab</Label>
+                <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+              </div>
+              <div className="col-span-2">
+                <Label>Notizen (optional)</Label>
+                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="z. B. Beschluss Stadtrat vom …" />
+              </div>
             </div>
 
             <div
