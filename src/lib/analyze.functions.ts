@@ -4,6 +4,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 import { asRecord, parseJsonObject, readBoolean, readNullableString, readNumber, readString, readStringArray } from "./ai-json.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const InputSchema = z.object({ analysisId: z.string().uuid() });
 
@@ -235,7 +236,7 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
           max_height: object.max_height_m,
           utilization_ratio: object.utilization_ratio,
           building_coverage_ratio: object.building_coverage_ratio ?? null,
-          setbacks: object.setbacks ?? null,
+          setbacks: (object.setbacks ?? null) as Json | null,
           special_provisions: object.special_provisions ?? null,
           design_plan_required: object.design_plan_required ?? null,
           heritage_protected: object.heritage_protected ?? null,
@@ -248,8 +249,8 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
           ai_summary: object.ai_summary,
           restrictions: object.regulations,
           risks: object.risks,
-          extracted_data: object,
-          ai_answer: aiAnswer,
+          extracted_data: object as unknown as Json,
+          ai_answer: aiAnswer as unknown as Json,
         })
         .eq("id", analysis.id);
       if (updErr) throw new Error(updErr.message);
