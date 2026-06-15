@@ -33,6 +33,13 @@ const nameSchema = z.string().trim().min(2, "Mindestens 2 Zeichen").max(80);
 function AuthPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [slideIdx, setSlideIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setSlideIdx((i) => (i + 1) % slides.length), 5000);
+    return () => clearInterval(t);
+  }, []);
+
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
