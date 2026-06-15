@@ -1,67 +1,97 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { asRecord, parseJsonObject, readBoolean, readNullableString, readNumber, readString, readStringArray } from "./ai-json.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const InputSchema = z.object({ analysisId: z.string().uuid() });
 
-const RiskSchema = z.object({
-  category: z
-    .enum([
-      "baurecht",
-      "sondervorschrift",
-      "denkmalschutz",
-      "abstand",
-      "laerm",
-      "gewaesser",
-      "wald",
-      "sonstiges",
-    ])
-    .catch("sonstiges"),
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(1000),
-  severity: z.enum(["low", "medium", "high"]).catch("medium"),
-});
-
-const SetbacksSchema = z
-  .object({
-    nord: z.number().nullable().optional(),
-    ost: z.number().nullable().optional(),
-    sued: z.number().nullable().optional(),
-    west: z.number().nullable().optional(),
-    notes: z.string().max(1000).nullable().optional(),
-  })
-  .partial()
-  .nullable()
-  .optional();
-
-// Loose schema — accept what the model can produce; we clamp/normalize after.
-const AnalysisOutputSchema = z.object({
-  feasibility: z.string().min(1).max(4000),
-  zone: z.string().min(1).max(200),
-  usage_types: z.array(z.string().min(1).max(200)).default([]),
-  max_floors: z.number().min(0).max(50),
-  max_height_m: z.number().min(0).max(300),
-  utilization_ratio: z.number().min(0).max(10),
-  building_coverage_ratio: z.number().min(0).max(5).nullable().optional(),
-  setbacks: SetbacksSchema,
-  special_provisions: z.string().max(4000).nullable().optional(),
-  design_plan_required: z.boolean().nullable().optional(),
-  heritage_protected: z.boolean().nullable().optional(),
-  noise_zone: z.string().max(400).nullable().optional(),
-  water_setbacks: z.string().max(1000).nullable().optional(),
-  floor_area_m2: z.number().min(0).max(1000000),
-  living_area_m2: z.number().min(0).max(1000000),
-  unit_count: z.number().min(0).max(10000),
-  potential_level: z.enum(["low", "medium", "high", "very_high"]).catch("medium"),
-  ai_summary: z.string().min(1).max(4000),
-  regulations: z.array(z.string().min(1).max(600)).default([]),
-  risks: z.array(RiskSchema).default([]),
-});
+type AnalysisObject = {
+  feasibility: string;
+  zone: string;
+  usage_types: string[];
+  max_floors: number;
+  max_height_m: number;
+  utilization_ratio: number;
+  building_coverage_ratio: number | null;
+  setbacks: Record<string, unknown> | null;
+  special_provisions: string | null;
+  design_plan_required: boolean | null;
+  heritage_protected: boolean | null;
+  noise_zone: string | null;
+  water_setbacks: string | null;
+  floor_area_m2: number;
+  living_area_m2: number;
+  unit_count: number;
+  potential_level: "low" | "medium" | "high" | "very_high";
+  ai_summary: string;
+  regulations: string[];
+  risks: Array<{ category: string; title: string; description: string; severity: "low" | "medium" | "high" }>;
+};
 
 const MAX_DOC_CHARS = 12000;
 const MAX_TOTAL_CHARS = 40000;
+
+const clamp = (n: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, Number.isFinite(n) ? n : 0));
+
+function normalizePotential(value: unknown): AnalysisObject["potential_level"] {
+  const text = readString(value, "medium").toLowerCase();
+  if (text.includes("very") || text.includes("sehr")) return "very_high";
+  if (text.includes("high") || text.includes("hoch")) return "high";
+  if (text.includes("low") || text.includes("gering") || text.includes("niedrig")) return "low";
+  return "medium";
+}
+
+function normalizeSeverity(value: unknown): "low" | "medium" | "high" {
+  const text = readString(value, "medium").toLowerCase();
+  if (text.includes("high") || text.includes("hoch")) return "high";
+  if (text.includes("low") || text.includes("gering") || text.includes("niedrig")) return "low";
+  return "medium";
+}
+
+function normalizeAnalysisObject(value: unknown, areaSize: number | null): AnalysisObject {
+  const record = asRecord(value);
+  const livingArea = clamp(readNumber(record.living_area_m2, 0), 0, 1_000_000);
+  const floorArea = clamp(readNumber(record.floor_area_m2, livingArea), 0, 1_000_000);
+  const fallbackUnits = livingArea > 0 ? Math.round(livingArea / 90) : 0;
+  const risks = Array.isArray(record.risks) ? record.risks : [];
+
+  return {
+    feasibility: readString(record.feasibility, "Auf Basis der verfügbaren Reglemente konnte eine erste Machbarkeit erstellt werden."),
+    zone: readString(record.zone, "Unbekannt"),
+    usage_types: readStringArray(record.usage_types),
+    max_floors: clamp(readNumber(record.max_floors), 0, 50),
+    max_height_m: clamp(readNumber(record.max_height_m), 0, 300),
+    utilization_ratio: clamp(readNumber(record.utilization_ratio), 0, 10),
+    building_coverage_ratio: record.building_coverage_ratio == null ? null : clamp(readNumber(record.building_coverage_ratio), 0, 5),
+    setbacks: record.setbacks && typeof record.setbacks === "object" && !Array.isArray(record.setbacks)
+      ? asRecord(record.setbacks)
+      : null,
+    special_provisions: readNullableString(record.special_provisions),
+    design_plan_required: readBoolean(record.design_plan_required),
+    heritage_protected: readBoolean(record.heritage_protected),
+    noise_zone: readNullableString(record.noise_zone),
+    water_setbacks: readNullableString(record.water_setbacks),
+    floor_area_m2: floorArea || clamp((areaSize ?? 0) * readNumber(record.utilization_ratio), 0, 1_000_000),
+    living_area_m2: livingArea,
+    unit_count: clamp(Math.round(readNumber(record.unit_count, fallbackUnits)), 0, 10_000),
+    potential_level: normalizePotential(record.potential_level),
+    ai_summary: readString(record.ai_summary, "Zusammenfassung anhand der vorhandenen Reglemente."),
+    regulations: readStringArray(record.regulations),
+    risks: risks.map((risk) => {
+      const item = asRecord(risk);
+      return {
+        category: readString(item.category, "sonstiges"),
+        title: readString(item.title, "Risiko"),
+        description: readString(item.description),
+        severity: normalizeSeverity(item.severity),
+      };
+    }),
+  };
+}
 
 export const runAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -140,12 +170,44 @@ export const runAnalysis = createServerFn({ method: "POST" })
         `Wohnungsanzahl plausibel aus Wohnfläche ableiten (≈ 90 m² pro Einheit).`,
       ].join("\n");
 
-      // 1) Structured extraction (rich schema)
-      const { object } = await generateObject({
+      // 1) Robust JSON extraction. We avoid strict constrained decoding here because
+      // long Swiss regulations can make the model miss the schema and abort.
+      const result = await generateText({
         model: gateway("google/gemini-2.5-flash"),
-        schema: AnalysisOutputSchema,
-        prompt,
+        prompt: `${prompt}
+
+Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
+{
+  "feasibility": "string",
+  "zone": "string",
+  "usage_types": ["string"],
+  "max_floors": 0,
+  "max_height_m": 0,
+  "utilization_ratio": 0,
+  "building_coverage_ratio": null,
+  "setbacks": { "nord": null, "ost": null, "sued": null, "west": null, "notes": "string" },
+  "special_provisions": null,
+  "design_plan_required": null,
+  "heritage_protected": null,
+  "noise_zone": null,
+  "water_setbacks": null,
+  "floor_area_m2": 0,
+  "living_area_m2": 0,
+  "unit_count": 0,
+  "potential_level": "low | medium | high | very_high",
+  "ai_summary": "string",
+  "regulations": ["string"],
+  "risks": [{ "category": "sonstiges", "title": "string", "description": "string", "severity": "low | medium | high" }]
+}`,
+        maxOutputTokens: 8000,
       });
+      let parsedResult: unknown = {};
+      try {
+        parsedResult = parseJsonObject(result.text);
+      } catch (parseError) {
+        console.warn("[analysis] AI JSON parse failed, using normalized fallback", parseError);
+      }
+      const object = normalizeAnalysisObject(parsedResult, analysis.area_size);
 
       // 2) Dedicated AI Analysis Service — strict product JSON
       const { analyseParcel } = await import("./ai-analysis.server");
@@ -180,7 +242,7 @@ export const runAnalysis = createServerFn({ method: "POST" })
           max_height: object.max_height_m,
           utilization_ratio: object.utilization_ratio,
           building_coverage_ratio: object.building_coverage_ratio ?? null,
-          setbacks: object.setbacks ?? null,
+          setbacks: (object.setbacks ?? null) as Json | null,
           special_provisions: object.special_provisions ?? null,
           design_plan_required: object.design_plan_required ?? null,
           heritage_protected: object.heritage_protected ?? null,
@@ -193,8 +255,8 @@ export const runAnalysis = createServerFn({ method: "POST" })
           ai_summary: object.ai_summary,
           restrictions: object.regulations,
           risks: object.risks,
-          extracted_data: object,
-          ai_answer: aiAnswer,
+          extracted_data: object as unknown as Json,
+          ai_answer: aiAnswer as unknown as Json,
         })
         .eq("id", analysis.id);
       if (updErr) throw new Error(updErr.message);

@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
-import { runAnalysis } from "@/lib/analyze.functions";
+import { runKnowledgeAnalysis } from "@/lib/analyze-knowledge.functions";
 import { DevelopmentScoreCard } from "@/components/development-score-card";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
@@ -77,7 +77,7 @@ type Risk = {
 function AnalysisDetailPage() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
-  const analyzeFn = useServerFn(runAnalysis);
+  const analyzeFn = useServerFn(runKnowledgeAnalysis);
 
   const { data: analysis, isLoading } = useQuery({
     queryKey: ["analysis", id],
