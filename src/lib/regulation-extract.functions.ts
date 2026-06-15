@@ -156,7 +156,6 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
         const r2 = await generateObject({
           model: gateway("google/gemini-2.5-flash"),
           schema: ExtractionSchema,
-          mode: "json",
           messages,
         });
         object = r2.object;
