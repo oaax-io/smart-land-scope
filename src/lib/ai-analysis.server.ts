@@ -118,5 +118,10 @@ Gib exakt dieses JSON-Objekt zurück:
 }`,
     maxOutputTokens: 6000,
   });
-  return normalizeAnalysisAnswer(parseJsonObject(result.text));
+  try {
+    return normalizeAnalysisAnswer(parseJsonObject(result.text));
+  } catch (error) {
+    console.warn("[analysis-answer] AI JSON parse failed, using fallback", error);
+    return normalizeAnalysisAnswer({});
+  }
 }
