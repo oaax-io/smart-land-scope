@@ -631,16 +631,12 @@ function AddRegulationDialog({
               </div>
               <div>
                 <Label>Gemeinde</Label>
-                <Input
-                  list="muni-list"
+                <MunicipalityCombobox
+                  municipalities={munisQ.data ?? []}
                   value={muniName}
-                  onChange={(e) => setMuniName(e.target.value)}
-                  placeholder={cantonId ? "z. B. Luzern" : "Zuerst Kanton wählen"}
+                  onChange={setMuniName}
                   disabled={!cantonId}
                 />
-                <datalist id="muni-list">
-                  {munisQ.data?.map((m) => <option key={m.id} value={m.name} />)}
-                </datalist>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Neue Gemeinde wird automatisch angelegt.
                 </p>
