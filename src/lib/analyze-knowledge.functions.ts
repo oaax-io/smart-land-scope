@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { asRecord, parseJsonObject, readNumber, readString, readStringArray } from "./ai-json.server";
 
 // ============================================================================
 // Coverage check — does the knowledge base contain this municipality?
@@ -117,6 +118,46 @@ const normalizeSeverity = (v: string): "low" | "medium" | "high" => {
   if (s.includes("low") || s.includes("gering") || s.includes("niedrig")) return "low";
   return "medium";
 };
+
+function normalizeKnowledgeAnalysis(value: unknown) {
+  const record = asRecord(value);
+  const sources = Array.isArray(record.sources) ? record.sources : [];
+  const risks = Array.isArray(record.risks) ? record.risks : [];
+
+  return KnowledgeAnalysisSchema.parse({
+    feasibility: readString(record.feasibility, "Keine eindeutige Machbarkeit aus den hinterlegten Daten ableitbar."),
+    zone: readString(record.zone, "Unbekannt"),
+    usage_types: readStringArray(record.usage_types),
+    max_floors: readNumber(record.max_floors),
+    max_height_m: readNumber(record.max_height_m),
+    utilization_ratio: readNumber(record.utilization_ratio),
+    floor_area_m2: readNumber(record.floor_area_m2),
+    living_area_m2: readNumber(record.living_area_m2),
+    unit_count: readNumber(record.unit_count),
+    potential_level: readString(record.potential_level, "medium"),
+    ai_summary: readString(record.ai_summary, "Analyse anhand der Wissensdatenbank."),
+    regulations: readStringArray(record.regulations),
+    risks: risks.map((risk) => {
+      const item = asRecord(risk);
+      return {
+        category: readString(item.category, "sonstiges"),
+        title: readString(item.title, "Risiko"),
+        description: readString(item.description),
+        severity: readString(item.severity, "medium"),
+        sources: Array.isArray(item.sources) ? item.sources : [],
+      };
+    }),
+    sources: sources.map((source) => {
+      const item = asRecord(source);
+      return {
+        document: readString(item.document) || null,
+        article: readString(item.article) || null,
+        category: readString(item.category) || null,
+        key: readString(item.key) || null,
+      };
+    }),
+  });
+}
 
 export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
