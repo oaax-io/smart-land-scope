@@ -116,7 +116,7 @@ function WissenPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        navigate({ search: (prev) => ({ ...prev, m: m.id }) })
+                        navigate({ search: (prev: RouteSearch) => ({ ...prev, m: m.id }) })
                       }
                       className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
                         active ? "bg-accent font-medium" : ""
