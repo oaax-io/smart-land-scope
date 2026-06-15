@@ -97,13 +97,15 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
     // completed run is treated as redo-able.
     const { data: existing } = await supabaseAdmin
       .from("regulation_extractions")
-      .select("id, status, zones")
+      .select("id, status, zones, raw_extraction")
       .eq("document_id", doc.id)
       .maybeSingle();
+    const existingRaw = existing?.raw_extraction as { fallback?: boolean } | null | undefined;
     if (
       existing?.status === "completed" &&
       Array.isArray(existing.zones) &&
-      (existing.zones as unknown[]).length > 0
+      (existing.zones as unknown[]).length > 0 &&
+      existingRaw?.fallback !== true
     ) {
       return { skipped: true, extractionId: existing.id };
     }
@@ -261,6 +263,7 @@ function createFallbackExtraction(title: string, fileName: string | null): Extra
     water_protection: null,
     noise_provisions: null,
     summary: `Fallback-Eintrag für ${label}: Upload gespeichert, strukturierte KI-Extraktion konnte nicht validiert werden.`,
+    fallback: true,
   };
 }
 
