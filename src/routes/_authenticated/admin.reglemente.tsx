@@ -169,12 +169,23 @@ function KnowledgeBaseDashboard() {
 }
 
 // =====================================================================
-// Documents list (flat, all municipalities)
+// Municipalities list (grouped) — click to open detail modal with versions
 // =====================================================================
 
+type MuniGroup = {
+  id: string;
+  name: string;
+  cantonCode: string;
+  cantonName: string;
+  doc_count: number;
+  entry_count: number;
+  latest: string | null;
+  has_failed: boolean;
+  has_processing: boolean;
+};
+
 function DocumentsList() {
-  const qc = useQueryClient();
-  const extractFn = useServerFn(extractRegulationDocument);
+  const [openMuni, setOpenMuni] = useState<string | null>(null);
 
   const q = useQuery({
     queryKey: ["all-regdocs"],
@@ -194,7 +205,7 @@ function DocumentsList() {
         ids.length
           ? supabase
               .from("regulation_extractions")
-              .select("document_id, status, error_message, processed_at, zones")
+              .select("document_id, status")
               .in("document_id", ids)
           : Promise.resolve({ data: [], error: null }),
         muniIds.length
@@ -207,121 +218,115 @@ function DocumentsList() {
       if (extr.error) throw extr.error;
       if (entries.error) throw entries.error;
 
-      const extrMap = new Map(
-        (extr.data ?? []).map((e) => [e.document_id, e]),
-      );
-      const countMap = new Map<string, number>();
+      const extrMap = new Map((extr.data ?? []).map((e) => [e.document_id, e.status as string]));
+      const entryCount = new Map<string, number>();
       (entries.data ?? []).forEach((e) => {
-        countMap.set(e.municipality_id, (countMap.get(e.municipality_id) ?? 0) + 1);
+        entryCount.set(e.municipality_id, (entryCount.get(e.municipality_id) ?? 0) + 1);
       });
 
-      return (docs ?? []).map((d) => ({
-        ...d,
-        extraction: extrMap.get(d.id) ?? null,
-        entry_count: countMap.get(d.municipality_id) ?? 0,
-      })) as DocRow[];
+      const groups = new Map<string, MuniGroup>();
+      for (const d of docs ?? []) {
+        const g = groups.get(d.municipality_id) ?? {
+          id: d.municipality_id,
+          name: d.municipality?.name ?? "—",
+          cantonCode: d.municipality?.canton?.code ?? "—",
+          cantonName: d.municipality?.canton?.name ?? "",
+          doc_count: 0,
+          entry_count: entryCount.get(d.municipality_id) ?? 0,
+          latest: null,
+          has_failed: false,
+          has_processing: false,
+        };
+        g.doc_count += 1;
+        if (!g.latest || d.created_at > g.latest) g.latest = d.created_at;
+        const st = extrMap.get(d.id);
+        if (st === "failed") g.has_failed = true;
+        if (st === "processing" || st === "pending") g.has_processing = true;
+        groups.set(d.municipality_id, g);
+      }
+      return Array.from(groups.values()).sort((a, b) =>
+        (b.latest ?? "").localeCompare(a.latest ?? ""),
+      );
     },
   });
 
-  const handleDownload = async (path: string, name: string | null) => {
-    const { data, error } = await supabase.storage.from("regulation-documents").createSignedUrl(path, 60);
-    if (error) return toast.error(error.message);
-    const a = document.createElement("a");
-    a.href = data.signedUrl;
-    a.download = name ?? "document";
-    a.click();
-  };
-
-  const handleDelete = async (d: DocRow) => {
-    if (!confirm(`"${d.title}" wirklich löschen?`)) return;
-    await supabase.storage.from("regulation-documents").remove([d.file_path]);
-    const { error } = await supabase.from("regulation_documents").delete().eq("id", d.id);
-    if (error) return toast.error(error.message);
-    toast.success("Gelöscht");
-    qc.invalidateQueries({ queryKey: ["all-regdocs"] });
-    qc.invalidateQueries({ queryKey: ["kb-stats"] });
-  };
-
-  const handleReExtract = async (d: DocRow) => {
-    const tid = toast.loading("KI-Analyse läuft…");
-    try {
-      await extractFn({ data: { documentId: d.id } });
-      toast.success("KI-Analyse abgeschlossen", { id: tid });
-      qc.invalidateQueries({ queryKey: ["all-regdocs"] });
-      qc.invalidateQueries({ queryKey: ["kb-stats"] });
-    } catch (e) {
-      toast.error((e as Error).message, { id: tid });
-    }
-  };
-
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <FileText className="h-4 w-4" /> Alle Reglemente
-        </CardTitle>
-        <CardDescription>
-          Hochgeladene Dokumente mit Status der KI-Analyse und Anzahl Wissenseinträge.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {q.isLoading ? (
-          <p className="text-sm text-muted-foreground">Lade…</p>
-        ) : (q.data?.length ?? 0) === 0 ? (
-          <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
-            Noch keine Reglemente erfasst. Klicke oben auf <strong>Reglement hinzufügen</strong>.
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Gemeinde</TableHead>
-                <TableHead>Kt.</TableHead>
-                <TableHead>Typ</TableHead>
-                <TableHead>Titel</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Wissen</TableHead>
-                <TableHead className="text-right">Aktionen</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {q.data?.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell className="font-medium">{d.municipality?.name ?? "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="font-mono">
-                      {d.municipality?.canton?.code ?? "—"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell><Badge variant="outline">{d.doc_type}</Badge></TableCell>
-                  <TableCell className="max-w-[280px] truncate">{d.title}</TableCell>
-                  <TableCell>
-                    <ExtractionStatusBadge
-                      status={d.extraction?.status ?? undefined}
-                      error={d.extraction?.error_message ?? undefined}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{d.entry_count}</TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" title="Erneut analysieren" onClick={() => handleReExtract(d)}>
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDownload(d.file_path, d.file_name)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDelete(d)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
+    <>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-4 w-4" /> Gemeinden mit Reglementen
+          </CardTitle>
+          <CardDescription>
+            Klicke auf eine Gemeinde, um Details, Versionen und Erlass-Daten zu öffnen.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {q.isLoading ? (
+            <p className="text-sm text-muted-foreground">Lade…</p>
+          ) : (q.data?.length ?? 0) === 0 ? (
+            <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
+              Noch keine Reglemente erfasst. Klicke oben auf <strong>Reglement hinzufügen</strong>.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Gemeinde</TableHead>
+                  <TableHead>Kt.</TableHead>
+                  <TableHead className="text-right">Versionen</TableHead>
+                  <TableHead className="text-right">Wissen</TableHead>
+                  <TableHead>Letzte Erfassung</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {q.data?.map((g) => (
+                  <TableRow
+                    key={g.id}
+                    className="cursor-pointer hover:bg-muted/40"
+                    onClick={() => setOpenMuni(g.id)}
+                  >
+                    <TableCell className="font-medium">{g.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-mono">{g.cantonCode}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{g.doc_count}</TableCell>
+                    <TableCell className="text-right tabular-nums">{g.entry_count}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {g.latest ? new Date(g.latest).toLocaleDateString("de-CH") : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {g.has_processing ? (
+                        <Badge variant="secondary" className="gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Analyse
+                        </Badge>
+                      ) : g.has_failed ? (
+                        <Badge variant="destructive" className="gap-1">
+                          <AlertCircle className="h-3 w-3" /> Teilfehler
+                        </Badge>
+                      ) : (
+                        <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
+                          <CheckCircle2 className="h-3 w-3" /> OK
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <MunicipalityDetailDialog
+        municipalityId={openMuni}
+        onClose={() => setOpenMuni(null)}
+      />
+    </>
   );
 }
+
 
 function ExtractionStatusBadge({ status, error }: { status?: string; error?: string }) {
   if (!status) return <Badge variant="outline" className="gap-1"><Sparkles className="h-3 w-3" /> Bereit</Badge>;
