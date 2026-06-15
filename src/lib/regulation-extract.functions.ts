@@ -125,27 +125,43 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
       const { base64, mime } = await loadDocumentAsBase64(doc.file_path);
       const gateway = createLovableAiGatewayProvider(apiKey);
 
-      const { object } = await generateObject({
-        model: gateway("google/gemini-2.5-pro"),
-        schema: ExtractionSchema,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Dokumenttyp: ${doc.doc_type}\nTitel: ${doc.title}\n\nLies das gesamte Dokument inklusive Anhang/Tabellen. Extrahiere ALLE Zonen mit ihren spezifischen Werten (Geschosse, Höhe, AZ, ÜZ, Grenzabstände).`,
-              },
-              {
-                type: "file",
-                data: base64,
-                mediaType: mime || "application/pdf",
-              },
-            ],
-          },
-        ],
-      });
+      const messages = [
+        { role: "system" as const, content: SYSTEM_PROMPT },
+        {
+          role: "user" as const,
+          content: [
+            {
+              type: "text" as const,
+              text: `Dokumenttyp: ${doc.doc_type}\nTitel: ${doc.title}\n\nLies das gesamte Dokument inklusive Anhang/Tabellen. Extrahiere ALLE Zonen mit ihren spezifischen Werten (Geschosse, Höhe, AZ, ÜZ, Grenzabstände).`,
+            },
+            {
+              type: "file" as const,
+              data: base64,
+              mediaType: mime || "application/pdf",
+            },
+          ],
+        },
+      ];
+
+      let object: z.infer<typeof ExtractionSchema>;
+      try {
+        const r = await generateObject({
+          model: gateway("google/gemini-2.5-pro"),
+          schema: ExtractionSchema,
+          messages,
+        });
+        object = r.object;
+      } catch (primaryErr) {
+        console.warn("[extract] gemini-2.5-pro structured failed, retrying flash:", primaryErr);
+        const r2 = await generateObject({
+          model: gateway("google/gemini-2.5-flash"),
+          schema: ExtractionSchema,
+          mode: "json",
+          messages,
+        });
+        object = r2.object;
+      }
+
 
       // Persist raw extraction (back-compat: keep legacy columns nullable)
       const { error: saveErr } = await supabaseAdmin
