@@ -215,7 +215,10 @@ function DocumentsList() {
       const docs = docsRes.data ?? [];
       const munis = munisRes.data ?? [];
       const ids = docs.map((d) => d.id);
-      const muniIds = munis.map((m) => m.id);
+      // Only fetch entries for municipalities that actually have documents.
+      // Sending an IN-list with all 2000+ municipality UUIDs blows past the
+      // URL length limit and silently truncates, producing 0 counts.
+      const muniIdsWithDocs = Array.from(new Set(docs.map((d) => d.municipality_id)));
 
       const [extr, entries] = await Promise.all([
         ids.length
@@ -224,15 +227,16 @@ function DocumentsList() {
               .select("document_id, status")
               .in("document_id", ids)
           : Promise.resolve({ data: [], error: null }),
-        muniIds.length
+        muniIdsWithDocs.length
           ? supabase
               .from("knowledge_entries")
               .select("municipality_id")
-              .in("municipality_id", muniIds)
+              .in("municipality_id", muniIdsWithDocs)
           : Promise.resolve({ data: [], error: null }),
       ]);
       if (extr.error) throw extr.error;
       if (entries.error) throw entries.error;
+
 
       const extrMap = new Map((extr.data ?? []).map((e) => [e.document_id, e.status as string]));
       const entryCount = new Map<string, number>();
