@@ -39,6 +39,7 @@ const ExtractionSchema = z.object({
   water_protection: z.string().nullable().optional(),
   noise_provisions: z.string().nullable().optional(),
   summary: z.string().nullable().optional(),
+  fallback: z.boolean().optional(),
 });
 
 const SYSTEM_PROMPT = `Du bist Experte für Schweizer Bau- und Zonenrecht (BZR, BZO, Zonenpläne, Gestaltungspläne, Sondervorschriften).
