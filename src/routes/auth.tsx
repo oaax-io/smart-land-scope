@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Layers, Loader2 } from "lucide-react";
@@ -9,6 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import p1 from "@/assets/p1.jpg.asset.json";
+import p2 from "@/assets/p2.jpg.asset.json";
+import p3 from "@/assets/p3.jpg.asset.json";
+import p4 from "@/assets/p4.jpg.asset.json";
+
+const slides = [p1.url, p2.url, p3.url, p4.url];
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
