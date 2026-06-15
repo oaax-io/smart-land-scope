@@ -11,16 +11,14 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { BookOpen, Search, MapPin, FileText, Layers } from "lucide-react";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { z } from "zod";
 
-const searchSchema = z.object({
-  m: fallback(z.string(), "").default(""),
-  q: fallback(z.string(), "").default(""),
-});
+type RouteSearch = { m: string; q: string };
 
 export const Route = createFileRoute("/_authenticated/wissen")({
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: (s: Record<string, unknown>): RouteSearch => ({
+    m: typeof s.m === "string" ? s.m : "",
+    q: typeof s.q === "string" ? s.q : "",
+  }),
   component: WissenPage,
 });
 
