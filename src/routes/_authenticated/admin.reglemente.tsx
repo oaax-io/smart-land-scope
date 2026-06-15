@@ -751,18 +751,30 @@ function AddRegulationDialog({
             <div className={`flex items-center gap-3 rounded-md border p-4 ${
               result.status === "completed"
                 ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20"
-                : "border-destructive/30 bg-destructive/5"
+                : result.status === "failed"
+                ? "border-destructive/30 bg-destructive/5"
+                : "border-primary/30 bg-primary/5"
             }`}>
-              {result.status === "completed"
-                ? <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-                : <AlertCircle className="h-6 w-6 text-destructive" />}
+              {result.status === "completed" ? (
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              ) : result.status === "failed" ? (
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              ) : (
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              )}
               <div>
                 <p className="font-medium">
-                  {result.status === "completed" ? "Reglement erfasst" : "Analyse fehlgeschlagen"}
+                  {result.status === "completed"
+                    ? "Reglement erfasst"
+                    : result.status === "failed"
+                    ? "Analyse fehlgeschlagen"
+                    : "KI analysiert im Hintergrund…"}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {result.municipalityName} ({result.cantonCode})
-                  {result.errorMessage ? ` — ${result.errorMessage}` : ""}
+                  {result.status === "processing"
+                    ? " — du kannst dieses Fenster schliessen, die Analyse läuft weiter."
+                    : result.errorMessage ? ` — ${result.errorMessage}` : ""}
                 </p>
               </div>
             </div>
@@ -781,6 +793,7 @@ function AddRegulationDialog({
             )}
           </div>
         )}
+
 
         <DialogFooter>
           {step === "form" && (
