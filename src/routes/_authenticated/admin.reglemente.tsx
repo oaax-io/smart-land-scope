@@ -680,7 +680,7 @@ function AddRegulationDialog({
               <input
                 ref={inputRef}
                 type="file"
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                accept=".pdf,.doc,.docx,.md,.markdown,.txt,.png,.jpg,.jpeg"
                 className="hidden"
                 onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
               />
