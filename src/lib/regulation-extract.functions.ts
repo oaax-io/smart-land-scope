@@ -308,12 +308,17 @@ async function buildKnowledgeBase(params: {
   };
 
   const usageLabel = (u?: Zone["usage_category"]) =>
-    u === "wohnen" ? "Wohnen"
-    : u === "gewerbe" ? "Gewerbe"
-    : u === "misch" ? "Wohnen + Gewerbe"
-    : u === "oeffentlich" ? "Öffentliche Zwecke"
-    : u === "landwirtschaft" ? "Landwirtschaft"
-    : "Sonstige";
+    u === "wohnen"
+      ? "Wohnen"
+      : u === "gewerbe"
+        ? "Gewerbe"
+        : u === "misch"
+          ? "Wohnen + Gewerbe"
+          : u === "oeffentlich"
+            ? "Öffentliche Zwecke"
+            : u === "landwirtschaft"
+              ? "Landwirtschaft"
+              : "Sonstige";
 
   for (const z of extraction.zones ?? []) {
     const key = (z.code || z.name || "").trim();
@@ -323,12 +328,16 @@ async function buildKnowledgeBase(params: {
     addEntry("Zone", key, [z.name, z.description].filter(Boolean).join(" — "), art);
     addEntry("Nutzung", key, usageLabel(z.usage_category), art);
     if (z.allowed_uses?.length) addEntry("Erlaubte Nutzungen", key, z.allowed_uses.join(", "), art);
-    if (z.max_floors != null) addEntry("Geschossigkeit", key, `Maximal ${Math.round(z.max_floors)} Vollgeschosse`, art);
+    if (z.max_floors != null)
+      addEntry("Geschossigkeit", key, `Maximal ${Math.round(z.max_floors)} Vollgeschosse`, art);
     if (z.max_height_m != null) addEntry("Gebäudehöhe", key, `${z.max_height_m} Meter`, art);
     if (z.utilization_ratio != null) addEntry("Ausnützungsziffer", key, z.utilization_ratio, art);
-    if (z.building_coverage_ratio != null) addEntry("Überbauungsziffer", key, z.building_coverage_ratio, art);
-    if (z.setback_small_m != null) addEntry("Grenzabstand klein", key, `${z.setback_small_m} m`, art);
-    if (z.setback_large_m != null) addEntry("Grenzabstand gross", key, `${z.setback_large_m} m`, art);
+    if (z.building_coverage_ratio != null)
+      addEntry("Überbauungsziffer", key, z.building_coverage_ratio, art);
+    if (z.setback_small_m != null)
+      addEntry("Grenzabstand klein", key, `${z.setback_small_m} m`, art);
+    if (z.setback_large_m != null)
+      addEntry("Grenzabstand gross", key, `${z.setback_large_m} m`, art);
     if (z.noise_sensitivity) addEntry("Lärmempfindlichkeit", key, z.noise_sensitivity, art);
 
     rules.push({
@@ -346,11 +355,31 @@ async function buildKnowledgeBase(params: {
   const G = "ALLGEMEIN";
   addEntry("Ausnützungsziffer", G, extraction.utilization_ratio);
   addEntry("Überbauungsziffer", G, extraction.building_coverage_ratio);
-  addEntry("Geschossigkeit", G, extraction.max_floors != null ? `Maximal ${extraction.max_floors} Vollgeschosse` : null);
-  addEntry("Gebäudehöhe", G, extraction.max_height_m != null ? `${extraction.max_height_m} Meter` : null);
-  addEntry("Grenzabstand klein", G, extraction.setback_small_m != null ? `${extraction.setback_small_m} m` : null);
-  addEntry("Grenzabstand gross", G, extraction.setback_large_m != null ? `${extraction.setback_large_m} m` : null);
-  addEntry("Gewässerabstand", G, extraction.setback_water_m != null ? `${extraction.setback_water_m} m` : null);
+  addEntry(
+    "Geschossigkeit",
+    G,
+    extraction.max_floors != null ? `Maximal ${extraction.max_floors} Vollgeschosse` : null,
+  );
+  addEntry(
+    "Gebäudehöhe",
+    G,
+    extraction.max_height_m != null ? `${extraction.max_height_m} Meter` : null,
+  );
+  addEntry(
+    "Grenzabstand klein",
+    G,
+    extraction.setback_small_m != null ? `${extraction.setback_small_m} m` : null,
+  );
+  addEntry(
+    "Grenzabstand gross",
+    G,
+    extraction.setback_large_m != null ? `${extraction.setback_large_m} m` : null,
+  );
+  addEntry(
+    "Gewässerabstand",
+    G,
+    extraction.setback_water_m != null ? `${extraction.setback_water_m} m` : null,
+  );
   addEntry("Sondervorschriften", G, extraction.special_provisions);
   if (extraction.design_plan_required != null)
     addEntry("Gestaltungsplanpflicht", G, extraction.design_plan_required ? "Ja" : "Nein");
