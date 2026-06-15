@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -436,7 +436,7 @@ type AnalysisResult = {
   zones: number;
   entries: number;
   rules: number;
-  status: "completed" | "failed";
+  status: "processing" | "completed" | "failed";
   errorMessage: string | null;
 };
 
@@ -544,63 +544,89 @@ function AddRegulationDialog({
         }).select("id").single();
       if (insErr) throw insErr;
 
-      // 4) Run extraction synchronously and show result
-      try {
-        await extractFn({ data: { documentId: inserted.id } });
-      } catch (e) {
-        // Still continue to result page with error
-        const canton = cantonsQ.data?.find((c) => c.id === cantonId);
-        setResult({
-          documentId: inserted.id, municipalityId: muniId,
-          municipalityName: muniName.trim(),
-          cantonCode: canton?.code ?? "",
-          zones: 0, entries: 0, rules: 0,
-          status: "failed", errorMessage: (e as Error).message,
-        });
-        setStep("result");
-        qc.invalidateQueries({ queryKey: ["all-regdocs"] });
-        qc.invalidateQueries({ queryKey: ["kb-stats"] });
-        return;
-      }
-
-      // 5) Load extraction summary + counts
-      const [{ data: extr }, { count: entryCount }, { count: ruleCount }] = await Promise.all([
-        supabase.from("regulation_extractions")
-          .select("status, error_message, zones, residential_zones, commercial_zones, mixed_zones")
-          .eq("document_id", inserted.id).maybeSingle(),
-        supabase.from("knowledge_entries")
-          .select("id", { count: "exact", head: true })
-          .eq("source_document", inserted.id),
-        supabase.from("regulation_rules")
-          .select("id", { count: "exact", head: true })
-          .eq("source_document", inserted.id),
-      ]);
-      const zoneCount =
-        ((extr?.zones as unknown[] | null)?.length ?? 0) +
-        ((extr?.residential_zones as unknown[] | null)?.length ?? 0) +
-        ((extr?.commercial_zones as unknown[] | null)?.length ?? 0) +
-        ((extr?.mixed_zones as unknown[] | null)?.length ?? 0);
-
+      // 4) Immediately show result page in "processing" state — extraction
+      //    runs in background and is observed via polling (see useEffect).
       const canton = cantonsQ.data?.find((c) => c.id === cantonId);
       setResult({
         documentId: inserted.id,
         municipalityId: muniId,
         municipalityName: muniName.trim(),
         cantonCode: canton?.code ?? "",
-        zones: zoneCount,
-        entries: entryCount ?? 0,
-        rules: ruleCount ?? 0,
-        status: extr?.status === "completed" ? "completed" : "failed",
-        errorMessage: extr?.error_message ?? null,
+        zones: 0, entries: 0, rules: 0,
+        status: "processing",
+        errorMessage: null,
       });
       setStep("result");
       qc.invalidateQueries({ queryKey: ["all-regdocs"] });
       qc.invalidateQueries({ queryKey: ["kb-stats"] });
+
+      // 5) Fire extraction without awaiting — the dialog stays open and the
+      //    polling effect below picks up the final status.
+      extractFn({ data: { documentId: inserted.id } }).catch((e) => {
+        console.error("[extract] background run failed", e);
+        setResult((prev) =>
+          prev && prev.documentId === inserted.id
+            ? { ...prev, status: "failed", errorMessage: (e as Error).message }
+            : prev,
+        );
+      });
     } catch (e) {
       toast.error((e as Error).message);
       setStep("form");
     }
   };
+
+  // Poll extraction status while the result is "processing".
+  useEffect(() => {
+    if (step !== "result" || !result || result.status !== "processing") return;
+    const docId = result.documentId;
+    let cancelled = false;
+
+    const tick = async () => {
+      const [{ data: extr }, { count: entryCount }, { count: ruleCount }] = await Promise.all([
+        supabase.from("regulation_extractions")
+          .select("status, error_message, zones, residential_zones, commercial_zones, mixed_zones")
+          .eq("document_id", docId).maybeSingle(),
+        supabase.from("knowledge_entries")
+          .select("id", { count: "exact", head: true })
+          .eq("source_document", docId),
+        supabase.from("regulation_rules")
+          .select("id", { count: "exact", head: true })
+          .eq("source_document", docId),
+      ]);
+      if (cancelled) return;
+      const zoneCount =
+        ((extr?.zones as unknown[] | null)?.length ?? 0) +
+        ((extr?.residential_zones as unknown[] | null)?.length ?? 0) +
+        ((extr?.commercial_zones as unknown[] | null)?.length ?? 0) +
+        ((extr?.mixed_zones as unknown[] | null)?.length ?? 0);
+      const status = extr?.status;
+      setResult((prev) =>
+        prev && prev.documentId === docId
+          ? {
+              ...prev,
+              zones: zoneCount,
+              entries: entryCount ?? 0,
+              rules: ruleCount ?? 0,
+              status:
+                status === "completed" ? "completed"
+                : status === "failed" ? "failed"
+                : "processing",
+              errorMessage: extr?.error_message ?? prev.errorMessage,
+            }
+          : prev,
+      );
+      if (status === "completed" || status === "failed") {
+        qc.invalidateQueries({ queryKey: ["all-regdocs"] });
+        qc.invalidateQueries({ queryKey: ["kb-stats"] });
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 3000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [step, result, qc]);
+
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) close(); else onOpenChange(true); }}>
@@ -725,18 +751,30 @@ function AddRegulationDialog({
             <div className={`flex items-center gap-3 rounded-md border p-4 ${
               result.status === "completed"
                 ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20"
-                : "border-destructive/30 bg-destructive/5"
+                : result.status === "failed"
+                ? "border-destructive/30 bg-destructive/5"
+                : "border-primary/30 bg-primary/5"
             }`}>
-              {result.status === "completed"
-                ? <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-                : <AlertCircle className="h-6 w-6 text-destructive" />}
+              {result.status === "completed" ? (
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              ) : result.status === "failed" ? (
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              ) : (
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              )}
               <div>
                 <p className="font-medium">
-                  {result.status === "completed" ? "Reglement erfasst" : "Analyse fehlgeschlagen"}
+                  {result.status === "completed"
+                    ? "Reglement erfasst"
+                    : result.status === "failed"
+                    ? "Analyse fehlgeschlagen"
+                    : "KI analysiert im Hintergrund…"}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {result.municipalityName} ({result.cantonCode})
-                  {result.errorMessage ? ` — ${result.errorMessage}` : ""}
+                  {result.status === "processing"
+                    ? " — du kannst dieses Fenster schliessen, die Analyse läuft weiter."
+                    : result.errorMessage ? ` — ${result.errorMessage}` : ""}
                 </p>
               </div>
             </div>
@@ -755,6 +793,7 @@ function AddRegulationDialog({
             )}
           </div>
         )}
+
 
         <DialogFooter>
           {step === "form" && (
