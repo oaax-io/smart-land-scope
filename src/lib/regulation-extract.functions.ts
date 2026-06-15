@@ -249,7 +249,7 @@ async function buildKnowledgeBase(params: {
     : "Sonstige";
 
   for (const z of extraction.zones ?? []) {
-    const key = (z.code || z.name).trim();
+    const key = (z.code || z.name || "").trim();
     if (!key) continue;
     const art = z.article_reference ?? null;
 
