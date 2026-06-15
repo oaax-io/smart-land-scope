@@ -159,8 +159,13 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
           messages,
         });
         object = r2.object;
+        } catch (fallbackErr) {
+          console.warn("[extract] structured extraction failed completely, using safe fallback:", fallbackErr);
+          object = createFallbackExtraction(doc.title, doc.file_name ?? null);
+        }
       }
 
+      object = normalizeExtraction(object);
 
       // Persist raw extraction (back-compat: keep legacy columns nullable)
       const { error: saveErr } = await supabaseAdmin
