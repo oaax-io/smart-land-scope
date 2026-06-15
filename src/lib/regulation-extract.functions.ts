@@ -139,7 +139,7 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
       const apiKey = process.env.LOVABLE_API_KEY;
       if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
 
-      const { base64, mime } = await loadDocumentAsBase64(doc.file_path);
+      const { base64, mime, isText, text } = await loadDocumentAsBase64(doc.file_path, doc.file_name);
       const gateway = createLovableAiGatewayProvider(apiKey);
 
       // Strategy: use generateText with explicit JSON instructions instead of
@@ -185,15 +185,19 @@ Antworte AUSSCHLIESSLICH mit reinem JSON in genau dieser Form (keine Markdown-Fe
 
 Nicht im Dokument vorhandene Werte: setze null. KEINE Werte erfinden.`;
 
-      const messages = [
-        { role: "system" as const, content: SYSTEM_PROMPT },
-        {
-          role: "user" as const,
-          content: [
+      const userContent = isText && text
+        ? [
+            { type: "text" as const, text: userInstruction },
+            { type: "text" as const, text: `\n\n=== DOKUMENTINHALT (${mime}) ===\n${text}` },
+          ]
+        : [
             { type: "text" as const, text: userInstruction },
             { type: "file" as const, data: base64, mediaType: mime || "application/pdf" },
-          ],
-        },
+          ];
+
+      const messages = [
+        { role: "system" as const, content: SYSTEM_PROMPT },
+        { role: "user" as const, content: userContent },
       ];
 
       let object: Extraction | null = null;
