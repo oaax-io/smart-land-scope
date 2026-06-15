@@ -201,7 +201,13 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
 }`,
         maxOutputTokens: 8000,
       });
-      const object = normalizeAnalysisObject(parseJsonObject(result.text), analysis.area_size);
+      let parsedResult: unknown = {};
+      try {
+        parsedResult = parseJsonObject(result.text);
+      } catch (parseError) {
+        console.warn("[analysis] AI JSON parse failed, using normalized fallback", parseError);
+      }
+      const object = normalizeAnalysisObject(parsedResult, analysis.area_size);
 
       // 2) Dedicated AI Analysis Service — strict product JSON
       const { analyseParcel } = await import("./ai-analysis.server");
