@@ -104,6 +104,7 @@ export function MunicipalityDetailDialog({ municipalityId, onClose }: Props) {
       const extrMap = new Map((extr.data ?? []).map((e) => [e.document_id, e]));
       const countMap = new Map<string, number>();
       (ent.data ?? []).forEach((e) => {
+        if (!e.source_document) return;
         countMap.set(e.source_document, (countMap.get(e.source_document) ?? 0) + 1);
       });
       return (docs ?? []).map((d) => ({
