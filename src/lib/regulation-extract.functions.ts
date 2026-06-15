@@ -161,7 +161,10 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
           });
           object = r2.object;
         } catch (fallbackErr) {
-          console.warn("[extract] structured extraction failed completely, using safe fallback:", fallbackErr);
+          console.warn(
+            "[extract] structured extraction failed completely, using safe fallback:",
+            fallbackErr,
+          );
           object = createFallbackExtraction(doc.title, doc.file_name ?? null);
         }
       }
@@ -227,7 +230,9 @@ function normalizeExtraction(extraction: Extraction): Extraction {
       name: zone.name?.trim() || zone.code?.trim() || "Zone",
       usage_category: zone.usage_category?.trim() || "sonstige",
       allowed_uses: Array.isArray(zone.allowed_uses)
-        ? zone.allowed_uses.filter((use) => typeof use === "string" && use.trim()).map((use) => use.trim())
+        ? zone.allowed_uses
+            .filter((use) => typeof use === "string" && use.trim())
+            .map((use) => use.trim())
         : [],
       article_reference: zone.article_reference?.trim() || null,
     }));
