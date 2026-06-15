@@ -788,3 +788,85 @@ function ResultTile({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
+
+function MunicipalityCombobox({
+  municipalities, value, onChange, disabled,
+}: {
+  municipalities: Municipality[];
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const exactMatch = municipalities.some(
+    (m) => m.name.trim().toLowerCase() === query.trim().toLowerCase(),
+  );
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className="w-full justify-between font-normal"
+        >
+          <span className={value ? "" : "text-muted-foreground"}>
+            {value || (disabled ? "Zuerst Kanton wählen" : "Gemeinde wählen…")}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command shouldFilter>
+          <CommandInput
+            placeholder="Suchen oder neue Gemeinde eingeben…"
+            value={query}
+            onValueChange={setQuery}
+          />
+          <CommandList>
+            <CommandEmpty>
+              {query.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => { onChange(query.trim()); setOpen(false); }}
+                  className="mx-1 my-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                >
+                  <Plus className="h-4 w-4" />
+                  „{query.trim()}" als neue Gemeinde anlegen
+                </button>
+              ) : (
+                <span className="block px-2 py-3 text-center text-sm text-muted-foreground">
+                  Keine Gemeinde.
+                </span>
+              )}
+            </CommandEmpty>
+            <CommandGroup>
+              {municipalities.map((m) => (
+                <CommandItem
+                  key={m.id}
+                  value={m.name}
+                  onSelect={() => { onChange(m.name); setQuery(""); setOpen(false); }}
+                >
+                  <Check className={`mr-2 h-4 w-4 ${value === m.name ? "opacity-100" : "opacity-0"}`} />
+                  {m.name}
+                </CommandItem>
+              ))}
+              {query.trim() && !exactMatch && (
+                <CommandItem
+                  value={`__create__${query}`}
+                  onSelect={() => { onChange(query.trim()); setOpen(false); }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  „{query.trim()}" anlegen
+                </CommandItem>
+              )}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
