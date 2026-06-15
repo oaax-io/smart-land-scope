@@ -436,7 +436,7 @@ type AnalysisResult = {
   zones: number;
   entries: number;
   rules: number;
-  status: "completed" | "failed";
+  status: "processing" | "completed" | "failed";
   errorMessage: string | null;
 };
 
