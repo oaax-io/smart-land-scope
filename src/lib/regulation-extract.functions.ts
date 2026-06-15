@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
@@ -128,51 +128,86 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
       const { base64, mime } = await loadDocumentAsBase64(doc.file_path);
       const gateway = createLovableAiGatewayProvider(apiKey);
 
+      // Strategy: use generateText with explicit JSON instructions instead of
+      // generateObject. Gemini frequently fails schema validation on long
+      // multi-zone BZRs ("response did not match schema" / "too many states"
+      // in the structured-decoding state machine). Asking for plain JSON and
+      // parsing manually is far more robust.
+      const userInstruction = `Dokumenttyp: ${doc.doc_type}
+Titel: ${doc.title}
+
+Lies das gesamte Reglement INKLUSIVE Anhang/Tabellen.
+Extrahiere ALLE Nutzungszonen mit ihren spezifischen Bauvorschriften.
+Schweizer BZRs definieren Dichtewerte (Geschosse, Höhe, AZ, ÜZ, Grenzabstände)
+typischerweise im ANHANG pro Ordnungsnummer (z. B. WO3, WA4, AR312). Erzeuge
+pro Ordnungsnummer EINEN Eintrag mit den dort genannten Werten.
+
+Antworte AUSSCHLIESSLICH mit reinem JSON in genau dieser Form (keine Markdown-Fences):
+{
+  "zones": [
+    {
+      "code": "WO3",
+      "name": "Wohnzone 3",
+      "description": "kurzer Text",
+      "usage_category": "wohnen" | "gewerbe" | "misch" | "oeffentlich" | "landwirtschaft" | "sonstige",
+      "allowed_uses": ["Wohnen"],
+      "max_floors": 3,
+      "max_height_m": 10.5,
+      "utilization_ratio": 0.6,
+      "building_coverage_ratio": 0.35,
+      "setback_small_m": 3.5,
+      "setback_large_m": 7,
+      "noise_sensitivity": "II",
+      "article_reference": "Art. 12 / Anhang 1"
+    }
+  ],
+  "special_provisions": "string oder null",
+  "design_plan_required": true | false | null,
+  "heritage_protected": true | false | null,
+  "water_protection": "string oder null",
+  "noise_provisions": "string oder null",
+  "summary": "kurze Gesamtzusammenfassung"
+}
+
+Nicht im Dokument vorhandene Werte: setze null. KEINE Werte erfinden.`;
+
       const messages = [
         { role: "system" as const, content: SYSTEM_PROMPT },
         {
           role: "user" as const,
           content: [
-            {
-              type: "text" as const,
-              text: `Dokumenttyp: ${doc.doc_type}\nTitel: ${doc.title}\n\nLies das gesamte Dokument inklusive Anhang/Tabellen. Extrahiere ALLE Zonen mit ihren spezifischen Werten (Geschosse, Höhe, AZ, ÜZ, Grenzabstände).`,
-            },
-            {
-              type: "file" as const,
-              data: base64,
-              mediaType: mime || "application/pdf",
-            },
+            { type: "text" as const, text: userInstruction },
+            { type: "file" as const, data: base64, mediaType: mime || "application/pdf" },
           ],
         },
       ];
 
-      let object: z.infer<typeof ExtractionSchema>;
-      try {
-        const r = await generateObject({
-          model: gateway("google/gemini-2.5-pro"),
-          schema: ExtractionSchema,
-          messages,
-        });
-        object = r.object;
-      } catch (primaryErr) {
-        console.warn("[extract] gemini-2.5-pro structured failed, retrying flash:", primaryErr);
+      let object: Extraction | null = null;
+      const models = ["google/gemini-2.5-pro", "google/gemini-2.5-flash"] as const;
+      for (const modelId of models) {
         try {
-          const r2 = await generateObject({
-            model: gateway("google/gemini-2.5-flash"),
-            schema: ExtractionSchema,
+          const r = await generateText({
+            model: gateway(modelId),
             messages,
+            maxOutputTokens: 16000,
           });
-          object = r2.object;
-        } catch (fallbackErr) {
-          console.warn(
-            "[extract] structured extraction failed completely, using safe fallback:",
-            fallbackErr,
-          );
-          object = createFallbackExtraction(doc.title, doc.file_name ?? null);
+          const parsed = parseExtractionJson(r.text);
+          if (parsed && (parsed.zones?.length ?? 0) > 0) {
+            object = parsed;
+            break;
+          }
+          console.warn(`[extract] ${modelId} returned no zones, trying next model`);
+        } catch (err) {
+          console.warn(`[extract] ${modelId} failed:`, err);
         }
+      }
+      if (!object) {
+        console.warn("[extract] all models failed, using fallback");
+        object = createFallbackExtraction(doc.title, doc.file_name ?? null);
       }
 
       object = normalizeExtraction(object);
+
 
       // Persist raw extraction (back-compat: keep legacy columns nullable)
       const { error: saveErr } = await supabaseAdmin
@@ -223,6 +258,83 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
 
 type Zone = z.infer<typeof ZoneSchema>;
 type Extraction = z.infer<typeof ExtractionSchema>;
+
+/**
+ * Robustly extract JSON from LLM output:
+ * - strips ```json fences,
+ * - finds outermost {...} boundaries,
+ * - retries with a few cleanups if parse fails,
+ * - validates via Zod (with relaxed schema — extra/missing fields tolerated).
+ */
+function parseExtractionJson(raw: string): Extraction | null {
+  if (!raw) return null;
+  let s = raw.trim();
+  // Strip markdown fences
+  s = s.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  // Slice to outermost braces
+  const first = s.indexOf("{");
+  const last = s.lastIndexOf("}");
+  if (first === -1 || last === -1 || last <= first) return null;
+  let candidate = s.slice(first, last + 1);
+
+  const tryParse = (txt: string): unknown | null => {
+    try {
+      return JSON.parse(txt);
+    } catch {
+      return null;
+    }
+  };
+
+  let obj = tryParse(candidate);
+  if (!obj) {
+    // Remove trailing commas before } or ]
+    candidate = candidate.replace(/,\s*([}\]])/g, "$1");
+    obj = tryParse(candidate);
+  }
+  if (!obj) {
+    // Strip control chars
+    candidate = candidate.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+    obj = tryParse(candidate);
+  }
+  if (!obj) return null;
+
+  const result = ExtractionSchema.safeParse(obj);
+  if (result.success) return result.data;
+
+  // Last resort: coerce loosely so we don't lose all zones over one bad field
+  const loose = obj as Record<string, unknown>;
+  const zonesIn = Array.isArray(loose.zones) ? (loose.zones as Record<string, unknown>[]) : [];
+  const zones = zonesIn.map((z) => ({
+    code: typeof z.code === "string" ? z.code : null,
+    name: typeof z.name === "string" ? z.name : null,
+    description: typeof z.description === "string" ? z.description : null,
+    usage_category: typeof z.usage_category === "string" ? z.usage_category : null,
+    allowed_uses: Array.isArray(z.allowed_uses)
+      ? (z.allowed_uses as unknown[]).filter((u): u is string => typeof u === "string")
+      : null,
+    max_floors: typeof z.max_floors === "number" ? z.max_floors : null,
+    max_height_m: typeof z.max_height_m === "number" ? z.max_height_m : null,
+    utilization_ratio: typeof z.utilization_ratio === "number" ? z.utilization_ratio : null,
+    building_coverage_ratio:
+      typeof z.building_coverage_ratio === "number" ? z.building_coverage_ratio : null,
+    setback_small_m: typeof z.setback_small_m === "number" ? z.setback_small_m : null,
+    setback_large_m: typeof z.setback_large_m === "number" ? z.setback_large_m : null,
+    noise_sensitivity: typeof z.noise_sensitivity === "string" ? z.noise_sensitivity : null,
+    article_reference: typeof z.article_reference === "string" ? z.article_reference : null,
+  }));
+  return {
+    zones,
+    special_provisions:
+      typeof loose.special_provisions === "string" ? loose.special_provisions : null,
+    design_plan_required:
+      typeof loose.design_plan_required === "boolean" ? loose.design_plan_required : null,
+    heritage_protected:
+      typeof loose.heritage_protected === "boolean" ? loose.heritage_protected : null,
+    water_protection: typeof loose.water_protection === "string" ? loose.water_protection : null,
+    noise_provisions: typeof loose.noise_provisions === "string" ? loose.noise_provisions : null,
+    summary: typeof loose.summary === "string" ? loose.summary : null,
+  };
+}
 
 function normalizeExtraction(extraction: Extraction): Extraction {
   const zones = (extraction.zones ?? [])
