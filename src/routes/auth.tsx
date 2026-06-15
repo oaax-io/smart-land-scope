@@ -109,21 +109,44 @@ function AuthPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="hidden bg-primary p-12 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-foreground/10">
-            <Layers className="h-5 w-5" />
+      <div className="relative hidden overflow-hidden bg-primary text-primary-foreground lg:block">
+        {slides.map((src, i) => (
+          <div
+            key={src}
+            className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+            style={{ backgroundImage: `url(${src})`, opacity: i === slideIdx ? 1 : 0 }}
+            aria-hidden={i !== slideIdx}
+          />
+        ))}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/70" />
+        <div className="relative flex h-full flex-col justify-between p-12">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-white/10 backdrop-blur">
+              <Layers className="h-5 w-5" />
+            </div>
+            <span className="font-display text-xl font-bold">SmarTerra</span>
+          </Link>
+          <div>
+            <h2 className="font-display text-3xl font-bold leading-tight drop-shadow-lg">
+              "Was wir früher in Tagen recherchiert haben, liefert SmarTerra in Minuten."
+            </h2>
+            <p className="mt-4 text-white/80">— Schweizer Immobilienentwickler</p>
+            <div className="mt-6 flex gap-2">
+              {slides.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setSlideIdx(i)}
+                  className={`h-1.5 rounded-full transition-all ${i === slideIdx ? "w-8 bg-white" : "w-4 bg-white/40"}`}
+                  aria-label={`Slide ${i + 1}`}
+                />
+              ))}
+            </div>
           </div>
-          <span className="font-display text-xl font-bold">SmarTerra</span>
-        </Link>
-        <div>
-          <h2 className="font-display text-3xl font-bold leading-tight">
-            "Was wir früher in Tagen recherchiert haben, liefert SmarTerra in Minuten."
-          </h2>
-          <p className="mt-4 text-primary-foreground/70">— Schweizer Immobilienentwickler</p>
+          <p className="text-sm text-white/70">© {new Date().getFullYear()} SmarTerra</p>
         </div>
-        <p className="text-sm text-primary-foreground/60">© {new Date().getFullYear()} SmarTerra</p>
       </div>
+
 
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-md">
