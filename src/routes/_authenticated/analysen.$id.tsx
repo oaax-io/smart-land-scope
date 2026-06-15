@@ -393,7 +393,7 @@ function AiAnswerCard({ answer }: { answer: AiAnswer | null }) {
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{answer.allowed_use}</p>
         </div>
 
-        {answer.restrictions.length > 0 && (
+        {Array.isArray(answer.restrictions) && answer.restrictions.length > 0 && (
           <div>
             <p className="text-sm font-medium">Einschränkungen</p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
