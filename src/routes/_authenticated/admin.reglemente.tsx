@@ -375,6 +375,9 @@ function AddRegulationDialog({
   const [muniName, setMuniName] = useState("");
   const [docType, setDocType] = useState<DocType>("BZR");
   const [title, setTitle] = useState("");
+  const [version, setVersion] = useState("");
+  const [validFrom, setValidFrom] = useState("");
+  const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -394,6 +397,7 @@ function AddRegulationDialog({
   const reset = () => {
     setStep("form");
     setCantonId(""); setMuniName(""); setDocType("BZR"); setTitle("");
+    setVersion(""); setValidFrom(""); setNotes("");
     setFile(null); setResult(null); setDragOver(false);
   };
 
