@@ -25,21 +25,20 @@ const ZoneSchema = z.object({
 });
 
 const ExtractionSchema = z.object({
-  zones: z.array(ZoneSchema).default([]),
-  // Optional global fallbacks
-  utilization_ratio: z.number().min(0).max(10).nullable().optional(),
-  building_coverage_ratio: z.number().min(0).max(5).nullable().optional(),
-  max_floors: z.number().min(0).max(80).nullable().optional(),
-  max_height_m: z.number().min(0).max(300).nullable().optional(),
-  setback_small_m: z.number().min(0).max(50).nullable().optional(),
-  setback_large_m: z.number().min(0).max(50).nullable().optional(),
-  setback_water_m: z.number().min(0).max(100).nullable().optional(),
-  special_provisions: z.string().max(8000).nullable().optional(),
+  zones: z.array(ZoneSchema).nullable().optional(),
+  utilization_ratio: z.number().nullable().optional(),
+  building_coverage_ratio: z.number().nullable().optional(),
+  max_floors: z.number().nullable().optional(),
+  max_height_m: z.number().nullable().optional(),
+  setback_small_m: z.number().nullable().optional(),
+  setback_large_m: z.number().nullable().optional(),
+  setback_water_m: z.number().nullable().optional(),
+  special_provisions: z.string().nullable().optional(),
   design_plan_required: z.boolean().nullable().optional(),
   heritage_protected: z.boolean().nullable().optional(),
-  water_protection: z.string().max(2000).nullable().optional(),
-  noise_provisions: z.string().max(2000).nullable().optional(),
-  summary: z.string().max(4000).nullable().optional(),
+  water_protection: z.string().nullable().optional(),
+  noise_provisions: z.string().nullable().optional(),
+  summary: z.string().nullable().optional(),
 });
 
 const SYSTEM_PROMPT = `Du bist Experte für Schweizer Bau- und Zonenrecht (BZR, BZO, Zonenpläne, Gestaltungspläne, Sondervorschriften).
