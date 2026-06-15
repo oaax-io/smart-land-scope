@@ -20,11 +20,15 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
 import { toast } from "sonner";
 import {
   Building2, MapPin, FileText, Upload, Trash2, Download, Plus, ShieldAlert,
   Sparkles, Loader2, CheckCircle2, AlertCircle, RefreshCw, BookOpen, Layers,
-  CloudUpload, X,
+  CloudUpload, X, Check, ChevronsUpDown,
 } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
