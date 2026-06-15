@@ -6,52 +6,62 @@ import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
 const InputSchema = z.object({ documentId: z.string().uuid() });
 
+// Per-zone schema — carries the actual density metrics PER zone (e.g. WO3, WA4).
+// Most Swiss BZRs define these per Ordnungsnummer in an appendix, not globally.
 const ZoneSchema = z.object({
   code: z.string().max(50).nullable().optional(),
   name: z.string().min(1).max(200),
   description: z.string().max(1000).nullable().optional(),
+  usage_category: z
+    .enum(["wohnen", "gewerbe", "misch", "oeffentlich", "landwirtschaft", "sonstige"])
+    .catch("sonstige")
+    .optional(),
+  allowed_uses: z.array(z.string().max(200)).max(20).default([]),
+  max_floors: z.number().min(0).max(80).nullable().optional(),
+  max_height_m: z.number().min(0).max(300).nullable().optional(),
+  utilization_ratio: z.number().min(0).max(10).nullable().optional(),
+  building_coverage_ratio: z.number().min(0).max(5).nullable().optional(),
+  setback_small_m: z.number().min(0).max(50).nullable().optional(),
+  setback_large_m: z.number().min(0).max(50).nullable().optional(),
+  noise_sensitivity: z.string().max(50).nullable().optional(),
+  article_reference: z.string().max(100).nullable().optional(),
 });
-
-const SetbacksSchema = z
-  .object({
-    klein: z.number().nullable().optional(),
-    gross: z.number().nullable().optional(),
-    gewaesser: z.number().nullable().optional(),
-    notes: z.string().max(1000).nullable().optional(),
-  })
-  .partial()
-  .nullable()
-  .optional();
 
 const ExtractionSchema = z.object({
   zones: z.array(ZoneSchema).default([]),
-  residential_zones: z.array(ZoneSchema).default([]),
-  commercial_zones: z.array(ZoneSchema).default([]),
-  mixed_zones: z.array(ZoneSchema).default([]),
+  // Optional global fallbacks
   utilization_ratio: z.number().min(0).max(10).nullable().optional(),
   building_coverage_ratio: z.number().min(0).max(5).nullable().optional(),
-  max_floors: z.number().min(0).max(50).nullable().optional(),
+  max_floors: z.number().min(0).max(80).nullable().optional(),
   max_height_m: z.number().min(0).max(300).nullable().optional(),
-  setbacks: SetbacksSchema,
+  setback_small_m: z.number().min(0).max(50).nullable().optional(),
+  setback_large_m: z.number().min(0).max(50).nullable().optional(),
+  setback_water_m: z.number().min(0).max(100).nullable().optional(),
   special_provisions: z.string().max(8000).nullable().optional(),
   design_plan_required: z.boolean().nullable().optional(),
   heritage_protected: z.boolean().nullable().optional(),
   water_protection: z.string().max(2000).nullable().optional(),
   noise_provisions: z.string().max(2000).nullable().optional(),
+  summary: z.string().max(4000).nullable().optional(),
 });
 
 const SYSTEM_PROMPT = `Du bist Experte für Schweizer Bau- und Zonenrecht (BZR, BZO, Zonenpläne, Gestaltungspläne, Sondervorschriften).
-Analysiere das beigefügte Reglementdokument und extrahiere alle relevanten Bauvorschriften strukturiert.
+Analysiere das beigefügte Reglementdokument und extrahiere ALLE darin definierten Nutzungszonen mit ihren Bauvorschriften strukturiert.
 
-Erkenne insbesondere:
-- Nutzungszonen (alle), Wohnzonen, Gewerbezonen, Mischzonen mit Zonenkürzel/Code und Kurzbeschreibung
-- Ausnützungsziffer (AZ) und Überbauungsziffer (ÜZ)
-- Maximale Vollgeschosse und Gebäudehöhe in Metern
-- Grenzabstände (kleiner/grosser/Gewässerabstand)
-- Sondervorschriften, Gestaltungsplanpflicht, Denkmalschutz
-- Gewässerschutz- und Lärmschutzvorschriften
+WICHTIG zu Schweizer Reglementen:
+- Zonen werden im Reglement-Text definiert (z. B. "Wohnzone (WO)", "Arbeitszone (AR)", "Wohn- und Arbeitszone (WA)").
+- Die Dichtebestimmungen (Geschosszahl, Gebäudehöhe, Ausnützungs-/Überbauungsziffer, Grenzabstände) stehen oft im ANHANG, häufig pro Ordnungsnummer/Zonenbezeichnung in Tabellenform.
+- Liste JEDE Zone separat auf, auch wenn dieselbe Grundzone (z. B. WO) mit verschiedenen Ordnungsnummern (WO2, WO3, WO4) erscheint — dann erzeuge pro Variante einen Eintrag mit Code z. B. "WO3" und den jeweiligen Werten.
+- Setze für jeden Wert, der im Dokument steht, den entsprechenden Zahlenwert. Setze nur dann null, wenn der Wert WIRKLICH nicht aus dem Dokument hervorgeht. Erfinde keine Zahlen.
 
-Wenn ein Wert nicht eindeutig im Dokument steht, setze null. Erfinde keine Zahlen.
+Zonen-Kategorien (usage_category):
+- "wohnen" für reine Wohnzonen (WO, W2, W3, …)
+- "gewerbe" für Arbeits-/Gewerbe-/Industriezonen (AR, GE, IN, …)
+- "misch" für Wohn- und Arbeitszonen / Kernzonen (WA, K, ZP, …)
+- "oeffentlich" für Zonen für öffentliche Zwecke, Sport/Freizeit, Allmend
+- "landwirtschaft" für Landwirtschaftszonen
+- "sonstige" für Schutz-, Tourismus-, Sonderzonen
+
 Antworte ausschliesslich im vorgegebenen JSON-Format.`;
 
 async function loadDocumentAsBase64(filePath: string) {
@@ -70,7 +80,6 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Authorize: only platform admins
     const { data: adminRow } = await supabase
       .from("user_roles")
       .select("role")
@@ -88,17 +97,21 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
       .maybeSingle();
     if (docErr || !doc) throw new Error("Dokument nicht gefunden");
 
-    // Idempotency: skip if already completed
+    // Idempotency: only skip if a previous run produced zones. An empty
+    // completed run is treated as redo-able.
     const { data: existing } = await supabaseAdmin
       .from("regulation_extractions")
-      .select("id, status")
+      .select("id, status, zones")
       .eq("document_id", doc.id)
       .maybeSingle();
-    if (existing?.status === "completed") {
+    if (
+      existing?.status === "completed" &&
+      Array.isArray(existing.zones) &&
+      (existing.zones as unknown[]).length > 0
+    ) {
       return { skipped: true, extractionId: existing.id };
     }
 
-    // Upsert into processing state
     const { data: extr, error: upErr } = await supabaseAdmin
       .from("regulation_extractions")
       .upsert(
@@ -117,7 +130,7 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
       const gateway = createLovableAiGatewayProvider(apiKey);
 
       const { object } = await generateObject({
-        model: gateway("google/gemini-2.5-flash"),
+        model: gateway("google/gemini-2.5-pro"),
         schema: ExtractionSchema,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
@@ -126,7 +139,7 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
             content: [
               {
                 type: "text",
-                text: `Dokumenttyp: ${doc.doc_type}\nTitel: ${doc.title}\nExtrahiere die Vorschriften strukturiert.`,
+                text: `Dokumenttyp: ${doc.doc_type}\nTitel: ${doc.title}\n\nLies das gesamte Dokument inklusive Anhang/Tabellen. Extrahiere ALLE Zonen mit ihren spezifischen Werten (Geschosse, Höhe, AZ, ÜZ, Grenzabstände).`,
               },
               {
                 type: "file",
@@ -138,6 +151,7 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
         ],
       });
 
+      // Persist raw extraction (back-compat: keep legacy columns nullable)
       const { error: saveErr } = await supabaseAdmin
         .from("regulation_extractions")
         .update({
@@ -145,14 +159,18 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
           error_message: null,
           processed_at: new Date().toISOString(),
           zones: object.zones,
-          residential_zones: object.residential_zones,
-          commercial_zones: object.commercial_zones,
-          mixed_zones: object.mixed_zones,
+          residential_zones: object.zones.filter((z) => z.usage_category === "wohnen"),
+          commercial_zones: object.zones.filter((z) => z.usage_category === "gewerbe"),
+          mixed_zones: object.zones.filter((z) => z.usage_category === "misch"),
           utilization_ratio: object.utilization_ratio ?? null,
           building_coverage_ratio: object.building_coverage_ratio ?? null,
           max_floors: object.max_floors != null ? Math.round(object.max_floors) : null,
           max_height_m: object.max_height_m ?? null,
-          setbacks: object.setbacks ?? null,
+          setbacks: {
+            klein: object.setback_small_m ?? null,
+            gross: object.setback_large_m ?? null,
+            gewaesser: object.setback_water_m ?? null,
+          },
           special_provisions: object.special_provisions ?? null,
           design_plan_required: object.design_plan_required ?? null,
           heritage_protected: object.heritage_protected ?? null,
@@ -163,7 +181,6 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
         .eq("id", extr.id);
       if (saveErr) throw saveErr;
 
-      // ===== Knowledge Base Engine: derive structured entries =====
       await buildKnowledgeBase({
         municipalityId: doc.municipality_id,
         documentId: doc.id,
@@ -210,7 +227,12 @@ async function buildKnowledgeBase(params: {
     article_reference: string | null;
   }> = [];
 
-  const addEntry = (category: string, key: string, value: string | null | undefined, article: string | null = null) => {
+  const addEntry = (
+    category: string,
+    key: string,
+    value: string | number | null | undefined,
+    article: string | null = null,
+  ) => {
     if (value == null || String(value).trim() === "") return;
     entries.push({
       municipality_id: municipalityId,
@@ -222,73 +244,58 @@ async function buildKnowledgeBase(params: {
     });
   };
 
-  // Per-zone entries
-  const zoneBuckets: Array<{ usage: string; list: Zone[] }> = [
-    { usage: "Wohnen", list: extraction.residential_zones ?? [] },
-    { usage: "Gewerbe", list: extraction.commercial_zones ?? [] },
-    { usage: "Misch", list: extraction.mixed_zones ?? [] },
-  ];
+  const usageLabel = (u?: Zone["usage_category"]) =>
+    u === "wohnen" ? "Wohnen"
+    : u === "gewerbe" ? "Gewerbe"
+    : u === "misch" ? "Wohnen + Gewerbe"
+    : u === "oeffentlich" ? "Öffentliche Zwecke"
+    : u === "landwirtschaft" ? "Landwirtschaft"
+    : "Sonstige";
 
-  const seen = new Set<string>();
-  for (const bucket of zoneBuckets) {
-    for (const z of bucket.list) {
-      const key = (z.code || z.name).trim();
-      if (!key) continue;
-      const dedupKey = `Zone:${key}`;
-      if (!seen.has(dedupKey)) {
-        seen.add(dedupKey);
-        addEntry("Zone", key, [z.name, z.description].filter(Boolean).join(" — "));
-      }
-      addEntry("Nutzung", key, `${bucket.usage} erlaubt${z.description ? ` (${z.description})` : ""}`);
-      if (extraction.max_floors != null) addEntry("Geschossigkeit", key, `Maximal ${extraction.max_floors} Vollgeschosse`);
-      if (extraction.max_height_m != null) addEntry("Gebäudehöhe", key, `${extraction.max_height_m} Meter`);
-      if (extraction.utilization_ratio != null) addEntry("Ausnützungsziffer", key, String(extraction.utilization_ratio));
-      if (extraction.building_coverage_ratio != null) addEntry("Überbauungsziffer", key, String(extraction.building_coverage_ratio));
-
-      rules.push({
-        municipality_id: municipalityId,
-        zone: key,
-        rule_type: "Nutzung",
-        title: `${key} — ${bucket.usage}`,
-        description: z.description ?? null,
-        source_document: documentId,
-        article_reference: null,
-      });
-    }
-  }
-
-  // Additional zones not in usage buckets
   for (const z of extraction.zones ?? []) {
     const key = (z.code || z.name).trim();
     if (!key) continue;
-    const dedupKey = `Zone:${key}`;
-    if (seen.has(dedupKey)) continue;
-    seen.add(dedupKey);
-    addEntry("Zone", key, [z.name, z.description].filter(Boolean).join(" — "));
+    const art = z.article_reference ?? null;
+
+    addEntry("Zone", key, [z.name, z.description].filter(Boolean).join(" — "), art);
+    addEntry("Nutzung", key, usageLabel(z.usage_category), art);
+    if (z.allowed_uses?.length) addEntry("Erlaubte Nutzungen", key, z.allowed_uses.join(", "), art);
+    if (z.max_floors != null) addEntry("Geschossigkeit", key, `Maximal ${Math.round(z.max_floors)} Vollgeschosse`, art);
+    if (z.max_height_m != null) addEntry("Gebäudehöhe", key, `${z.max_height_m} Meter`, art);
+    if (z.utilization_ratio != null) addEntry("Ausnützungsziffer", key, z.utilization_ratio, art);
+    if (z.building_coverage_ratio != null) addEntry("Überbauungsziffer", key, z.building_coverage_ratio, art);
+    if (z.setback_small_m != null) addEntry("Grenzabstand klein", key, `${z.setback_small_m} m`, art);
+    if (z.setback_large_m != null) addEntry("Grenzabstand gross", key, `${z.setback_large_m} m`, art);
+    if (z.noise_sensitivity) addEntry("Lärmempfindlichkeit", key, z.noise_sensitivity, art);
+
+    rules.push({
+      municipality_id: municipalityId,
+      zone: key,
+      rule_type: "Zone",
+      title: `${key} — ${z.name}`,
+      description: z.description ?? null,
+      source_document: documentId,
+      article_reference: art,
+    });
   }
 
-  // Global rules (key = "ALLGEMEIN")
+  // Global fallbacks (only if no per-zone equivalent)
   const G = "ALLGEMEIN";
-  addEntry("Ausnützungsziffer", G, extraction.utilization_ratio?.toString());
-  addEntry("Überbauungsziffer", G, extraction.building_coverage_ratio?.toString());
+  addEntry("Ausnützungsziffer", G, extraction.utilization_ratio);
+  addEntry("Überbauungsziffer", G, extraction.building_coverage_ratio);
   addEntry("Geschossigkeit", G, extraction.max_floors != null ? `Maximal ${extraction.max_floors} Vollgeschosse` : null);
   addEntry("Gebäudehöhe", G, extraction.max_height_m != null ? `${extraction.max_height_m} Meter` : null);
-
-  if (extraction.setbacks) {
-    const s = extraction.setbacks;
-    if (s.klein != null) addEntry("Grenzabstand", "klein", `${s.klein} m`);
-    if (s.gross != null) addEntry("Grenzabstand", "gross", `${s.gross} m`);
-    if (s.gewaesser != null) addEntry("Gewässerabstand", G, `${s.gewaesser} m`);
-    if (s.notes) addEntry("Grenzabstand", "Hinweise", s.notes);
-  }
-
-  addEntry("Sondervorschriften", G, extraction.special_provisions ?? null);
+  addEntry("Grenzabstand klein", G, extraction.setback_small_m != null ? `${extraction.setback_small_m} m` : null);
+  addEntry("Grenzabstand gross", G, extraction.setback_large_m != null ? `${extraction.setback_large_m} m` : null);
+  addEntry("Gewässerabstand", G, extraction.setback_water_m != null ? `${extraction.setback_water_m} m` : null);
+  addEntry("Sondervorschriften", G, extraction.special_provisions);
   if (extraction.design_plan_required != null)
     addEntry("Gestaltungsplanpflicht", G, extraction.design_plan_required ? "Ja" : "Nein");
   if (extraction.heritage_protected != null)
     addEntry("Denkmalschutz", G, extraction.heritage_protected ? "Ja" : "Nein");
-  addEntry("Gewässerschutz", G, extraction.water_protection ?? null);
-  addEntry("Lärmvorschriften", G, extraction.noise_provisions ?? null);
+  addEntry("Gewässerschutz", G, extraction.water_protection);
+  addEntry("Lärmvorschriften", G, extraction.noise_provisions);
+  addEntry("Zusammenfassung", G, extraction.summary);
 
   if (entries.length > 0) {
     await supabaseAdmin
@@ -296,9 +303,9 @@ async function buildKnowledgeBase(params: {
       .upsert(entries, { onConflict: "municipality_id,category,key" });
   }
 
+  // Idempotent rule rebuild per document
+  await supabaseAdmin.from("regulation_rules").delete().eq("source_document", documentId);
   if (rules.length > 0) {
-    // Clear old rules from this document to keep idempotent
-    await supabaseAdmin.from("regulation_rules").delete().eq("source_document", documentId);
     await supabaseAdmin.from("regulation_rules").insert(rules);
   }
 }
