@@ -218,6 +218,47 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
 type Zone = z.infer<typeof ZoneSchema>;
 type Extraction = z.infer<typeof ExtractionSchema>;
 
+function normalizeExtraction(extraction: Extraction): Extraction {
+  const zones = (extraction.zones ?? [])
+    .filter((zone) => zone && (zone.code?.trim() || zone.name?.trim()))
+    .map((zone) => ({
+      ...zone,
+      code: zone.code?.trim() || zone.name?.trim() || null,
+      name: zone.name?.trim() || zone.code?.trim() || "Zone",
+      usage_category: zone.usage_category?.trim() || "sonstige",
+      allowed_uses: Array.isArray(zone.allowed_uses)
+        ? zone.allowed_uses.filter((use) => typeof use === "string" && use.trim()).map((use) => use.trim())
+        : [],
+      article_reference: zone.article_reference?.trim() || null,
+    }));
+
+  return { ...extraction, zones };
+}
+
+function createFallbackExtraction(title: string, fileName: string | null): Extraction {
+  const label = title || fileName || "Reglement";
+  return {
+    zones: [
+      {
+        code: "DOKUMENT",
+        name: label,
+        description:
+          "Das Dokument wurde gespeichert, aber die automatische Tabellen-Extraktion konnte kein valides Schema erzeugen. Bitte Werte im Wiki manuell prüfen oder später erneut analysieren.",
+        usage_category: "sonstige",
+        allowed_uses: ["Reglement als Quelle verfügbar"],
+        article_reference: "Dokument",
+      },
+    ],
+    special_provisions:
+      "Automatische Extraktion ist fehlgeschlagen; das Dokument bleibt als Quelle erfasst und kann in der Wissensdatenbank nachbearbeitet werden.",
+    design_plan_required: null,
+    heritage_protected: null,
+    water_protection: null,
+    noise_provisions: null,
+    summary: `Fallback-Eintrag für ${label}: Upload gespeichert, strukturierte KI-Extraktion konnte nicht validiert werden.`,
+  };
+}
+
 async function buildKnowledgeBase(params: {
   municipalityId: string;
   documentId: string;
