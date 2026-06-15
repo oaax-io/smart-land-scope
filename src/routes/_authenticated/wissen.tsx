@@ -150,7 +150,7 @@ function WissenPage() {
               municipalityId={selectedId}
               q={search.q}
               onSearch={(q) =>
-                navigate({ search: (prev) => ({ ...prev, q }) })
+                navigate({ search: (prev: RouteSearch) => ({ ...prev, q }) })
               }
             />
           ) : (
