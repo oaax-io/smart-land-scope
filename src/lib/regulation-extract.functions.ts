@@ -61,14 +61,28 @@ Zonen-Kategorien (usage_category):
 
 Antworte ausschliesslich im vorgegebenen JSON-Format.`;
 
-async function loadDocumentAsBase64(filePath: string) {
+async function loadDocumentAsBase64(filePath: string, fileName?: string | null) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.storage
     .from("regulation-documents")
     .download(filePath);
   if (error || !data) throw new Error(`Download fehlgeschlagen: ${error?.message ?? "leer"}`);
   const buf = Buffer.from(await data.arrayBuffer());
-  return { base64: buf.toString("base64"), mime: data.type || "application/pdf" };
+  const ext = (fileName ?? filePath).toLowerCase().split(".").pop() ?? "";
+  let mime = data.type || "";
+  if (!mime || mime === "application/octet-stream") {
+    if (ext === "md" || ext === "markdown") mime = "text/markdown";
+    else if (ext === "txt") mime = "text/plain";
+    else if (ext === "pdf") mime = "application/pdf";
+    else mime = "application/pdf";
+  }
+  const isText = mime.startsWith("text/") || ext === "md" || ext === "markdown" || ext === "txt";
+  return {
+    base64: buf.toString("base64"),
+    mime,
+    isText,
+    text: isText ? buf.toString("utf-8") : null,
+  };
 }
 
 export const extractRegulationDocument = createServerFn({ method: "POST" })
