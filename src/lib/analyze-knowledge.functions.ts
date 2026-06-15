@@ -119,9 +119,21 @@ const normalizeSeverity = (v: string): "low" | "medium" | "high" => {
   return "medium";
 };
 
+function normalizeSourceRefs(value: unknown) {
+  const sources = Array.isArray(value) ? value : [];
+  return sources.map((source) => {
+    const item = asRecord(source);
+    return {
+      document: readString(item.document) || null,
+      article: readString(item.article) || null,
+      category: readString(item.category) || null,
+      key: readString(item.key) || null,
+    };
+  });
+}
+
 function normalizeKnowledgeAnalysis(value: unknown) {
   const record = asRecord(value);
-  const sources = Array.isArray(record.sources) ? record.sources : [];
   const risks = Array.isArray(record.risks) ? record.risks : [];
 
   return KnowledgeAnalysisSchema.parse({
@@ -144,18 +156,10 @@ function normalizeKnowledgeAnalysis(value: unknown) {
         title: readString(item.title, "Risiko"),
         description: readString(item.description),
         severity: readString(item.severity, "medium"),
-        sources: Array.isArray(item.sources) ? item.sources : [],
+        sources: normalizeSourceRefs(item.sources),
       };
     }),
-    sources: sources.map((source) => {
-      const item = asRecord(source);
-      return {
-        document: readString(item.document) || null,
-        article: readString(item.article) || null,
-        category: readString(item.category) || null,
-        key: readString(item.key) || null,
-      };
-    }),
+    sources: normalizeSourceRefs(record.sources),
   });
 }
 
