@@ -117,9 +117,137 @@ function ReglementePage() {
       </div>
 
       <KnowledgeBaseDashboard />
+      <LuBzrImportCard />
       <DocumentsList />
       <AddRegulationDialog open={open} onOpenChange={setOpen} />
     </div>
+  );
+}
+
+// =====================================================================
+// LU Bulk Import
+// =====================================================================
+
+function LuBzrImportCard() {
+  const qc = useQueryClient();
+  const importFn = useServerFn(importLuBzrDocuments);
+  const [resultOpen, setResultOpen] = useState(false);
+  const [result, setResult] = useState<{
+    results: { gemeinde: string; status: string; error?: string }[];
+    summary: Record<string, number>;
+  } | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () => importFn({}),
+    onSuccess: (data) => {
+      setResult(data);
+      setResultOpen(true);
+      qc.invalidateQueries({ queryKey: ["all-regdocs"] });
+      qc.invalidateQueries({ queryKey: ["kb-stats"] });
+      const ins = data.summary.inserted ?? 0;
+      if (ins > 0) toast.success(`${ins} Reglemente importiert`);
+      else toast.error("Keine neuen Reglemente importiert");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Import fehlgeschlagen"),
+  });
+
+  const failedItems =
+    result?.results.filter((r) => r.status !== "inserted" && r.status !== "already_exists") ?? [];
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CloudUpload className="h-4 w-4" /> Kanton Luzern – Bulk-Import
+          </CardTitle>
+          <CardDescription>
+            Importiert die aktuellen Bau- und Zonenreglemente (BZR) für 73 von 79 Luzerner
+            Gemeinden direkt von geoshop.lu.ch.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="gap-2"
+          >
+            {mutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            LU-Reglemente importieren
+          </Button>
+          {mutation.isPending && (
+            <p className="text-sm text-muted-foreground">
+              Import läuft, das kann 1–2 Minuten dauern…
+            </p>
+          )}
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>3 Gemeinden manuell ergänzen</AlertTitle>
+            <AlertDescription>
+              3 Gemeinden müssen manuell ergänzt werden, da ihr BZR-Code mit einer anderen
+              Gemeinde kollidiert: Eschenbach (LU) / Escholzmatt-Marbach, Schongau / Schötz,
+              Grosswangen / Grossdietwil. Bitte BZR über „Reglement hinzufügen" manuell
+              hochladen.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+
+      <Dialog open={resultOpen} onOpenChange={setResultOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>LU-Import abgeschlossen</DialogTitle>
+            <DialogDescription>Zusammenfassung des Bulk-Imports</DialogDescription>
+          </DialogHeader>
+          {result && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {Object.entries(result.summary).map(([k, v]) => (
+                  <div
+                    key={k}
+                    className="flex items-center justify-between rounded-md border px-3 py-2"
+                  >
+                    <span className="font-mono text-xs">{k}</span>
+                    <span className="font-semibold tabular-nums">{v}</span>
+                  </div>
+                ))}
+              </div>
+              {failedItems.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium">
+                    Nicht importiert ({failedItems.length})
+                  </p>
+                  <ScrollArea className="h-64 rounded-md border">
+                    <div className="divide-y">
+                      {failedItems.map((r, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
+                        >
+                          <span className="truncate">{r.gemeinde}</span>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {r.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResultOpen(false)}>
+              Schliessen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
