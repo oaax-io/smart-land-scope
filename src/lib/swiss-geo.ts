@@ -163,12 +163,7 @@ export async function getParcelOutlineAt(
   if (!parcelFeature?.geometry?.rings) return null;
 
   const rings: number[][][] = parcelFeature.geometry.rings;
-  const coords: number[][][] = rings.map((ring) =>
-    ring.map(([x, y]) => {
-      const { lng: lo, lat: la } = lv95ToWgs84(x, y);
-      return [lo, la];
-    }),
-  );
+  const coords = esriRingsToGeoJsonCoordinates(rings);
 
   const pa = parcelFeature.attributes ?? {};
 
