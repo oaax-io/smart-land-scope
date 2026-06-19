@@ -38,18 +38,19 @@ function Dashboard() {
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("first_name, last_name, full_name")
+        .select("first_name, last_name")
         .eq("id", user!.id)
         .maybeSingle();
       return data;
     },
   });
 
+  const metaName = (user?.user_metadata?.full_name ?? user?.user_metadata?.name) as string | undefined;
   const firstName =
     profile?.first_name ??
-    (profile?.full_name ? profile.full_name.split(" ")[0] : null) ??
-    (user?.user_metadata?.full_name ? String(user.user_metadata.full_name).split(" ")[0] : null) ??
+    (metaName ? metaName.split(" ")[0] : null) ??
     (user?.email ? user.email.split("@")[0] : null);
+
 
   const today = new Date().toLocaleDateString("de-CH", {
     weekday: "long",
