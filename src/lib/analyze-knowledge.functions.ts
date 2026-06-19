@@ -273,10 +273,15 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         ruleBlock || "(keine Regeln)",
         "",
         "Beantworte:",
-        "1) Was darf gebaut werden? (feasibility, allowed_use in usage_types)",
-        "2) Wie viele Wohnungen könnten entstehen? (unit_count plausibel aus Wohnfläche, ≈ 90 m² / Einheit)",
-        "3) Wie hoch ist das Entwicklungspotenzial? (potential_level)",
-        "4) Welche Risiken bestehen? (risks)",
+        "1) Was darf gebaut werden? (feasibility, allowed_use in usage_types).",
+        "2) Bestimme die wahrscheinlichste Bauzone für dieses Grundstück anhand Adresse, PLZ und der Wissensdatenbank. Wenn die exakte Zonenzuteilung nicht eindeutig hervorgeht, wähle die für die Lage plausibelste Wohn- oder Mischzone (z.B. W2, W3, WG3) aus den dokumentierten Zonen und vermerke dies in 'feasibility'. Gib für diese Zone die konkreten Werte aus der Wissensdatenbank an: 'zone', 'utilization_ratio' (AZ), 'max_floors' (Vollgeschosse), 'max_height_m'. Lass diese Felder NIEMALS auf 0 / leer wenn die Wissensdatenbank entsprechende Zonenwerte enthält — wähle dann den plausibelsten Wert und erwähne die Unsicherheit im 'feasibility'-Text.",
+        "3) Berechne das Wohnungspotenzial konkret:",
+        "   - floor_area_m2 = Grundstücksfläche × utilization_ratio (falls beide Werte verfügbar)",
+        "   - living_area_m2 = floor_area_m2 × 0.8 (Nettowohnfläche-Faktor)",
+        "   - unit_count = round(living_area_m2 / 90)  (Annahme 90 m² pro Wohnung)",
+        "   Liefere diese Zahlen immer, sobald Fläche und AZ bekannt sind.",
+        "4) Wie hoch ist das Entwicklungspotenzial? (potential_level)",
+        "5) Welche Risiken bestehen? (risks)",
         "Liste in 'sources' alle verwendeten Einträge mit Dokument-Titel und Artikel-Referenz.",
       ].join("\n");
 
@@ -315,6 +320,20 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
       }
       const object = normalizeKnowledgeAnalysis(parsedResult);
 
+      // Deterministische Fallback-Berechnungen für das Wohnungspotenzial.
+      // Auch wenn die KI die Zahlen nicht liefert: sobald wir Fläche + AZ
+      // kennen, berechnen wir Geschossfläche / Wohnfläche / Anzahl Wohnungen.
+      const parcelArea = Number(analysis.area_size ?? 0) || 0;
+      const azForCalc = object.utilization_ratio > 0 ? object.utilization_ratio : 0;
+      let floorArea = object.floor_area_m2;
+      let livingArea = object.living_area_m2;
+      let unitCount = object.unit_count;
+      if (parcelArea > 0 && azForCalc > 0) {
+        if (!(floorArea > 0)) floorArea = parcelArea * azForCalc;
+        if (!(livingArea > 0)) livingArea = floorArea * 0.8;
+        if (!(unitCount > 0)) unitCount = Math.round(livingArea / 90);
+      }
+
       // 4) Persist
       const { error: updErr } = await supabase
         .from("analyses")
@@ -328,9 +347,9 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
           max_floors: clamp(Math.round(object.max_floors), 0, 50),
           max_height: clamp(object.max_height_m, 0, 300),
           utilization_ratio: clamp(object.utilization_ratio, 0, 10),
-          floor_area: clamp(object.floor_area_m2, 0, 1_000_000),
-          living_area: clamp(object.living_area_m2, 0, 1_000_000),
-          unit_count: clamp(Math.round(object.unit_count), 0, 10_000),
+          floor_area: clamp(floorArea, 0, 1_000_000),
+          living_area: clamp(livingArea, 0, 1_000_000),
+          unit_count: clamp(Math.round(unitCount), 0, 10_000),
           potential_level: normalizePotential(object.potential_level),
           ai_summary: object.ai_summary,
           restrictions: object.regulations,

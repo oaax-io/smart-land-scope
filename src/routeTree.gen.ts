@@ -14,7 +14,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedWissenRouteImport } from './routes/_authenticated/wissen'
-import { Route as AuthenticatedRechnerRouteImport } from './routes/_authenticated/rechner'
 import { Route as AuthenticatedProjekteRouteImport } from './routes/_authenticated/projekte'
 import { Route as AuthenticatedEinstellungenRouteImport } from './routes/_authenticated/einstellungen'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -48,11 +47,6 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedWissenRoute = AuthenticatedWissenRouteImport.update({
   id: '/wissen',
   path: '/wissen',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedRechnerRoute = AuthenticatedRechnerRouteImport.update({
-  id: '/rechner',
-  path: '/rechner',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProjekteRoute = AuthenticatedProjekteRouteImport.update({
@@ -119,7 +113,6 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
-  '/rechner': typeof AuthenticatedRechnerRoute
   '/wissen': typeof AuthenticatedWissenRoute
   '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
   '/admin/team': typeof AuthenticatedAdminTeamRoute
@@ -136,7 +129,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
-  '/rechner': typeof AuthenticatedRechnerRoute
   '/wissen': typeof AuthenticatedWissenRoute
   '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
   '/admin/team': typeof AuthenticatedAdminTeamRoute
@@ -155,7 +147,6 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/_authenticated/projekte': typeof AuthenticatedProjekteRoute
-  '/_authenticated/rechner': typeof AuthenticatedRechnerRoute
   '/_authenticated/wissen': typeof AuthenticatedWissenRoute
   '/_authenticated/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
   '/_authenticated/admin/team': typeof AuthenticatedAdminTeamRoute
@@ -174,7 +165,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/einstellungen'
     | '/projekte'
-    | '/rechner'
     | '/wissen'
     | '/admin/reglemente'
     | '/admin/team'
@@ -191,7 +181,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/einstellungen'
     | '/projekte'
-    | '/rechner'
     | '/wissen'
     | '/admin/reglemente'
     | '/admin/team'
@@ -209,7 +198,6 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/einstellungen'
     | '/_authenticated/projekte'
-    | '/_authenticated/rechner'
     | '/_authenticated/wissen'
     | '/_authenticated/admin/reglemente'
     | '/_authenticated/admin/team'
@@ -261,13 +249,6 @@ declare module '@tanstack/react-router' {
       path: '/wissen'
       fullPath: '/wissen'
       preLoaderRoute: typeof AuthenticatedWissenRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/rechner': {
-      id: '/_authenticated/rechner'
-      path: '/rechner'
-      fullPath: '/rechner'
-      preLoaderRoute: typeof AuthenticatedRechnerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/projekte': {
@@ -362,7 +343,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEinstellungenRoute: typeof AuthenticatedEinstellungenRoute
   AuthenticatedProjekteRoute: typeof AuthenticatedProjekteRoute
-  AuthenticatedRechnerRoute: typeof AuthenticatedRechnerRoute
   AuthenticatedWissenRoute: typeof AuthenticatedWissenRoute
   AuthenticatedAdminReglementeRoute: typeof AuthenticatedAdminReglementeRoute
   AuthenticatedAdminTeamRoute: typeof AuthenticatedAdminTeamRoute
@@ -376,7 +356,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEinstellungenRoute: AuthenticatedEinstellungenRoute,
   AuthenticatedProjekteRoute: AuthenticatedProjekteRoute,
-  AuthenticatedRechnerRoute: AuthenticatedRechnerRoute,
   AuthenticatedWissenRoute: AuthenticatedWissenRoute,
   AuthenticatedAdminReglementeRoute: AuthenticatedAdminReglementeRoute,
   AuthenticatedAdminTeamRoute: AuthenticatedAdminTeamRoute,

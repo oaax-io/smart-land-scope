@@ -268,18 +268,16 @@ function AnalysisDetailPage() {
 
         {/* Wohnungspotenzial */}
         <TabsContent value="units" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <KpiCard icon={Building2} label="Geschossfläche" value={analysis.floor_area ? `${Math.round(Number(analysis.floor_area))} m²` : "—"} />
-            <KpiCard icon={Home} label="Wohnfläche (potenziell)" value={analysis.living_area ? `${Math.round(Number(analysis.living_area))} m²` : "—"} />
-            <KpiCard icon={Home} label="Anzahl Wohnungen" value={analysis.unit_count?.toString() ?? "—"} />
-          </div>
-          <Card>
-            <CardHeader><CardTitle className="font-display text-lg">Wie viele Wohnungen könnten entstehen?</CardTitle></CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Geschätzt auf Basis Grundstücksfläche × Ausnützungsziffer und durchschnittlicher Wohnungs­grösse. Werte ohne Gewähr.
-            </CardContent>
-          </Card>
+          <UnitsPotential
+            areaSize={Number(analysis.area_size ?? 0) || 0}
+            utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
+            maxFloors={Number(analysis.max_floors ?? 0) || 0}
+            floorArea={Number(analysis.floor_area ?? 0) || 0}
+            livingArea={Number(analysis.living_area ?? 0) || 0}
+            unitCount={Number(analysis.unit_count ?? 0) || 0}
+          />
         </TabsContent>
+
 
         {/* Entwicklungspotenzial */}
         <TabsContent value="potential" className="space-y-4">
@@ -436,6 +434,89 @@ function AiAnswerCard({ answer }: { answer: AiAnswer | null }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function UnitsPotential({
+  areaSize,
+  utilizationRatio,
+  maxFloors,
+  floorArea,
+  livingArea,
+  unitCount,
+}: {
+  areaSize: number;
+  utilizationRatio: number;
+  maxFloors: number;
+  floorArea: number;
+  livingArea: number;
+  unitCount: number;
+}) {
+  const SIZES = [
+    { key: "klein", label: "Klein", area: 60, description: "1–2 Zimmer · Studios" },
+    { key: "mittel", label: "Mittel", area: 85, description: "3–4 Zimmer · Familien" },
+    { key: "gross", label: "Gross", area: 120, description: "4.5–5.5 Zimmer · Premium" },
+  ] as const;
+
+  const computedFloor = floorArea > 0 ? floorArea : areaSize > 0 && utilizationRatio > 0 ? areaSize * utilizationRatio : 0;
+  const computedLiving = livingArea > 0 ? livingArea : computedFloor * 0.8;
+  const computedUnits = unitCount > 0 ? unitCount : computedLiving > 0 ? Math.round(computedLiving / 90) : 0;
+  const ready = computedLiving > 0;
+
+  const variants = SIZES.map((s) => ({ ...s, units: ready ? Math.floor(computedLiving / s.area) : 0 }));
+  let recommended = variants[1];
+  if (ready) {
+    if (computedLiving < 400) recommended = variants[0];
+    else if (computedLiving > 2500) recommended = variants[2];
+  }
+
+  const fmt = (n: number) => new Intl.NumberFormat("de-CH", { maximumFractionDigits: 0 }).format(n);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <KpiCard icon={Building2} label="Geschossfläche" value={ready ? `${fmt(computedFloor)} m²` : "—"} />
+        <KpiCard icon={Home} label="Wohnfläche (potenziell)" value={ready ? `${fmt(computedLiving)} m²` : "—"} />
+        <KpiCard icon={Home} label="Anzahl Wohnungen" value={ready ? computedUnits.toString() : "—"} />
+      </div>
+
+      {!ready && (
+        <Placeholder text="Wohnungspotenzial kann erst berechnet werden, wenn Grundstücksfläche und Ausnützungsziffer bekannt sind." />
+      )}
+
+      {ready && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display text-lg">Wohnungsvarianten</CardTitle>
+            <CardDescription>
+              Berechnet aus {fmt(areaSize)} m² × AZ {utilizationRatio}
+              {maxFloors > 0 ? ` · ${maxFloors} Vollgeschosse` : ""} · 80% Nettowohnfläche · ø 90 m²/WHG
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-3">
+            {variants.map((v) => {
+              const isRec = v.key === recommended.key;
+              return (
+                <div
+                  key={v.key}
+                  className={`relative rounded-lg border p-4 transition ${isRec ? "border-primary bg-primary/5" : "bg-card"}`}
+                >
+                  {isRec && (
+                    <Badge className="absolute -top-2 right-3" variant="default">Empfehlung</Badge>
+                  )}
+                  <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Variante {v.label}
+                  </div>
+                  <div className="mt-1 font-display text-3xl font-bold tabular-nums">{v.units}</div>
+                  <div className="mt-0.5 text-sm text-muted-foreground">Wohnungen à {v.area} m²</div>
+                  <div className="mt-3 text-xs text-muted-foreground">{v.description}</div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
 
