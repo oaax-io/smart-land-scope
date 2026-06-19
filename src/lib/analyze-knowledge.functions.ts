@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
 import { z } from "zod";
+import type { Json } from "@/integrations/supabase/types";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 import { asRecord, parseJsonObject, readNumber, readString, readStringArray } from "./ai-json.server";
 
