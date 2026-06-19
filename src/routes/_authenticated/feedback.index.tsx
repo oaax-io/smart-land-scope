@@ -214,6 +214,29 @@ function NewFeedbackDialog({ onSuccess }: { onSuccess: () => void }) {
   const [category, setCategory] = useState<FeedbackCategory>("bug");
   const [priority, setPriority] = useState<FeedbackPriority>("medium");
   const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const previewUrl = file ? URL.createObjectURL(file) : null;
+
+  function pickFile(f: File | null | undefined) {
+    setError(null);
+    if (!f) {
+      setFile(null);
+      return;
+    }
+    if (!f.type.startsWith("image/")) {
+      setError("Nur Bilder erlaubt");
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setError("Bild zu gross (max. 5 MB)");
+      return;
+    }
+    setFile(f);
+  }
+
+
 
   const submit = useMutation({
     mutationFn: async () => {
