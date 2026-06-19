@@ -84,19 +84,18 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      <section className="relative isolate z-10 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary via-primary to-secondary p-8 text-primary-foreground shadow-lg sm:p-10">
-        <img
-          src={heroBg}
-          alt=""
-          aria-hidden
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25 mix-blend-screen"
-        />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/80 via-primary/60 to-transparent" aria-hidden />
-        <div className="pointer-events-none absolute inset-0" aria-hidden>
+      <section className="relative isolate z-50 rounded-2xl border border-border bg-gradient-to-br from-primary via-primary to-secondary p-8 text-primary-foreground shadow-lg sm:p-10">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden>
+          <img
+            src={heroBg}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover opacity-25 mix-blend-screen"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/80 via-primary/60 to-transparent" />
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-secondary/30 blur-3xl" />
           <div className="absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-primary-foreground/10 blur-3xl" />
         </div>
-        <div className="relative">
+        <div className="relative z-10">
           <p className="text-xs uppercase tracking-[0.18em] text-primary-foreground/70">{today}</p>
           <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
             {greeting()}{firstName ? `, ${firstName}` : ""}
@@ -104,7 +103,7 @@ function Dashboard() {
           <p className="mt-2 max-w-2xl text-sm text-primary-foreground/80 sm:text-base">
             Starten Sie unten direkt mit einer Schnellanalyse — Adresse eingeben genügt.
           </p>
-          <div className="relative z-30 mt-6">
+          <div className="relative z-[100] mt-6">
             <QuickAnalysisSearch hero />
           </div>
         </div>
@@ -382,7 +381,7 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
         </div>
 
         {open && results.length > 0 && !busy && (
-          <Card className="absolute left-0 right-0 top-full z-20 mt-2 max-h-80 overflow-y-auto p-1 shadow-xl">
+          <Card className="absolute left-0 right-0 top-full z-[9999] mt-2 max-h-80 overflow-y-auto p-1 shadow-2xl">
             {results.map((r, i) => (
               <button
                 key={`${r.featureId ?? "x"}-${i}`}
@@ -428,7 +427,7 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
           </div>
 
           {open && results.length > 0 && !busy && (
-            <Card className="absolute left-0 right-0 top-full z-20 mt-1 max-h-80 overflow-y-auto p-1 shadow-lg">
+            <Card className="absolute left-0 right-0 top-full z-[9999] mt-1 max-h-80 overflow-y-auto p-1 shadow-2xl">
               {results.map((r, i) => (
                 <button
                   key={`${r.featureId ?? "x"}-${i}`}
