@@ -6,7 +6,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -20,13 +19,9 @@ const items = [
   { title: "Wissensdatenbank", url: "/wissen", icon: BookOpen },
   { title: "Projekte", url: "/projekte", icon: FolderKanban },
   { title: "Berichte", url: "/berichte", icon: FileText },
+  { title: "Team", url: "/team", icon: Users },
   { title: "Feedback", url: "/feedback", icon: MessageSquare },
   { title: "Einstellungen", url: "/einstellungen", icon: Settings },
-] as const;
-
-const adminItems = [
-  { title: "Reglemente", url: "/admin/reglemente", icon: BookOpen },
-  { title: "Team", url: "/admin/team", icon: Users },
 ] as const;
 
 export function AppSidebar() {
@@ -54,26 +49,6 @@ export function AppSidebar() {
                   (o) => o.url !== item.url && o.url.startsWith(item.url + "/") && (pathname === o.url || pathname.startsWith(o.url + "/")),
                 );
                 const active = matches && !moreSpecific;
-                return (
-                  <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-                      <Link to={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Admin</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map((item) => {
-                const active = pathname === item.url || pathname.startsWith(item.url + "/");
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.title}>

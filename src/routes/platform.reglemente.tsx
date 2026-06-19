@@ -35,7 +35,7 @@ import { listRegulationsMissingKnowledge } from "@/lib/regulation-bulk.functions
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-export const Route = createFileRoute("/_authenticated/admin/reglemente")({
+export const Route = createFileRoute("/platform/reglemente")({
   component: ReglementePage,
 });
 

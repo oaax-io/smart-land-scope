@@ -10,10 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlatformIndexRouteImport } from './routes/platform.index'
+import { Route as PlatformReglementeRouteImport } from './routes/platform.reglemente'
+import { Route as PlatformOrganisationenRouteImport } from './routes/platform.organisationen'
+import { Route as PlatformBenutzerRouteImport } from './routes/platform.benutzer'
 import { Route as AuthenticatedWissenRouteImport } from './routes/_authenticated/wissen'
+import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedProjekteRouteImport } from './routes/_authenticated/projekte'
 import { Route as AuthenticatedEinstellungenRouteImport } from './routes/_authenticated/einstellungen'
 import { Route as AuthenticatedDokumentationRouteImport } from './routes/_authenticated/dokumentation'
@@ -25,13 +31,16 @@ import { Route as AuthenticatedFeedbackIdRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAnalysenNeuRouteImport } from './routes/_authenticated/analysen.neu'
 import { Route as AuthenticatedAnalysenKarteRouteImport } from './routes/_authenticated/analysen.karte'
 import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
-import { Route as AuthenticatedAdminTeamRouteImport } from './routes/_authenticated/admin.team'
-import { Route as AuthenticatedAdminReglementeRouteImport } from './routes/_authenticated/admin.reglemente'
 import { Route as AuthenticatedAnalysenIdBerichtRouteImport } from './routes/_authenticated/analysen.$id.bericht'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformRoute = PlatformRouteImport.update({
+  id: '/platform',
+  path: '/platform',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -48,9 +57,34 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformIndexRoute = PlatformIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformReglementeRoute = PlatformReglementeRouteImport.update({
+  id: '/reglemente',
+  path: '/reglemente',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformOrganisationenRoute = PlatformOrganisationenRouteImport.update({
+  id: '/organisationen',
+  path: '/organisationen',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformBenutzerRoute = PlatformBenutzerRouteImport.update({
+  id: '/benutzer',
+  path: '/benutzer',
+  getParentRoute: () => PlatformRoute,
+} as any)
 const AuthenticatedWissenRoute = AuthenticatedWissenRouteImport.update({
   id: '/wissen',
   path: '/wissen',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProjekteRoute = AuthenticatedProjekteRouteImport.update({
@@ -114,17 +148,6 @@ const AuthenticatedAnalysenIdRoute = AuthenticatedAnalysenIdRouteImport.update({
   path: '/analysen/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAdminTeamRoute = AuthenticatedAdminTeamRouteImport.update({
-  id: '/admin/team',
-  path: '/admin/team',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedAdminReglementeRoute =
-  AuthenticatedAdminReglementeRouteImport.update({
-    id: '/admin/reglemente',
-    path: '/admin/reglemente',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedAnalysenIdBerichtRoute =
   AuthenticatedAnalysenIdBerichtRouteImport.update({
     id: '/bericht',
@@ -135,15 +158,19 @@ const AuthenticatedAnalysenIdBerichtRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/platform': typeof PlatformRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/berichte': typeof AuthenticatedBerichteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dokumentation': typeof AuthenticatedDokumentationRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
+  '/team': typeof AuthenticatedTeamRoute
   '/wissen': typeof AuthenticatedWissenRoute
-  '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
-  '/admin/team': typeof AuthenticatedAdminTeamRoute
+  '/platform/benutzer': typeof PlatformBenutzerRoute
+  '/platform/organisationen': typeof PlatformOrganisationenRoute
+  '/platform/reglemente': typeof PlatformReglementeRoute
+  '/platform/': typeof PlatformIndexRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
@@ -161,9 +188,12 @@ export interface FileRoutesByTo {
   '/dokumentation': typeof AuthenticatedDokumentationRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
+  '/team': typeof AuthenticatedTeamRoute
   '/wissen': typeof AuthenticatedWissenRoute
-  '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
-  '/admin/team': typeof AuthenticatedAdminTeamRoute
+  '/platform/benutzer': typeof PlatformBenutzerRoute
+  '/platform/organisationen': typeof PlatformOrganisationenRoute
+  '/platform/reglemente': typeof PlatformReglementeRoute
+  '/platform': typeof PlatformIndexRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
@@ -177,15 +207,19 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/platform': typeof PlatformRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/berichte': typeof AuthenticatedBerichteRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dokumentation': typeof AuthenticatedDokumentationRoute
   '/_authenticated/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/_authenticated/projekte': typeof AuthenticatedProjekteRoute
+  '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/wissen': typeof AuthenticatedWissenRoute
-  '/_authenticated/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
-  '/_authenticated/admin/team': typeof AuthenticatedAdminTeamRoute
+  '/platform/benutzer': typeof PlatformBenutzerRoute
+  '/platform/organisationen': typeof PlatformOrganisationenRoute
+  '/platform/reglemente': typeof PlatformReglementeRoute
+  '/platform/': typeof PlatformIndexRoute
   '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/_authenticated/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/_authenticated/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
@@ -199,15 +233,19 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/platform'
     | '/reset-password'
     | '/berichte'
     | '/dashboard'
     | '/dokumentation'
     | '/einstellungen'
     | '/projekte'
+    | '/team'
     | '/wissen'
-    | '/admin/reglemente'
-    | '/admin/team'
+    | '/platform/benutzer'
+    | '/platform/organisationen'
+    | '/platform/reglemente'
+    | '/platform/'
     | '/analysen/$id'
     | '/analysen/karte'
     | '/analysen/neu'
@@ -225,9 +263,12 @@ export interface FileRouteTypes {
     | '/dokumentation'
     | '/einstellungen'
     | '/projekte'
+    | '/team'
     | '/wissen'
-    | '/admin/reglemente'
-    | '/admin/team'
+    | '/platform/benutzer'
+    | '/platform/organisationen'
+    | '/platform/reglemente'
+    | '/platform'
     | '/analysen/$id'
     | '/analysen/karte'
     | '/analysen/neu'
@@ -240,15 +281,19 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/platform'
     | '/reset-password'
     | '/_authenticated/berichte'
     | '/_authenticated/dashboard'
     | '/_authenticated/dokumentation'
     | '/_authenticated/einstellungen'
     | '/_authenticated/projekte'
+    | '/_authenticated/team'
     | '/_authenticated/wissen'
-    | '/_authenticated/admin/reglemente'
-    | '/_authenticated/admin/team'
+    | '/platform/benutzer'
+    | '/platform/organisationen'
+    | '/platform/reglemente'
+    | '/platform/'
     | '/_authenticated/analysen/$id'
     | '/_authenticated/analysen/karte'
     | '/_authenticated/analysen/neu'
@@ -262,6 +307,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  PlatformRoute: typeof PlatformRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
@@ -272,6 +318,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform': {
+      id: '/platform'
+      path: '/platform'
+      fullPath: '/platform'
+      preLoaderRoute: typeof PlatformRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -295,11 +348,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform/': {
+      id: '/platform/'
+      path: '/'
+      fullPath: '/platform/'
+      preLoaderRoute: typeof PlatformIndexRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/reglemente': {
+      id: '/platform/reglemente'
+      path: '/reglemente'
+      fullPath: '/platform/reglemente'
+      preLoaderRoute: typeof PlatformReglementeRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/organisationen': {
+      id: '/platform/organisationen'
+      path: '/organisationen'
+      fullPath: '/platform/organisationen'
+      preLoaderRoute: typeof PlatformOrganisationenRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/benutzer': {
+      id: '/platform/benutzer'
+      path: '/benutzer'
+      fullPath: '/platform/benutzer'
+      preLoaderRoute: typeof PlatformBenutzerRouteImport
+      parentRoute: typeof PlatformRoute
+    }
     '/_authenticated/wissen': {
       id: '/_authenticated/wissen'
       path: '/wissen'
       fullPath: '/wissen'
       preLoaderRoute: typeof AuthenticatedWissenRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/team': {
+      id: '/_authenticated/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AuthenticatedTeamRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/projekte': {
@@ -379,20 +467,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalysenIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/team': {
-      id: '/_authenticated/admin/team'
-      path: '/admin/team'
-      fullPath: '/admin/team'
-      preLoaderRoute: typeof AuthenticatedAdminTeamRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/admin/reglemente': {
-      id: '/_authenticated/admin/reglemente'
-      path: '/admin/reglemente'
-      fullPath: '/admin/reglemente'
-      preLoaderRoute: typeof AuthenticatedAdminReglementeRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/analysen/$id/bericht': {
       id: '/_authenticated/analysen/$id/bericht'
       path: '/bericht'
@@ -423,9 +497,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDokumentationRoute: typeof AuthenticatedDokumentationRoute
   AuthenticatedEinstellungenRoute: typeof AuthenticatedEinstellungenRoute
   AuthenticatedProjekteRoute: typeof AuthenticatedProjekteRoute
+  AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedWissenRoute: typeof AuthenticatedWissenRoute
-  AuthenticatedAdminReglementeRoute: typeof AuthenticatedAdminReglementeRoute
-  AuthenticatedAdminTeamRoute: typeof AuthenticatedAdminTeamRoute
   AuthenticatedAnalysenIdRoute: typeof AuthenticatedAnalysenIdRouteWithChildren
   AuthenticatedAnalysenKarteRoute: typeof AuthenticatedAnalysenKarteRoute
   AuthenticatedAnalysenNeuRoute: typeof AuthenticatedAnalysenNeuRoute
@@ -440,9 +513,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDokumentationRoute: AuthenticatedDokumentationRoute,
   AuthenticatedEinstellungenRoute: AuthenticatedEinstellungenRoute,
   AuthenticatedProjekteRoute: AuthenticatedProjekteRoute,
+  AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedWissenRoute: AuthenticatedWissenRoute,
-  AuthenticatedAdminReglementeRoute: AuthenticatedAdminReglementeRoute,
-  AuthenticatedAdminTeamRoute: AuthenticatedAdminTeamRoute,
   AuthenticatedAnalysenIdRoute: AuthenticatedAnalysenIdRouteWithChildren,
   AuthenticatedAnalysenKarteRoute: AuthenticatedAnalysenKarteRoute,
   AuthenticatedAnalysenNeuRoute: AuthenticatedAnalysenNeuRoute,
@@ -454,10 +526,29 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface PlatformRouteChildren {
+  PlatformBenutzerRoute: typeof PlatformBenutzerRoute
+  PlatformOrganisationenRoute: typeof PlatformOrganisationenRoute
+  PlatformReglementeRoute: typeof PlatformReglementeRoute
+  PlatformIndexRoute: typeof PlatformIndexRoute
+}
+
+const PlatformRouteChildren: PlatformRouteChildren = {
+  PlatformBenutzerRoute: PlatformBenutzerRoute,
+  PlatformOrganisationenRoute: PlatformOrganisationenRoute,
+  PlatformReglementeRoute: PlatformReglementeRoute,
+  PlatformIndexRoute: PlatformIndexRoute,
+}
+
+const PlatformRouteWithChildren = PlatformRoute._addFileChildren(
+  PlatformRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  PlatformRoute: PlatformRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
