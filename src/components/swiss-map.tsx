@@ -93,6 +93,7 @@ type SwissMapProps = {
     canton: string | null;
     parcelNumber: string | null;
     egrid: string | null;
+    geometry: { type: "Polygon"; coordinates: number[][][] } | null;
   }) => void;
   className?: string;
   heightClassName?: string;
@@ -100,6 +101,10 @@ type SwissMapProps = {
   floatingSearch?: boolean;
   /** Show coloured cantons overlay and Kanton filter (bottom-right). */
   showCantons?: boolean;
+  /** Bereits gespeicherte Parzellen-Geometrie (aus der Datenbank) — für die readonly-Detailansicht. */
+  parcelGeometry?: { type: "Polygon"; coordinates: number[][][] } | null;
+  /** Grenzabstände in Metern, für die vereinfachte Baufeld-Berechnung. */
+  setbacks?: { nord?: number | null; ost?: number | null; sued?: number | null; west?: number | null } | null;
 };
 
 type CantonFeature = {
