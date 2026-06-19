@@ -12,22 +12,35 @@ import {
   type SwissParcelInfo,
 } from "@/lib/swiss-geo";
 
-// swisstopo WMTS Basiskarte (Pixelkarte farbig), kostenlos, kein API-Key nötig
+// swisstopo WMTS — Amtliche Vermessung (Cadastral Webmap, farbig) mit Parzellengrenzen
 const SWISSTOPO_STYLE = {
   version: 8 as const,
   sources: {
-    swisstopo: {
+    "swisstopo-base": {
       type: "raster" as const,
       tiles: [
-        "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg",
+        "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/{z}/{x}/{y}.jpeg",
       ],
       tileSize: 256,
       attribution: "© swisstopo",
       maxzoom: 18,
     },
+    "swisstopo-cadastral": {
+      type: "raster" as const,
+      tiles: [
+        "https://wmts.geo.admin.ch/1.0.0/ch.kantone.cadastralwebmap-farbe/default/current/3857/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "© swisstopo / Kantone (Amtliche Vermessung)",
+      maxzoom: 19,
+    },
   },
-  layers: [{ id: "swisstopo-layer", type: "raster" as const, source: "swisstopo" }],
+  layers: [
+    { id: "base-layer", type: "raster" as const, source: "swisstopo-base" },
+    { id: "cadastral-layer", type: "raster" as const, source: "swisstopo-cadastral" },
+  ],
 };
+
 
 const DEFAULT_VIEW = { longitude: 8.2275, latitude: 46.8182, zoom: 7 };
 
