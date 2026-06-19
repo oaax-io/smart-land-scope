@@ -672,6 +672,8 @@ export function SwissMap({
                   heightClassName="h-[75vh]"
                   allowExpand={false}
                   showCantons={showCantons}
+                  parcelGeometry={parcelGeometry}
+                  setbacks={setbacks}
                 />
               </DialogContent>
             </Dialog>
