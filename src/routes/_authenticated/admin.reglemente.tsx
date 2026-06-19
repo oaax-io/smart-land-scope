@@ -31,6 +31,7 @@ import {
   CloudUpload, X, Check, ChevronsUpDown,
 } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
+import { listRegulationsMissingKnowledge } from "@/lib/regulation-bulk.functions";
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -108,6 +109,7 @@ function ReglementePage() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline">Admin</Badge>
+          <BulkExtractButton />
           <Button onClick={() => setOpen(true)} size="lg" className="gap-2">
             <Plus className="h-4 w-4" /> Reglement hinzufügen
           </Button>
