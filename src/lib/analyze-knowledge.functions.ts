@@ -320,6 +320,20 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
       }
       const object = normalizeKnowledgeAnalysis(parsedResult);
 
+      // Deterministische Fallback-Berechnungen für das Wohnungspotenzial.
+      // Auch wenn die KI die Zahlen nicht liefert: sobald wir Fläche + AZ
+      // kennen, berechnen wir Geschossfläche / Wohnfläche / Anzahl Wohnungen.
+      const parcelArea = Number(analysis.area_size ?? 0) || 0;
+      const azForCalc = object.utilization_ratio > 0 ? object.utilization_ratio : 0;
+      let floorArea = object.floor_area_m2;
+      let livingArea = object.living_area_m2;
+      let unitCount = object.unit_count;
+      if (parcelArea > 0 && azForCalc > 0) {
+        if (!(floorArea > 0)) floorArea = parcelArea * azForCalc;
+        if (!(livingArea > 0)) livingArea = floorArea * 0.8;
+        if (!(unitCount > 0)) unitCount = Math.round(livingArea / 90);
+      }
+
       // 4) Persist
       const { error: updErr } = await supabase
         .from("analyses")
@@ -333,9 +347,9 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
           max_floors: clamp(Math.round(object.max_floors), 0, 50),
           max_height: clamp(object.max_height_m, 0, 300),
           utilization_ratio: clamp(object.utilization_ratio, 0, 10),
-          floor_area: clamp(object.floor_area_m2, 0, 1_000_000),
-          living_area: clamp(object.living_area_m2, 0, 1_000_000),
-          unit_count: clamp(Math.round(object.unit_count), 0, 10_000),
+          floor_area: clamp(floorArea, 0, 1_000_000),
+          living_area: clamp(livingArea, 0, 1_000_000),
+          unit_count: clamp(Math.round(unitCount), 0, 10_000),
           potential_level: normalizePotential(object.potential_level),
           ai_summary: object.ai_summary,
           restrictions: object.regulations,
