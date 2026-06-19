@@ -98,7 +98,13 @@ export type SwissParcelInfo = {
 
 let _warnedAttrs = false;
 
-async function identifyAt(layers: string, lng: number, lat: number, tolerance = 2) {
+async function identifyAt(
+  layers: string,
+  lng: number,
+  lat: number,
+  tolerance = 2,
+  opts: { returnGeometry?: boolean; signal?: AbortSignal } = {},
+) {
   const { e, n } = wgs84ToLv95(lng, lat);
   const mapExtent = [e - 500, n - 500, e + 500, n + 500].join(",");
   const url = new URL("https://api3.geo.admin.ch/rest/services/api/MapServer/identify");
@@ -109,12 +115,45 @@ async function identifyAt(layers: string, lng: number, lat: number, tolerance = 
   url.searchParams.set("mapExtent", mapExtent);
   url.searchParams.set("imageDisplay", "500,500,96");
   url.searchParams.set("sr", "2056");
-  url.searchParams.set("returnGeometry", "false");
-  const res = await fetch(url.toString());
+  url.searchParams.set("returnGeometry", opts.returnGeometry ? "true" : "false");
+  const res = await fetch(url.toString(), { signal: opts.signal });
   if (!res.ok) return null;
   const json = await res.json();
   return json.results ?? [];
 }
+
+export type ParcelOutline = {
+  egrid: string | null;
+  geometry: { type: "Polygon"; coordinates: number[][][] };
+};
+
+/** Holt nur Umriss + EGRID einer Parzelle für Hover-Highlighting. Schnell und ohne Adress-Lookups. */
+export async function getParcelOutlineAt(
+  lng: number,
+  lat: number,
+  signal?: AbortSignal,
+): Promise<ParcelOutline | null> {
+  const results = await identifyAt("all:ch.kantone.cadastralwebmap-farbe", lng, lat, 2, {
+    returnGeometry: true,
+    signal,
+  });
+  const feature = results?.[0];
+  if (!feature?.geometry?.rings) return null;
+  const rings: number[][][] = feature.geometry.rings;
+  // ESRI rings (LV95) → GeoJSON Polygon (WGS84)
+  const coords: number[][][] = rings.map((ring) =>
+    ring.map(([x, y]) => {
+      const { lng: lo, lat: la } = lv95ToWgs84(x, y);
+      return [lo, la];
+    }),
+  );
+  return {
+    egrid:
+      cleanString(feature.attributes?.egris_egrid ?? feature.attributes?.egrid) ?? null,
+    geometry: { type: "Polygon", coordinates: coords },
+  };
+}
+
 
 const CANTON_NAME_TO_CODE: Record<string, string> = {
   aargau: "AG", "appenzell innerrhoden": "AI", "appenzell ausserrhoden": "AR",
