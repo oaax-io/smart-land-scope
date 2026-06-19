@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Plus, Upload, Loader2, X, ImageIcon, ShieldCheck } from "lucide-react";
+import { MessageSquare, Plus, Upload, Loader2, X, ImageIcon, ShieldCheck, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -213,6 +214,29 @@ function NewFeedbackDialog({ onSuccess }: { onSuccess: () => void }) {
   const [category, setCategory] = useState<FeedbackCategory>("bug");
   const [priority, setPriority] = useState<FeedbackPriority>("medium");
   const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const previewUrl = file ? URL.createObjectURL(file) : null;
+
+  function pickFile(f: File | null | undefined) {
+    setError(null);
+    if (!f) {
+      setFile(null);
+      return;
+    }
+    if (!f.type.startsWith("image/")) {
+      setError("Nur Bilder erlaubt");
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setError("Bild zu gross (max. 5 MB)");
+      return;
+    }
+    setFile(f);
+  }
+
+
 
   const submit = useMutation({
     mutationFn: async () => {
@@ -257,7 +281,7 @@ function NewFeedbackDialog({ onSuccess }: { onSuccess: () => void }) {
       onSuccess();
       navigate({ to: "/feedback/$id", params: { id: data.id } });
     },
-    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+    onError: (e: Error) => setError(e.message || "Unbekannter Fehler"),
   });
 
   return (
@@ -310,30 +334,61 @@ function NewFeedbackDialog({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="fb-file">Screenshot (optional, max. 5 MB)</Label>
-          <div className="flex items-center gap-2">
-            <Input
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              pickFile(e.dataTransfer.files?.[0]);
+            }}
+            onPaste={(e) => {
+              const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith("image/"));
+              if (item) pickFile(item.getAsFile());
+            }}
+            className={`relative rounded-md border-2 border-dashed p-4 transition ${
+              isDragging ? "border-primary bg-primary/5" : "border-border bg-muted/30"
+            }`}
+          >
+            {file && previewUrl ? (
+              <div className="flex items-start gap-3">
+                <img src={previewUrl} alt="Vorschau" className="h-20 w-20 rounded border object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
+                </div>
+                <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => { setFile(null); setError(null); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <label htmlFor="fb-file" className="flex cursor-pointer flex-col items-center gap-1 py-3 text-center">
+                <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                <p className="text-sm">
+                  <span className="font-medium text-primary">Klicken</span>, Datei hierher ziehen oder einfügen (Strg+V)
+                </p>
+                <p className="text-xs text-muted-foreground">PNG, JPG bis 5 MB</p>
+              </label>
+            )}
+            <input
               id="fb-file"
               type="file"
               accept="image/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="cursor-pointer file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
+              className="hidden"
+              onChange={(e) => pickFile(e.target.files?.[0])}
             />
-            {file && (
-              <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => setFile(null)}>
-                <X className="h-4 w-4" />
-              </Button>
-            )}
           </div>
-          {file && (
-            <p className="text-xs text-muted-foreground">
-              {file.name} ({(file.size / 1024).toFixed(0)} KB)
-            </p>
-          )}
         </div>
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onSuccess} disabled={submit.isPending}>Abbrechen</Button>
-        <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
+        <Button onClick={() => { setError(null); submit.mutate(); }} disabled={submit.isPending}>
           {submit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
           Senden
         </Button>
