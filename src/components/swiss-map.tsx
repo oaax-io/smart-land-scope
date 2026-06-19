@@ -249,18 +249,21 @@ export function SwissMap({
 
   // --- Parzellen-Hover (gedrosselt, nur ab Zoom 16.5) ---
   const [hoverParcel, setHoverParcel] = useState<ParcelOutline | null>(null);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const hoverTimer = useRef<number | null>(null);
   const hoverAbort = useRef<AbortController | null>(null);
   const lastHoverKey = useRef<string | null>(null);
 
   const handleMapMouseMove = useCallback(
-    (e: { lngLat: { lng: number; lat: number } }) => {
+    (e: { lngLat: { lng: number; lat: number }; point: { x: number; y: number } }) => {
       if (mode !== "interactive") return;
       const zoom = mapRef.current?.getMap().getZoom() ?? 0;
       if (zoom < 16.5) {
         if (hoverParcel) setHoverParcel(null);
+        setHoverPos(null);
         return;
       }
+      setHoverPos({ x: e.point.x, y: e.point.y });
       const { lng, lat } = e.lngLat;
       if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
       hoverTimer.current = window.setTimeout(async () => {
