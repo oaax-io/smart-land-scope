@@ -328,6 +328,34 @@ export function SwissMap({
     [hoverParcel],
   );
 
+  const selectedParcelFC = useMemo(
+    () =>
+      parcelGeometry
+        ? {
+            type: "FeatureCollection" as const,
+            features: [{ type: "Feature" as const, properties: {}, geometry: parcelGeometry }],
+          }
+        : null,
+    [parcelGeometry],
+  );
+
+  const buildableField = useMemo(() => {
+    if (!parcelGeometry || !setbacks) return null;
+    const values = [setbacks.nord, setbacks.ost, setbacks.sued, setbacks.west]
+      .filter((v): v is number => typeof v === "number" && v > 0);
+    if (values.length === 0) return null;
+    const minSetback = Math.min(...values);
+    try {
+      const feature = { type: "Feature" as const, properties: {}, geometry: parcelGeometry };
+      const buffered = turf.buffer(feature, -minSetback, { units: "meters" });
+      if (!buffered || buffered.geometry.type !== "Polygon") return null;
+      return { type: "FeatureCollection" as const, features: [buffered] };
+    } catch {
+      return null;
+    }
+  }, [parcelGeometry, setbacks]);
+
+
   const searchBox = mode === "interactive" && (
     <div className={cn("relative", floatingSearch && "w-full max-w-md")}>
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
