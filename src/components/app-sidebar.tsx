@@ -1,8 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, MapPinned, FolderKanban, FileText, Users, Settings, Layers, BookOpen, Map as MapIcon, MessageSquare } from "lucide-react";
+import { LayoutDashboard, MapPinned, FolderKanban, FileText, Users, Settings, Layers, BookOpen, Map as MapIcon, MessageSquare, LifeBuoy } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
