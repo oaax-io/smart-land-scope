@@ -122,12 +122,17 @@ async function identifyAt(
   return json.results ?? [];
 }
 
+export type ParcelOutline = {
+  egrid: string | null;
+  geometry: { type: "Polygon"; coordinates: number[][][] };
+};
+
 /** Holt nur Umriss + EGRID einer Parzelle für Hover-Highlighting. Schnell und ohne Adress-Lookups. */
 export async function getParcelOutlineAt(
   lng: number,
   lat: number,
   signal?: AbortSignal,
-): Promise<{ egrid: string | null; geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon } | null> {
+): Promise<ParcelOutline | null> {
   const results = await identifyAt("all:ch.kantone.cadastralwebmap-farbe", lng, lat, 2, {
     returnGeometry: true,
     signal,
