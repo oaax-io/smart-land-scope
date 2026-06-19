@@ -19,6 +19,7 @@ const items = [
   { title: "Wissensdatenbank", url: "/wissen", icon: BookOpen },
   { title: "Projekte", url: "/projekte", icon: FolderKanban },
   { title: "Berichte", url: "/berichte", icon: FileText },
+  { title: "Feedback", url: "/feedback", icon: MessageSquare },
   { title: "Einstellungen", url: "/einstellungen", icon: Settings },
 ] as const;
 
