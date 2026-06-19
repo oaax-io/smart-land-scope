@@ -18,6 +18,7 @@ import { Route as AuthenticatedProjekteRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedEinstellungenRouteImport } from './routes/_authenticated/einstellungen'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBerichteRouteImport } from './routes/_authenticated/berichte'
+import { Route as AuthenticatedFeedbackIndexRouteImport } from './routes/_authenticated/feedback.index'
 import { Route as AuthenticatedAnalysenIndexRouteImport } from './routes/_authenticated/analysen.index'
 import { Route as AuthenticatedAnalysenNeuRouteImport } from './routes/_authenticated/analysen.neu'
 import { Route as AuthenticatedAnalysenKarteRouteImport } from './routes/_authenticated/analysen.karte'
@@ -71,6 +72,12 @@ const AuthenticatedBerichteRoute = AuthenticatedBerichteRouteImport.update({
   path: '/berichte',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedFeedbackIndexRoute =
+  AuthenticatedFeedbackIndexRouteImport.update({
+    id: '/feedback/',
+    path: '/feedback/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAnalysenIndexRoute =
   AuthenticatedAnalysenIndexRouteImport.update({
     id: '/analysen/',
@@ -127,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/analysen/': typeof AuthenticatedAnalysenIndexRoute
+  '/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
 }
 export interface FileRoutesByTo {
@@ -144,6 +152,7 @@ export interface FileRoutesByTo {
   '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/analysen': typeof AuthenticatedAnalysenIndexRoute
+  '/feedback': typeof AuthenticatedFeedbackIndexRoute
   '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
 }
 export interface FileRoutesById {
@@ -163,6 +172,7 @@ export interface FileRoutesById {
   '/_authenticated/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/_authenticated/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/_authenticated/analysen/': typeof AuthenticatedAnalysenIndexRoute
+  '/_authenticated/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/_authenticated/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
 }
 export interface FileRouteTypes {
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/analysen/karte'
     | '/analysen/neu'
     | '/analysen/'
+    | '/feedback/'
     | '/analysen/$id/bericht'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/analysen/karte'
     | '/analysen/neu'
     | '/analysen'
+    | '/feedback'
     | '/analysen/$id/bericht'
   id:
     | '__root__'
@@ -217,6 +229,7 @@ export interface FileRouteTypes {
     | '/_authenticated/analysen/karte'
     | '/_authenticated/analysen/neu'
     | '/_authenticated/analysen/'
+    | '/_authenticated/feedback/'
     | '/_authenticated/analysen/$id/bericht'
   fileRoutesById: FileRoutesById
 }
@@ -290,6 +303,13 @@ declare module '@tanstack/react-router' {
       path: '/berichte'
       fullPath: '/berichte'
       preLoaderRoute: typeof AuthenticatedBerichteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/feedback/': {
+      id: '/_authenticated/feedback/'
+      path: '/feedback'
+      fullPath: '/feedback/'
+      preLoaderRoute: typeof AuthenticatedFeedbackIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/analysen/': {
@@ -370,6 +390,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnalysenKarteRoute: typeof AuthenticatedAnalysenKarteRoute
   AuthenticatedAnalysenNeuRoute: typeof AuthenticatedAnalysenNeuRoute
   AuthenticatedAnalysenIndexRoute: typeof AuthenticatedAnalysenIndexRoute
+  AuthenticatedFeedbackIndexRoute: typeof AuthenticatedFeedbackIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -384,6 +405,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnalysenKarteRoute: AuthenticatedAnalysenKarteRoute,
   AuthenticatedAnalysenNeuRoute: AuthenticatedAnalysenNeuRoute,
   AuthenticatedAnalysenIndexRoute: AuthenticatedAnalysenIndexRoute,
+  AuthenticatedFeedbackIndexRoute: AuthenticatedFeedbackIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
