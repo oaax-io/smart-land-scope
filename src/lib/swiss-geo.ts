@@ -93,40 +93,81 @@ export type SwissParcelInfo = {
 
 let _warnedAttrs = false;
 
-export async function identifyParcelAt(lng: number, lat: number): Promise<SwissParcelInfo | null> {
+async function identifyAt(layers: string, lng: number, lat: number) {
   const { e, n } = wgs84ToLv95(lng, lat);
   const tolerance = 2;
   const mapExtent = [e - 500, n - 500, e + 500, n + 500].join(",");
-  const imageDisplay = "500,500,96";
-
   const url = new URL("https://api3.geo.admin.ch/rest/services/api/MapServer/identify");
   url.searchParams.set("geometry", `${e},${n}`);
   url.searchParams.set("geometryType", "esriGeometryPoint");
-  url.searchParams.set("layers", "all:ch.kantone.cadastralwebmap");
+  url.searchParams.set("layers", layers);
   url.searchParams.set("tolerance", String(tolerance));
   url.searchParams.set("mapExtent", mapExtent);
-  url.searchParams.set("imageDisplay", imageDisplay);
+  url.searchParams.set("imageDisplay", "500,500,96");
   url.searchParams.set("sr", "2056");
-  url.searchParams.set("returnGeometry", "true");
-
+  url.searchParams.set("returnGeometry", "false");
   const res = await fetch(url.toString());
-  if (!res.ok) throw new Error("Parzellen-Identifikation fehlgeschlagen");
+  if (!res.ok) return null;
   const json = await res.json();
+  return json.results ?? [];
+}
 
-  const feature = json.results?.[0];
-  if (!feature) return null;
+const CANTON_NAME_TO_CODE: Record<string, string> = {
+  aargau: "AG", "appenzell innerrhoden": "AI", "appenzell ausserrhoden": "AR",
+  bern: "BE", "basel-landschaft": "BL", "basel-stadt": "BS",
+  freiburg: "FR", fribourg: "FR", genf: "GE", geneve: "GE", "genève": "GE",
+  glarus: "GL", graubünden: "GR", graubunden: "GR", grisons: "GR",
+  jura: "JU", luzern: "LU", lucerne: "LU",
+  neuenburg: "NE", "neuchâtel": "NE", neuchatel: "NE",
+  nidwalden: "NW", obwalden: "OW", "st. gallen": "SG", "sankt gallen": "SG",
+  schaffhausen: "SH", solothurn: "SO", schwyz: "SZ",
+  thurgau: "TG", tessin: "TI", ticino: "TI",
+  uri: "UR", waadt: "VD", vaud: "VD",
+  wallis: "VS", valais: "VS", zug: "ZG", zürich: "ZH", zurich: "ZH",
+};
 
-  const attrs = feature.attributes ?? {};
-  const parcelNumber = attrs.number ?? attrs.parcel_number ?? null;
-  const egrid = attrs.egris_egrid ?? attrs.egrid ?? null;
-  const municipality = attrs.municipality_name ?? null;
-  const canton = attrs.canton_abbreviation ?? null;
-  const areaM2 = attrs.area ?? null;
+function normalizeCanton(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const v = value.trim();
+  if (v.length === 2 && /^[A-Za-z]{2}$/.test(v)) return v.toUpperCase();
+  return CANTON_NAME_TO_CODE[v.toLowerCase()] ?? null;
+}
 
-  if (!parcelNumber && !egrid && !municipality && !_warnedAttrs) {
+export async function identifyParcelAt(lng: number, lat: number): Promise<SwissParcelInfo | null> {
+  // 1) Parzelle aus Cadastralwebmap
+  const parcelResults = await identifyAt("all:ch.kantone.cadastralwebmap", lng, lat);
+  const feature = parcelResults?.[0];
+  const attrs = feature?.attributes ?? {};
+  let parcelNumber: string | null = attrs.number ?? attrs.parcel_number ?? null;
+  let egrid: string | null = attrs.egris_egrid ?? attrs.egrid ?? null;
+  let municipality: string | null = attrs.municipality_name ?? null;
+  let canton: string | null = normalizeCanton(attrs.canton_abbreviation ?? attrs.canton);
+  const areaM2: number | null = attrs.area ?? null;
+
+  // 2) Fallback: Gemeinde- und Kantons-Grenzen (immer abfragen, wenn etwas fehlt)
+  if (!municipality || !canton) {
+    const boundaryResults = await identifyAt(
+      "all:ch.swisstopo.swissboundaries3d-gemeinde-flaeche.fill,ch.swisstopo.swissboundaries3d-kanton-flaeche.fill",
+      lng,
+      lat,
+    );
+    for (const r of boundaryResults ?? []) {
+      const a = r.attributes ?? {};
+      if (!municipality) {
+        municipality = a.gemname ?? a.bez ?? a.name ?? municipality;
+      }
+      if (!canton) {
+        canton = normalizeCanton(a.kanton ?? a.ktname ?? a.abbreviation ?? a.name);
+      }
+    }
+  }
+
+  if (!parcelNumber && !egrid && !municipality && !canton && !_warnedAttrs) {
     _warnedAttrs = true;
     console.warn("Unbekannte Attribut-Struktur", attrs);
   }
+
+  if (!parcelNumber && !egrid && !municipality && !canton) return null;
 
   return {
     parcelNumber,
@@ -134,6 +175,7 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
     municipality,
     canton,
     areaM2,
-    geometry: feature.geometry ?? null,
+    geometry: feature?.geometry ?? null,
   };
 }
+
