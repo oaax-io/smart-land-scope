@@ -1,8 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, MapPinned, FolderKanban, FileText, Users, Settings, Layers, BookOpen, Map as MapIcon, MessageSquare } from "lucide-react";
+import { LayoutDashboard, MapPinned, FolderKanban, FileText, Users, Settings, Layers, BookOpen, Map as MapIcon, MessageSquare, LifeBuoy } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -88,6 +89,22 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="border-t border-sidebar-border">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={pathname === "/dokumentation" || pathname.startsWith("/dokumentation/")}
+              tooltip="Dokumentation"
+            >
+              <Link to="/dokumentation">
+                <LifeBuoy className="h-4 w-4" />
+                <span>Dokumentation</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }
