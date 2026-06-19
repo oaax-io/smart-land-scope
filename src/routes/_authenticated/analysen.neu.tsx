@@ -52,17 +52,6 @@ const KANTONE = [
   ["UR","Uri"],["VD","Waadt"],["VS","Wallis"],["ZG","Zug"],["ZH","Zürich"],
 ] as const;
 
-const MAX_DOC_BYTES = 20 * 1024 * 1024;
-const MAX_FILES = 10;
-
-const KIND_OPTIONS = [
-  { value: "bzr", label: "BZR" },
-  { value: "bzo", label: "BZO" },
-  { value: "zonenplan", label: "Zonenplan" },
-  { value: "other", label: "Sonstiges" },
-] as const;
-type DocKind = (typeof KIND_OPTIONS)[number]["value"];
-
 const formSchema = z.object({
   address: z.string().trim().min(2, "Adresse ist erforderlich").max(200),
   municipality: z.string().trim().min(1, "Gemeinde ist erforderlich").max(100),
@@ -76,16 +65,6 @@ const formSchema = z.object({
   postal_code: z.string().trim().optional().or(z.literal("")),
 });
 
-type DocItem = { id: string; file: File; kind: DocKind };
-
-function inferKind(name: string): DocKind {
-  const n = name.toLowerCase();
-  if (n.includes("bzr")) return "bzr";
-  if (n.includes("bzo")) return "bzo";
-  if (n.includes("zonen") || n.includes("zonenplan")) return "zonenplan";
-  return "other";
-}
-
 function NewAnalysisWizard() {
   const { currentOrgId } = useOrg();
   const { user } = useAuth();
@@ -93,9 +72,8 @@ function NewAnalysisWizard() {
   const queryClient = useQueryClient();
   const analyzeFn = useServerFn(runKnowledgeAnalysis);
   const coverageFn = useServerFn(checkMunicipalityCoverage);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [form, setForm] = useState({
     address: "", postal_code: "", municipality: "",
     canton: "", parcel_number: "", area_size: "",
@@ -103,8 +81,6 @@ function NewAnalysisWizard() {
     lng: null as number | null,
     egrid: null as string | null,
   });
-  const [docs, setDocs] = useState<DocItem[]>([]);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const set = (k: "address" | "postal_code" | "municipality" | "canton" | "parcel_number" | "area_size", v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
