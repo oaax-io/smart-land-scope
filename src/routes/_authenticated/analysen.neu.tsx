@@ -132,6 +132,7 @@ function NewAnalysisWizard() {
           lat: form.lat,
           lng: form.lng,
           egrid: form.egrid,
+          parcel_geometry: form.geometry as Json | null,
           status: "processing",
           created_by: user?.id ?? null,
         })
