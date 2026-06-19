@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedWissenRouteImport } from './routes/_authenticated/wissen'
 import { Route as AuthenticatedProjekteRouteImport } from './routes/_authenticated/projekte'
 import { Route as AuthenticatedEinstellungenRouteImport } from './routes/_authenticated/einstellungen'
+import { Route as AuthenticatedDokumentationRouteImport } from './routes/_authenticated/dokumentation'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBerichteRouteImport } from './routes/_authenticated/berichte'
 import { Route as AuthenticatedFeedbackIndexRouteImport } from './routes/_authenticated/feedback.index'
@@ -61,6 +62,12 @@ const AuthenticatedEinstellungenRoute =
   AuthenticatedEinstellungenRouteImport.update({
     id: '/einstellungen',
     path: '/einstellungen',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDokumentationRoute =
+  AuthenticatedDokumentationRouteImport.update({
+    id: '/dokumentation',
+    path: '/dokumentation',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -131,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/berichte': typeof AuthenticatedBerichteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/dokumentation': typeof AuthenticatedDokumentationRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
   '/wissen': typeof AuthenticatedWissenRoute
@@ -150,6 +158,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/berichte': typeof AuthenticatedBerichteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/dokumentation': typeof AuthenticatedDokumentationRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
   '/wissen': typeof AuthenticatedWissenRoute
@@ -171,6 +180,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/berichte': typeof AuthenticatedBerichteRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/dokumentation': typeof AuthenticatedDokumentationRoute
   '/_authenticated/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/_authenticated/projekte': typeof AuthenticatedProjekteRoute
   '/_authenticated/wissen': typeof AuthenticatedWissenRoute
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/berichte'
     | '/dashboard'
+    | '/dokumentation'
     | '/einstellungen'
     | '/projekte'
     | '/wissen'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/berichte'
     | '/dashboard'
+    | '/dokumentation'
     | '/einstellungen'
     | '/projekte'
     | '/wissen'
@@ -231,6 +243,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/berichte'
     | '/_authenticated/dashboard'
+    | '/_authenticated/dokumentation'
     | '/_authenticated/einstellungen'
     | '/_authenticated/projekte'
     | '/_authenticated/wissen'
@@ -301,6 +314,13 @@ declare module '@tanstack/react-router' {
       path: '/einstellungen'
       fullPath: '/einstellungen'
       preLoaderRoute: typeof AuthenticatedEinstellungenRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dokumentation': {
+      id: '/_authenticated/dokumentation'
+      path: '/dokumentation'
+      fullPath: '/dokumentation'
+      preLoaderRoute: typeof AuthenticatedDokumentationRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -400,6 +420,7 @@ const AuthenticatedAnalysenIdRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBerichteRoute: typeof AuthenticatedBerichteRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDokumentationRoute: typeof AuthenticatedDokumentationRoute
   AuthenticatedEinstellungenRoute: typeof AuthenticatedEinstellungenRoute
   AuthenticatedProjekteRoute: typeof AuthenticatedProjekteRoute
   AuthenticatedWissenRoute: typeof AuthenticatedWissenRoute
@@ -416,6 +437,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBerichteRoute: AuthenticatedBerichteRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDokumentationRoute: AuthenticatedDokumentationRoute,
   AuthenticatedEinstellungenRoute: AuthenticatedEinstellungenRoute,
   AuthenticatedProjekteRoute: AuthenticatedProjekteRoute,
   AuthenticatedWissenRoute: AuthenticatedWissenRoute,
