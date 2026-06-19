@@ -386,12 +386,36 @@ export function SwissMap({
           {...viewState}
           onMove={(evt) => setViewState(evt.viewState)}
           onClick={handleMapClick}
+          onMouseMove={handleMapMouseMove}
+          onMouseOut={handleMapMouseLeave}
           mapStyle={buildMapStyle(baseLayer) as any}
-          cursor={mode === "interactive" ? "crosshair" : "default"}
+          cursor={mode === "interactive" ? (hoverParcel ? "pointer" : "crosshair") : "default"}
           attributionControl={{ compact: true }}
           style={{ width: "100%", height: "100%" }}
         >
           <NavigationControl position="top-right" showCompass={false} />
+
+          {hoverFC && (
+            <Source id="parcel-hover" type="geojson" data={hoverFC as any}>
+              <Layer
+                id="parcel-hover-fill"
+                type="fill"
+                paint={{
+                  "fill-color": "#fde047",
+                  "fill-opacity": 0.28,
+                }}
+              />
+              <Layer
+                id="parcel-hover-line"
+                type="line"
+                paint={{
+                  "line-color": "#f59e0b",
+                  "line-width": 2.5,
+                }}
+              />
+            </Source>
+          )}
+
 
           {showCantons && cantonsData && (
             <Source id="cantons" type="geojson" data={cantonsData as any}>
