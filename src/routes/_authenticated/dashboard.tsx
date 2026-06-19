@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { searchSwissLocation, identifyParcelAt, type SwissGeoSearchResult } from "@/lib/swiss-geo";
 import { runKnowledgeAnalysis } from "@/lib/analyze-knowledge.functions";
+import heroBg from "@/assets/hero-realestate.jpg";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — SmarTerra" }] }),
