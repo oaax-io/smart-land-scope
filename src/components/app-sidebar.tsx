@@ -89,6 +89,22 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="border-t border-sidebar-border">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={pathname === "/dokumentation" || pathname.startsWith("/dokumentation/")}
+              tooltip="Dokumentation"
+            >
+              <Link to="/dokumentation">
+                <LifeBuoy className="h-4 w-4" />
+                <span>Dokumentation</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }
