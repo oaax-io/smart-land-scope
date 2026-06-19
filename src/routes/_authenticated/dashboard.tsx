@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPinned, FolderKanban, Users, FileText, ArrowUpRight, Star, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -12,7 +11,7 @@ import { useOrg } from "@/hooks/use-org";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { searchSwissLocation, identifyParcelAt, type SwissGeoSearchResult } from "@/lib/swiss-geo";
-import { runKnowledgeAnalysis } from "@/lib/analyze-knowledge.functions";
+import { QuickAnalysisModal, type QuickAnalysisInitial } from "@/components/quick-analysis-modal";
 import heroBg from "@/assets/hero-realestate.jpg";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
