@@ -165,10 +165,10 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
   const addressAttrs = addressResults?.[0]?.attributes ?? {};
   const streetName = cleanString(addressAttrs.strname);
   const houseNumber = cleanString(addressAttrs.deinr);
+  const composedAddress = [streetName, houseNumber].filter(Boolean).join(" ").trim();
   const address =
     cleanString(addressAttrs.strname_deinr) ??
-    [streetName, houseNumber].filter(Boolean).join(" ").trim() ||
-    null;
+    (composedAddress || null);
   const postalCode = normalizePostalCode(addressAttrs.dplz4 ?? addressAttrs.plz_plz6);
   municipality = municipality ?? cleanString(addressAttrs.ggdename ?? addressAttrs.dplzname);
   canton = canton ?? normalizeCanton(addressAttrs.gdekt ?? addressAttrs.kanton);

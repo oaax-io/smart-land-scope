@@ -64,6 +64,7 @@ type SwissMapProps = {
     lat: number;
     lng: number;
     address: string | null;
+    postalCode: string | null;
     municipality: string | null;
     canton: string | null;
     parcelNumber: string | null;
@@ -128,7 +129,8 @@ export function SwissMap({
       onParcelSelected?.({
         lat,
         lng,
-        address: fallbackAddress,
+        address: parcel?.address ?? fallbackAddress,
+        postalCode: parcel?.postalCode ?? null,
         municipality: parcel?.municipality ?? null,
         canton: parcel?.canton ?? null,
         parcelNumber: parcel?.parcelNumber ?? null,
@@ -139,6 +141,7 @@ export function SwissMap({
         lat,
         lng,
         address: fallbackAddress,
+        postalCode: null,
         municipality: null,
         canton: null,
         parcelNumber: null,
