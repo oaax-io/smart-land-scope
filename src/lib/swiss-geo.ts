@@ -124,35 +124,64 @@ async function identifyAt(
 
 export type ParcelOutline = {
   egrid: string | null;
+  parcelNumber: string | null;
+  areaM2: number | null;
+  municipality: string | null;
+  canton: string | null;
+  zone: string | null;
   geometry: { type: "Polygon"; coordinates: number[][][] };
 };
 
-/** Holt nur Umriss + EGRID einer Parzelle für Hover-Highlighting. Schnell und ohne Adress-Lookups. */
+/** Holt Umriss + Kernattribute einer Parzelle für Hover-Highlighting (schnell, eine Anfrage). */
 export async function getParcelOutlineAt(
   lng: number,
   lat: number,
   signal?: AbortSignal,
 ): Promise<ParcelOutline | null> {
-  const results = await identifyAt("all:ch.kantone.cadastralwebmap-farbe", lng, lat, 2, {
-    returnGeometry: true,
-    signal,
-  });
-  const feature = results?.[0];
-  if (!feature?.geometry?.rings) return null;
-  const rings: number[][][] = feature.geometry.rings;
-  // ESRI rings (LV95) → GeoJSON Polygon (WGS84)
+  const results = await identifyAt(
+    "all:ch.kantone.cadastralwebmap-farbe,ch.are.bauzonen",
+    lng,
+    lat,
+    2,
+    { returnGeometry: true, signal },
+  );
+  if (!results?.length) return null;
+
+  const parcelFeature =
+    results.find((r: any) => r.layerBodId === "ch.kantone.cadastralwebmap-farbe") ??
+    results[0];
+  if (!parcelFeature?.geometry?.rings) return null;
+
+  const rings: number[][][] = parcelFeature.geometry.rings;
   const coords: number[][][] = rings.map((ring) =>
     ring.map(([x, y]) => {
       const { lng: lo, lat: la } = lv95ToWgs84(x, y);
       return [lo, la];
     }),
   );
+
+  const pa = parcelFeature.attributes ?? {};
+
+  const zoneFeature = results.find((r: any) => r.layerBodId === "ch.are.bauzonen");
+  const za = zoneFeature?.attributes ?? {};
+  const zone =
+    cleanString(za.ch_bezeichnung) ??
+    cleanString(za.kt_bezeichnung) ??
+    cleanString(za.ch_klasse) ??
+    cleanString(za.kt_klasse) ??
+    null;
+
   return {
-    egrid:
-      cleanString(feature.attributes?.egris_egrid ?? feature.attributes?.egrid) ?? null,
+    egrid: cleanString(pa.egris_egrid ?? pa.egrid) ?? null,
+    parcelNumber: cleanString(pa.number ?? pa.parcel_number) ?? null,
+    areaM2: typeof pa.area === "number" ? pa.area : null,
+    municipality: cleanString(pa.municipality_name) ?? null,
+    canton: normalizeCanton(pa.ak ?? pa.canton_abbreviation ?? pa.canton),
+    zone,
     geometry: { type: "Polygon", coordinates: coords },
   };
 }
+
 
 
 const CANTON_NAME_TO_CODE: Record<string, string> = {
