@@ -10,6 +10,7 @@ import {
   FileText,
   Home,
   Loader2,
+  MapPin,
   RefreshCcw,
   Sparkles,
   TrendingUp,
@@ -23,6 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { runKnowledgeAnalysis } from "@/lib/analyze-knowledge.functions";
 import { DevelopmentScoreCard } from "@/components/development-score-card";
+import { SwissMap } from "@/components/swiss-map";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
   head: ({ params }) => ({ meta: [{ title: `Analyse ${params.id.slice(0, 8)} — SmarTerra` }] }),
@@ -174,6 +176,22 @@ function AnalysisDetailPage() {
 
         {/* Machbarkeit */}
         <TabsContent value="feasibility" className="space-y-4">
+          {analysis.lat != null && analysis.lng != null && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-display text-lg">
+                  <MapPin className="h-4 w-4 text-secondary" />
+                  Lage
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <SwissMap mode="readonly" lat={analysis.lat as number} lng={analysis.lng as number} heightClassName="h-72" />
+                {analysis.egrid && (
+                  <p className="text-xs text-muted-foreground">E-GRID: {analysis.egrid as string}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
           <DevelopmentScoreCard
             input={{
               zone: analysis.zone,
