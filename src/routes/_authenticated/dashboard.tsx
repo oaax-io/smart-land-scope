@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { searchSwissLocation, identifyParcelAt, type SwissGeoSearchResult } from "@/lib/swiss-geo";
 import { runKnowledgeAnalysis } from "@/lib/analyze-knowledge.functions";
+import heroBg from "@/assets/hero-realestate.jpg";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — SmarTerra" }] }),
@@ -83,8 +84,15 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      <section className="relative isolate z-10 rounded-2xl border border-border bg-gradient-to-br from-primary via-primary to-secondary p-8 text-primary-foreground shadow-lg sm:p-10">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden>
+      <section className="relative isolate z-10 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary via-primary to-secondary p-8 text-primary-foreground shadow-lg sm:p-10">
+        <img
+          src={heroBg}
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25 mix-blend-screen"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/80 via-primary/60 to-transparent" aria-hidden />
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-secondary/30 blur-3xl" />
           <div className="absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-primary-foreground/10 blur-3xl" />
         </div>
@@ -94,13 +102,14 @@ function Dashboard() {
             {greeting()}{firstName ? `, ${firstName}` : ""}
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-primary-foreground/80 sm:text-base">
-            Willkommen zurück{currentOrg ? ` bei ${currentOrg.name}` : ""}. Starten Sie unten direkt mit einer Schnellanalyse — Adresse eingeben genügt.
+            Starten Sie unten direkt mit einer Schnellanalyse — Adresse eingeben genügt.
           </p>
           <div className="relative z-30 mt-6">
             <QuickAnalysisSearch hero />
           </div>
         </div>
       </section>
+
 
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
