@@ -38,6 +38,7 @@ import {
   checkMunicipalityCoverage,
   runKnowledgeAnalysis,
 } from "@/lib/analyze-knowledge.functions";
+import { SwissMap } from "@/components/swiss-map";
 
 export const Route = createFileRoute("/_authenticated/analysen/neu")({
   head: () => ({ meta: [{ title: "Neue Analyse — SmarTerra" }] }),
@@ -101,11 +102,14 @@ function NewAnalysisWizard() {
   const [form, setForm] = useState({
     address: "", postal_code: "", municipality: "",
     canton: "", parcel_number: "", area_size: "",
+    lat: null as number | null,
+    lng: null as number | null,
+    egrid: null as string | null,
   });
   const [docs, setDocs] = useState<DocItem[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const set = <K extends keyof typeof form>(k: K, v: string) =>
+  const set = (k: "address" | "postal_code" | "municipality" | "canton" | "parcel_number" | "area_size", v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
   const stepOneValid = useMemo(
@@ -180,6 +184,9 @@ function NewAnalysisWizard() {
           canton: parsed.data.canton,
           parcel_number: parsed.data.parcel_number || null,
           area_size: Number(parsed.data.area_size),
+          lat: form.lat,
+          lng: form.lng,
+          egrid: form.egrid,
           status: "draft",
           created_by: user?.id ?? null,
         })
@@ -254,6 +261,35 @@ function NewAnalysisWizard() {
             <CardDescription>Felder mit * sind erforderlich.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+            <div className="space-y-1.5">
+              <Label>Grundstück auf der Karte suchen (empfohlen)</Label>
+              <SwissMap
+                mode="interactive"
+                lat={form.lat}
+                lng={form.lng}
+                onParcelSelected={(data) => {
+                  setForm((f) => ({
+                    ...f,
+                    lat: data.lat,
+                    lng: data.lng,
+                    egrid: data.egrid ?? f.egrid,
+                    address: f.address.trim().length === 0 ? (data.address ?? f.address) : f.address,
+                    municipality: data.municipality ?? f.municipality,
+                    canton: data.canton ?? f.canton,
+                    parcel_number: data.parcelNumber ?? f.parcel_number,
+                  }));
+                  if (data.municipality) {
+                    toast.success("Grundstück erkannt", {
+                      description: [data.municipality, data.canton].filter(Boolean).join(", "),
+                    });
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Felder unten können danach noch angepasst werden.
+              </p>
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="address">Adresse *</Label>
               <Input id="address" placeholder="z. B. Bahnhofstrasse 1" value={form.address}
@@ -404,6 +440,12 @@ function NewAnalysisWizard() {
               <SummaryRow label="Fläche" value={form.area_size ? `${form.area_size} m²` : "—"} />
               <SummaryRow label="Parzelle" value={form.parcel_number || "—"} />
               <SummaryRow label="Dokumente" value={`${docs.length}`} />
+              {form.lat != null && form.lng != null && (
+                <SummaryRow
+                  label="Koordinaten"
+                  value={`${form.lat.toFixed(5)}, ${form.lng.toFixed(5)}${form.egrid ? ` · E-GRID ${form.egrid}` : ""}`}
+                />
+              )}
             </div>
 
             {docs.length > 0 && (
