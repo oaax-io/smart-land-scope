@@ -309,6 +309,12 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         "   Liefere diese Zahlen immer, sobald Fläche und AZ bekannt sind.",
         "4) Wie hoch ist das Entwicklungspotenzial? (potential_level)",
         "5) Welche Risiken bestehen? (risks)",
+        "6) Überbauungsziffer / Grundflächenziffer (building_coverage_ratio), falls in den Daten vorhanden.",
+        "7) Grenzabstände in Metern nach Himmelsrichtung, soweit ermittelbar (setbacks: nord/ost/sued/west). Wenn die Gemeinde keine richtungsspezifischen Angaben macht, sondern nur einen einheitlichen 'kleinen' und 'grossen' Grenzabstand, trage den kleinen Grenzabstand in alle vier Richtungen ein und vermerke das in setbacks.notes.",
+        "8) Sondervorschriften (special_provisions), z. B. Gestaltungsplanpflicht, Ensembleschutz, besondere Bauweisen.",
+        "9) Lärmempfindlichkeitsstufe (noise_zone), z. B. 'ES II' oder 'ES III', falls angegeben.",
+        "10) Gewässerabstand (water_setbacks) in Metern oder als Text, falls relevant/angegeben.",
+        "Wenn ein Wert in der Wissensdatenbank nicht vorkommt, gib null zurück statt zu schätzen — NICHT erfinden.",
         "Liste in 'sources' alle verwendeten Einträge mit Dokument-Titel und Artikel-Referenz.",
       ].join("\n");
 
