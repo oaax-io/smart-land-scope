@@ -47,8 +47,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           .from("user_roles")
           .select("role")
           .eq("user_id", user!.id)
-          .eq("organization_id", orgId)
-          .maybeSingle(),
+          .eq("organization_id", orgId),
       ]);
 
       return {
