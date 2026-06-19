@@ -320,11 +320,10 @@ function NewAnalysisWizard() {
   );
 }
 
-function Stepper({ step }: { step: 1 | 2 | 3 }) {
+function Stepper({ step }: { step: 1 | 2 }) {
   const items = [
     { n: 1, label: "Grundstück" },
-    { n: 2, label: "Dokumente" },
-    { n: 3, label: "Start" },
+    { n: 2, label: "Start" },
   ];
   return (
     <ol className="flex items-center gap-2 text-sm">
