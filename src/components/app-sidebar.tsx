@@ -47,7 +47,11 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
-                const active = pathname === item.url || pathname.startsWith(item.url + "/");
+                const matches = pathname === item.url || pathname.startsWith(item.url + "/");
+                const moreSpecific = items.some(
+                  (o) => o.url !== item.url && o.url.startsWith(item.url + "/") && (pathname === o.url || pathname.startsWith(o.url + "/")),
+                );
+                const active = matches && !moreSpecific;
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
