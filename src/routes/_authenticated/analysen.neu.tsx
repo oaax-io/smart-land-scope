@@ -81,6 +81,7 @@ function NewAnalysisWizard() {
     lat: null as number | null,
     lng: null as number | null,
     egrid: null as string | null,
+    geometry: null as { type: "Polygon"; coordinates: number[][][] } | null,
   });
 
   const set = (k: "address" | "postal_code" | "municipality" | "canton" | "parcel_number" | "area_size", v: string) =>
