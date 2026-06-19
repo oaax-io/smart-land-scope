@@ -488,6 +488,31 @@ export function SwissMap({
             </Source>
           )}
 
+          {selectedParcelFC && (
+            <Source id="parcel-selected" type="geojson" data={selectedParcelFC as any}>
+              <Layer
+                id="parcel-selected-line"
+                type="line"
+                paint={{ "line-color": "#0ea5e9", "line-width": 2.5 }}
+              />
+            </Source>
+          )}
+          {buildableField && (
+            <Source id="buildable-field" type="geojson" data={buildableField as any}>
+              <Layer
+                id="buildable-field-fill"
+                type="fill"
+                paint={{ "fill-color": "#10b981", "fill-opacity": 0.25 }}
+              />
+              <Layer
+                id="buildable-field-line"
+                type="line"
+                paint={{ "line-color": "#059669", "line-width": 2, "line-dasharray": [2, 2] }}
+              />
+            </Source>
+          )}
+
+
           {marker && (
             <Marker longitude={marker.lng} latitude={marker.lat} anchor="bottom">
               <MapPin className="h-7 w-7 fill-primary text-primary-foreground drop-shadow" />
