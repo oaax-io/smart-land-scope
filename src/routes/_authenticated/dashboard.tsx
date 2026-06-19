@@ -19,8 +19,45 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+function greeting(d = new Date()) {
+  const h = d.getHours();
+  if (h < 5) return "Gute Nacht";
+  if (h < 11) return "Guten Morgen";
+  if (h < 17) return "Guten Tag";
+  if (h < 22) return "Guten Abend";
+  return "Gute Nacht";
+}
+
 function Dashboard() {
   const { currentOrgId, currentOrg } = useOrg();
+  const { user } = useAuth();
+
+  const { data: profile } = useQuery({
+    queryKey: ["dashboard-profile", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const metaName = (user?.user_metadata?.full_name ?? user?.user_metadata?.name) as string | undefined;
+  const firstName =
+    profile?.first_name ??
+    (metaName ? metaName.split(" ")[0] : null) ??
+    (user?.email ? user.email.split("@")[0] : null);
+
+
+  const today = new Date().toLocaleDateString("de-CH", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats", currentOrgId],
@@ -46,20 +83,22 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Willkommen{currentOrg ? ` bei ${currentOrg.name}` : ""}. Starten Sie mit einer neuen Analyse.
+      <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary via-primary to-secondary p-8 text-primary-foreground shadow-lg sm:p-10">
+        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-secondary/30 blur-3xl" aria-hidden />
+        <div className="absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-primary-foreground/10 blur-3xl" aria-hidden />
+        <div className="relative">
+          <p className="text-xs uppercase tracking-[0.18em] text-primary-foreground/70">{today}</p>
+          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            {greeting()}{firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-primary-foreground/80 sm:text-base">
+            Willkommen zurück{currentOrg ? ` bei ${currentOrg.name}` : ""}. Starten Sie unten direkt mit einer Schnellanalyse — Adresse eingeben genügt.
           </p>
+          <div className="mt-6">
+            <QuickAnalysisSearch hero />
+          </div>
         </div>
-        <Button asChild>
-          <Link to="/analysen">
-            <Search className="mr-2 h-4 w-4" />
-            Neue Analyse
-          </Link>
-        </Button>
-      </div>
+      </section>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
@@ -74,8 +113,6 @@ function Dashboard() {
           </Card>
         ))}
       </div>
-
-      <QuickAnalysisSearch />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -117,6 +154,7 @@ function Dashboard() {
     </div>
   );
 }
+
 
 function EmptyState({ icon: Icon, title, description }: { icon: React.ComponentType<{ className?: string }>; title: string; description: string }) {
   return (
@@ -193,7 +231,7 @@ function stripHtml(s: string): string {
   return s.replace(/<[^>]+>/g, "");
 }
 
-function QuickAnalysisSearch() {
+function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
   const { currentOrgId } = useOrg();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -312,6 +350,48 @@ function QuickAnalysisSearch() {
     },
     [currentOrgId, user?.id, navigate, queryClient, analyzeFn],
   );
+
+  if (hero) {
+    return (
+      <div ref={containerRef} className="relative">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => results.length > 0 && setOpen(true)}
+            placeholder="Adresse, Ort oder Parzellennummer eingeben (z. B. Bahnhofstrasse 1, Luzern)"
+            className="h-14 rounded-xl border-0 bg-background pl-12 pr-12 text-base text-foreground shadow-xl placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-secondary sm:text-lg"
+            disabled={busy}
+          />
+          {(searching || busy) && (
+            <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" />
+          )}
+        </div>
+
+        {open && results.length > 0 && !busy && (
+          <Card className="absolute left-0 right-0 top-full z-20 mt-2 max-h-80 overflow-y-auto p-1 shadow-xl">
+            {results.map((r, i) => (
+              <button
+                key={`${r.featureId ?? "x"}-${i}`}
+                type="button"
+                onClick={() => selectResult(r)}
+                className="block w-full rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+              >
+                <span dangerouslySetInnerHTML={{ __html: r.label }} />
+              </button>
+            ))}
+          </Card>
+        )}
+
+        <p className="mt-3 text-xs text-primary-foreground/75">
+          {busy
+            ? busyText
+            : "Direkt-Suche über das amtliche Schweizer Geoportal (swisstopo). Bei bekannter Gemeinde startet die Analyse sofort."}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <Card>
