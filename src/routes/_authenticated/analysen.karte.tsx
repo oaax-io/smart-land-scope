@@ -30,6 +30,7 @@ type Selected = {
   canton: string | null;
   parcelNumber: string | null;
   egrid: string | null;
+  geometry: { type: "Polygon"; coordinates: number[][][] } | null;
 };
 
 function KartePage() {
