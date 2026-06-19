@@ -119,6 +119,28 @@ function changeBadge(t: Change["type"]) {
 }
 
 function DocsPage() {
+  const totalChanges = RELEASES.reduce((sum, r) => sum + r.changes.length, 0);
+  const newCount = RELEASES.reduce((s, r) => s + r.changes.filter((c) => c.type === "Neu").length, 0);
+  const improvedCount = RELEASES.reduce((s, r) => s + r.changes.filter((c) => c.type === "Verbessert").length, 0);
+  const fixedCount = RELEASES.reduce((s, r) => s + r.changes.filter((c) => c.type === "Behoben").length, 0);
+  const latest = RELEASES[0];
+  const firstRelease = RELEASES[RELEASES.length - 1];
+
+  const stats = [
+    { label: "Funktionen", value: FEATURES.length, icon: Sparkles },
+    { label: "Releases", value: RELEASES.length, icon: Rocket },
+    { label: "Updates gesamt", value: totalChanges, icon: History },
+    { label: "Technologien", value: TECH.length, icon: Layers },
+    { label: "Neue Features", value: newCount, icon: Sparkles },
+    { label: "Verbesserungen", value: improvedCount, icon: Brain },
+    { label: "Bugfixes", value: fixedCount, icon: ShieldCheck },
+    {
+      label: "Letztes Update",
+      value: new Date(latest.date).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" }),
+      icon: History,
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <div>
@@ -137,9 +159,30 @@ function DocsPage() {
               <Rocket className="h-3 w-3" /> Version {APP_VERSION}
             </Badge>
             <Badge variant="outline">{APP_STAGE}</Badge>
+            <Badge variant="outline" className="text-[10px]">
+              seit {new Date(firstRelease.date).toLocaleDateString("de-CH", { month: "short", year: "numeric" })}
+            </Badge>
           </div>
         </div>
       </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {stats.map((s) => (
+          <Card key={s.label} className="overflow-hidden">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-secondary/10 text-secondary">
+                <s.icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-display text-xl font-bold leading-none">{s.value}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">{s.label}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
 
       {/* Features */}
       <Card>
