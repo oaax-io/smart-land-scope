@@ -29,18 +29,22 @@ export type Database = {
           development_potential: Json | null
           document_name: string | null
           document_path: string | null
+          egrid: string | null
           error_message: string | null
           extracted_data: Json | null
           feasibility: string | null
           floor_area: number | null
           heritage_protected: boolean | null
           id: string
+          lat: number | null
           living_area: number | null
+          lng: number | null
           max_floors: number | null
           max_height: number | null
           municipality: string | null
           noise_zone: string | null
           organization_id: string
+          parcel_geometry: Json | null
           parcel_number: string | null
           postal_code: string | null
           potential_level: Database["public"]["Enums"]["potential_level"] | null
@@ -71,18 +75,22 @@ export type Database = {
           development_potential?: Json | null
           document_name?: string | null
           document_path?: string | null
+          egrid?: string | null
           error_message?: string | null
           extracted_data?: Json | null
           feasibility?: string | null
           floor_area?: number | null
           heritage_protected?: boolean | null
           id?: string
+          lat?: number | null
           living_area?: number | null
+          lng?: number | null
           max_floors?: number | null
           max_height?: number | null
           municipality?: string | null
           noise_zone?: string | null
           organization_id: string
+          parcel_geometry?: Json | null
           parcel_number?: string | null
           postal_code?: string | null
           potential_level?:
@@ -115,18 +123,22 @@ export type Database = {
           development_potential?: Json | null
           document_name?: string | null
           document_path?: string | null
+          egrid?: string | null
           error_message?: string | null
           extracted_data?: Json | null
           feasibility?: string | null
           floor_area?: number | null
           heritage_protected?: boolean | null
           id?: string
+          lat?: number | null
           living_area?: number | null
+          lng?: number | null
           max_floors?: number | null
           max_height?: number | null
           municipality?: string | null
           noise_zone?: string | null
           organization_id?: string
+          parcel_geometry?: Json | null
           parcel_number?: string | null
           postal_code?: string | null
           potential_level?:
