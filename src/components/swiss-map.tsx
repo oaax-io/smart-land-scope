@@ -7,6 +7,7 @@ import Map, {
   type MapRef,
 } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
+import * as turf from "@turf/turf";
 import { MapPin, Search, Loader2, Maximize2, Locate } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
