@@ -47,14 +47,20 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           .from("user_roles")
           .select("role")
           .eq("user_id", user!.id)
-          .eq("organization_id", orgId)
-          .maybeSingle(),
+          .eq("organization_id", orgId),
       ]);
+
+      const rolesList = (roleRow ?? []) as { role: Role }[];
+      const pickedRole: Role | null =
+        rolesList.find((r) => r.role === "owner")?.role ??
+        rolesList.find((r) => r.role === "admin")?.role ??
+        rolesList[0]?.role ??
+        null;
 
       return {
         org: (profile.organizations as unknown as Organization) ?? null,
         sub: (sub as Subscription) ?? null,
-        role: (roleRow?.role as Role) ?? null,
+        role: pickedRole,
       };
     },
   });
