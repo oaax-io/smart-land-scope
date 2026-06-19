@@ -244,24 +244,8 @@ function EinstellungenPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-display text-lg">
-            <Building2 className="h-4 w-4 text-secondary" /> Organisation
-          </CardTitle>
-          <CardDescription>{currentOrg?.name}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
-            <Label>Name der Organisation</Label>
-            <Input defaultValue={currentOrg?.name ?? ""} disabled />
-          </div>
-          <div className="grid gap-2">
-            <Label>Slug</Label>
-            <Input value={currentOrg?.slug ?? ""} disabled />
-          </div>
-        </CardContent>
-      </Card>
+      <OrganizationCard />
+
 
       <Card>
         <CardHeader>
