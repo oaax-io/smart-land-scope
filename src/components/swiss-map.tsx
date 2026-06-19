@@ -477,9 +477,10 @@ export function SwissMap({
           </button>
         </div>
 
-        {/* Kanton-Filter unten rechts */}
+        {/* Kanton-Filter unten links */}
         {showCantons && (
-          <div className="absolute right-2 bottom-8 z-10 rounded-md border bg-background/95 shadow-sm backdrop-blur">
+          <div className="absolute left-2 bottom-8 z-10 rounded-md border bg-background/95 shadow-sm backdrop-blur">
+
             <div className="flex items-center gap-2 px-2 py-1.5">
               <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Kanton
@@ -488,7 +489,7 @@ export function SwissMap({
                 <SelectTrigger className="h-8 w-[180px] border-0 bg-transparent px-2 text-sm focus:ring-0">
                   <SelectValue placeholder="Alle Kantone" />
                 </SelectTrigger>
-                <SelectContent align="end" className="max-h-80">
+                <SelectContent align="start" side="top" className="max-h-80">
                   <SelectItem value="all">
                     <span className="flex items-center gap-2">
                       <span className="inline-block h-2.5 w-2.5 rounded-sm bg-muted-foreground/40" />

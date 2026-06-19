@@ -100,7 +100,7 @@ function KartePage() {
       />
 
       {selected && (
-        <Card className="absolute right-4 top-4 z-30 w-[min(92vw,22rem)] shadow-2xl">
+        <Card className="absolute right-4 top-20 z-30 w-[min(92vw,22rem)] shadow-2xl">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
