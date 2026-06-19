@@ -77,7 +77,10 @@ export function SwissMap({
   onParcelSelected,
   className,
   heightClassName = "h-80",
+  allowExpand = true,
 }: SwissMapProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
   const mapRef = useRef<MapRef | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SwissGeoSearchResult[]>([]);
