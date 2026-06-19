@@ -75,23 +75,7 @@ function Dashboard() {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-display">Schnellanalyse</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Input placeholder="Adresse oder Parzellennummer eingeben (z. B. Bahnhofstrasse 1, Zürich)" className="flex-1" />
-            <Button>
-              <Search className="mr-2 h-4 w-4" />
-              Analysieren
-            </Button>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Hinweis: Die KI-Auswertung ist noch nicht aktiv. Eingaben werden in Kürze verarbeitet.
-          </p>
-        </CardContent>
-      </Card>
+      <QuickAnalysisSearch />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
