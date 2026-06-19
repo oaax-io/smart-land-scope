@@ -27,6 +27,7 @@ import { ScenarioComparison } from "@/components/scenario-comparison";
 import { runKnowledgeAnalysis } from "@/lib/analyze-knowledge.functions";
 import { DevelopmentScoreCard } from "@/components/development-score-card";
 import { SwissMap } from "@/components/swiss-map";
+import { LegalDisclaimer } from "@/components/legal-disclaimer";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
   head: ({ params }) => ({ meta: [{ title: `Analyse ${params.id.slice(0, 8)} — SmarTerra` }] }),
@@ -266,6 +267,7 @@ function AnalysisDetailPage() {
               )}
             </CardContent>
           </Card>
+          <LegalDisclaimer variant="subtle" className="mt-4" />
         </TabsContent>
 
         {/* Wohnungspotenzial */}

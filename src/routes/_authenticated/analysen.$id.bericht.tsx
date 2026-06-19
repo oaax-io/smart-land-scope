@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { computeDevelopmentScore, SCORE_CATEGORY } from "@/lib/scoring";
+import { LegalDisclaimer } from "@/components/legal-disclaimer";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id/bericht")({
   head: ({ params }) => ({ meta: [{ title: `Bericht ${params.id.slice(0, 8)} — SmarTerra` }] }),
@@ -225,7 +226,9 @@ function ReportPage() {
           </div>
         </Section>
 
-        <footer className="mt-10 border-t pt-4 text-xs text-muted-foreground">
+        <LegalDisclaimer variant="prominent" className="mt-8" />
+
+        <footer className="mt-6 border-t pt-4 text-xs text-muted-foreground">
           <p>
             Dieser Bericht wurde automatisch durch SmarTerra generiert. Alle Angaben ohne Gewähr;
             massgebend sind die offiziellen Dokumente der zuständigen Behörden.
