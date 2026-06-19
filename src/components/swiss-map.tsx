@@ -29,8 +29,10 @@ import { cn } from "@/lib/utils";
 import {
   searchSwissLocation,
   identifyParcelAt,
+  getParcelOutlineAt,
   type SwissGeoSearchResult,
   type SwissParcelInfo,
+  type ParcelOutline,
 } from "@/lib/swiss-geo";
 import {
   CANTONS,
