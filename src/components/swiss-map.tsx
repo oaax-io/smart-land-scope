@@ -221,6 +221,7 @@ export function SwissMap({
         canton: parcel?.canton ?? null,
         parcelNumber: parcel?.parcelNumber ?? null,
         egrid: parcel?.egrid ?? null,
+        geometry: parcel?.geometry ?? null,
       });
     } catch {
       onParcelSelected?.({
