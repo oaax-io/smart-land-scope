@@ -509,25 +509,61 @@ export type Database = {
       }
       organizations: {
         Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          country: string | null
           created_at: string
+          email: string | null
           id: string
           name: string
+          phone: string | null
+          postal_code: string | null
           slug: string
           updated_at: string
+          vat_number: string | null
+          website: string | null
         }
         Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          country?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           name: string
+          phone?: string | null
+          postal_code?: string | null
           slug: string
           updated_at?: string
+          vat_number?: string | null
+          website?: string | null
         }
         Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          country?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           name?: string
+          phone?: string | null
+          postal_code?: string | null
           slug?: string
           updated_at?: string
+          vat_number?: string | null
+          website?: string | null
         }
         Relationships: []
       }

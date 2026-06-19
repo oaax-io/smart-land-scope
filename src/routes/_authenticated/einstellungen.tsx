@@ -244,24 +244,8 @@ function EinstellungenPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-display text-lg">
-            <Building2 className="h-4 w-4 text-secondary" /> Organisation
-          </CardTitle>
-          <CardDescription>{currentOrg?.name}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
-            <Label>Name der Organisation</Label>
-            <Input defaultValue={currentOrg?.name ?? ""} disabled />
-          </div>
-          <div className="grid gap-2">
-            <Label>Slug</Label>
-            <Input value={currentOrg?.slug ?? ""} disabled />
-          </div>
-        </CardContent>
-      </Card>
+      <OrganizationCard />
+
 
       <Card>
         <CardHeader>
@@ -286,3 +270,231 @@ function EinstellungenPage() {
     </div>
   );
 }
+
+type OrgForm = {
+  name: string;
+  address_line1: string;
+  address_line2: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  phone: string;
+  email: string;
+  website: string;
+  vat_number: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+};
+
+const EMPTY_ORG: OrgForm = {
+  name: "", address_line1: "", address_line2: "", postal_code: "", city: "", country: "",
+  phone: "", email: "", website: "", vat_number: "",
+  contact_name: "", contact_email: "", contact_phone: "",
+};
+
+function OrganizationCard() {
+  const { user } = useAuth();
+  const { currentOrgId, currentOrg } = useOrg();
+  const queryClient = useQueryClient();
+
+  const { data: org } = useQuery({
+    queryKey: ["organization-detail", currentOrgId],
+    enabled: !!currentOrgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id,name,slug,address_line1,address_line2,postal_code,city,country,phone,email,website,vat_number,contact_name,contact_email,contact_phone")
+        .eq("id", currentOrgId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: canEdit } = useQuery({
+    queryKey: ["org-can-edit", currentOrgId, user?.id],
+    enabled: !!currentOrgId && !!user?.id,
+    queryFn: async () => {
+      const [{ data: isOwner }, { data: isAdmin }] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: user!.id, _org_id: currentOrgId!, _role: "owner" }),
+        supabase.rpc("has_role", { _user_id: user!.id, _org_id: currentOrgId!, _role: "admin" }),
+      ]);
+      return Boolean(isOwner) || Boolean(isAdmin);
+    },
+  });
+
+  const [form, setForm] = useState<OrgForm>(EMPTY_ORG);
+  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (org) {
+      setForm({
+        name: org.name ?? "",
+        address_line1: org.address_line1 ?? "",
+        address_line2: org.address_line2 ?? "",
+        postal_code: org.postal_code ?? "",
+        city: org.city ?? "",
+        country: org.country ?? "",
+        phone: org.phone ?? "",
+        email: org.email ?? "",
+        website: org.website ?? "",
+        vat_number: org.vat_number ?? "",
+        contact_name: org.contact_name ?? "",
+        contact_email: org.contact_email ?? "",
+        contact_phone: org.contact_phone ?? "",
+      });
+    }
+  }, [org]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!currentOrgId) throw new Error("Keine Organisation aktiv");
+      if (!form.name.trim()) throw new Error("Name darf nicht leer sein");
+      const t = (s: string) => (s.trim() ? s.trim() : null);
+      const { error } = await supabase
+        .from("organizations")
+        .update({
+          name: form.name.trim(),
+          address_line1: t(form.address_line1),
+          address_line2: t(form.address_line2),
+          postal_code: t(form.postal_code),
+          city: t(form.city),
+          country: t(form.country),
+          phone: t(form.phone),
+          email: t(form.email),
+          website: t(form.website),
+          vat_number: t(form.vat_number),
+          contact_name: t(form.contact_name),
+          contact_email: t(form.contact_email),
+          contact_phone: t(form.contact_phone),
+        })
+        .eq("id", currentOrgId);
+      if (error) throw error;
+
+
+    },
+    onSuccess: () => {
+      setMsg({ type: "ok", text: "Organisation aktualisiert" });
+      queryClient.invalidateQueries({ queryKey: ["organization-detail", currentOrgId] });
+      queryClient.invalidateQueries({ queryKey: ["org"] });
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+    },
+    onError: (e: Error) => setMsg({ type: "err", text: e.message }),
+  });
+
+  const disabled = !canEdit;
+  const set = <K extends keyof OrgForm>(k: K) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-display text-lg">
+          <Building2 className="h-4 w-4 text-secondary" /> Organisation
+        </CardTitle>
+        <CardDescription>
+          {currentOrg?.name}
+          {!canEdit && " — nur Besitzer und Administratoren können diese Angaben bearbeiten"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2 sm:col-span-2">
+            <Label htmlFor="org_name">Name der Organisation</Label>
+            <Input id="org_name" value={form.name} onChange={set("name")} disabled={disabled} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Slug</Label>
+            <Input value={currentOrg?.slug ?? ""} disabled />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="org_vat">MwSt-Nummer / UID</Label>
+            <Input id="org_vat" value={form.vat_number} onChange={set("vat_number")} disabled={disabled} placeholder="CHE-123.456.789" />
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold">Firmenadresse</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="org_a1">Strasse und Hausnummer</Label>
+              <Input id="org_a1" value={form.address_line1} onChange={set("address_line1")} disabled={disabled} />
+            </div>
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="org_a2">Adresszusatz</Label>
+              <Input id="org_a2" value={form.address_line2} onChange={set("address_line2")} disabled={disabled} placeholder="c/o, Stockwerk, Postfach …" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="org_plz">PLZ</Label>
+              <Input id="org_plz" value={form.postal_code} onChange={set("postal_code")} disabled={disabled} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="org_city">Ort</Label>
+              <Input id="org_city" value={form.city} onChange={set("city")} disabled={disabled} />
+            </div>
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="org_country">Land</Label>
+              <Input id="org_country" value={form.country} onChange={set("country")} disabled={disabled} placeholder="Schweiz" />
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold">Kontakt</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="org_phone">Telefon</Label>
+              <Input id="org_phone" type="tel" value={form.phone} onChange={set("phone")} disabled={disabled} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="org_email">E-Mail</Label>
+              <Input id="org_email" type="email" value={form.email} onChange={set("email")} disabled={disabled} />
+            </div>
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="org_web">Webseite</Label>
+              <Input id="org_web" type="url" value={form.website} onChange={set("website")} disabled={disabled} placeholder="https://" />
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold">Ansprechperson</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="org_cname">Name</Label>
+              <Input id="org_cname" value={form.contact_name} onChange={set("contact_name")} disabled={disabled} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="org_cmail">E-Mail</Label>
+              <Input id="org_cmail" type="email" value={form.contact_email} onChange={set("contact_email")} disabled={disabled} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="org_cphone">Telefon</Label>
+              <Input id="org_cphone" type="tel" value={form.contact_phone} onChange={set("contact_phone")} disabled={disabled} />
+            </div>
+          </div>
+        </div>
+
+        {msg && (
+          <Alert variant={msg.type === "err" ? "destructive" : "default"}>
+            {msg.type === "err" ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+            <AlertDescription>{msg.text}</AlertDescription>
+          </Alert>
+        )}
+
+        <Button onClick={() => { setMsg(null); save.mutate(); }} disabled={save.isPending || disabled}>
+          {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Organisation speichern
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
