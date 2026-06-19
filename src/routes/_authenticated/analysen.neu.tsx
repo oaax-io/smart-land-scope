@@ -110,43 +110,13 @@ function NewAnalysisWizard() {
     staleTime: 30_000,
   });
 
-  function addFiles(files: FileList | File[] | null) {
-    if (!files) return;
-    const incoming = Array.from(files);
-    const next: DocItem[] = [];
-    for (const f of incoming) {
-      if (docs.length + next.length >= MAX_FILES) {
-        toast.error(`Maximal ${MAX_FILES} Dateien`);
-        break;
-      }
-      if (f.size > MAX_DOC_BYTES) {
-        toast.error(`Datei zu gross: ${f.name}`, { description: "Max. 20 MB" });
-        continue;
-      }
-      next.push({
-        id: crypto.randomUUID(),
-        file: f,
-        kind: inferKind(f.name),
-      });
-    }
-    setDocs((d) => [...d, ...next]);
-  }
-
-  function removeDoc(id: string) {
-    setDocs((d) => d.filter((x) => x.id !== id));
-  }
-
-  function setKind(id: string, kind: DocKind) {
-    setDocs((d) => d.map((x) => (x.id === id ? { ...x, kind } : x)));
-  }
-
   const submit = useMutation({
     mutationFn: async () => {
       if (!currentOrgId) throw new Error("Keine aktive Organisation");
       const parsed = formSchema.safeParse(form);
       if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Formular ungültig");
 
-      // 1. Create analysis (draft)
+      // 1. Create analysis directly in "processing"
       const { data: created, error } = await supabase
         .from("analyses")
         .insert({
@@ -160,40 +130,14 @@ function NewAnalysisWizard() {
           lat: form.lat,
           lng: form.lng,
           egrid: form.egrid,
-          status: "draft",
+          status: "processing",
           created_by: user?.id ?? null,
         })
         .select("id")
         .single();
       if (error) throw error;
 
-      // 2. Upload all docs to Storage + insert analysis_documents rows
-      let done = 0;
-      const total = Math.max(docs.length, 1);
-      for (const d of docs) {
-        const safeName = d.file.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
-        const path = `${currentOrgId}/${created.id}/${Date.now()}-${d.id.slice(0, 8)}-${safeName}`;
-        const { error: upErr } = await supabase.storage
-          .from("analysis-documents")
-          .upload(path, d.file, { upsert: false, contentType: d.file.type || undefined });
-        if (upErr) throw upErr;
-        const { error: insErr } = await supabase.from("analysis_documents").insert({
-          analysis_id: created.id,
-          organization_id: currentOrgId,
-          kind: d.kind,
-          file_name: d.file.name,
-          storage_path: path,
-          mime_type: d.file.type || null,
-          size_bytes: d.file.size,
-          uploaded_by: user?.id ?? null,
-        });
-        if (insErr) throw insErr;
-        done += 1;
-        setUploadProgress(Math.round((done / total) * 100));
-      }
-
-      // 3. Mark processing + fire-and-forget AI extraction
-      await supabase.from("analyses").update({ status: "processing" }).eq("id", created.id);
+      // 2. Fire-and-forget AI knowledge analysis
       analyzeFn({ data: { analysisId: created.id } }).catch((e: unknown) =>
         console.error("KI-Analyse fehlgeschlagen", e),
       );
