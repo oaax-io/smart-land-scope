@@ -457,6 +457,67 @@ export function SwissMap({
           )}
         </Map>
 
+        {/* Hover-Tooltip mit Parzellen-Daten */}
+        {hoverParcel && hoverPos && (
+          <div
+            className="pointer-events-none absolute z-20 min-w-[200px] max-w-[260px] rounded-md border bg-background/95 px-3 py-2 text-xs shadow-lg backdrop-blur"
+            style={{
+              left: Math.min(hoverPos.x + 14, (mapRef.current?.getMap().getContainer().clientWidth ?? 9999) - 270),
+              top: Math.min(hoverPos.y + 14, (mapRef.current?.getMap().getContainer().clientHeight ?? 9999) - 140),
+            }}
+          >
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="font-semibold">
+                {hoverParcel.parcelNumber ? `Parzelle ${hoverParcel.parcelNumber}` : "Parzelle"}
+              </span>
+              {hoverParcel.canton && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+                  {hoverParcel.canton}
+                </span>
+              )}
+            </div>
+            <dl className="space-y-0.5 text-muted-foreground">
+              {hoverParcel.areaM2 != null && (
+                <div className="flex justify-between gap-3">
+                  <dt>Fläche</dt>
+                  <dd className="font-medium text-foreground">
+                    {Math.round(hoverParcel.areaM2).toLocaleString("de-CH")} m²
+                  </dd>
+                </div>
+              )}
+              {hoverParcel.municipality && (
+                <div className="flex justify-between gap-3">
+                  <dt>Gemeinde</dt>
+                  <dd className="truncate text-foreground" title={hoverParcel.municipality}>
+                    {hoverParcel.municipality}
+                  </dd>
+                </div>
+              )}
+              {hoverParcel.zone && (
+                <div className="flex justify-between gap-3">
+                  <dt>Bauzone</dt>
+                  <dd className="truncate text-foreground" title={hoverParcel.zone}>
+                    {hoverParcel.zone}
+                  </dd>
+                </div>
+              )}
+              {hoverParcel.egrid && (
+                <div className="flex justify-between gap-3">
+                  <dt>E-GRID</dt>
+                  <dd className="truncate font-mono text-[10px] text-foreground" title={hoverParcel.egrid}>
+                    {hoverParcel.egrid}
+                  </dd>
+                </div>
+              )}
+            </dl>
+            <p className="mt-1.5 border-t pt-1 text-[10px] italic text-muted-foreground">
+              Geschosse &amp; Ausnützung → in der Vollanalyse aus dem Reglement
+            </p>
+          </div>
+        )}
+
+
+
         {/* Layer-Umschalter */}
         <div className="absolute left-2 top-2 z-10 flex overflow-hidden rounded-md border bg-background/95 shadow-sm backdrop-blur">
           <button
