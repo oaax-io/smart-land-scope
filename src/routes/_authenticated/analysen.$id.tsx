@@ -268,18 +268,16 @@ function AnalysisDetailPage() {
 
         {/* Wohnungspotenzial */}
         <TabsContent value="units" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <KpiCard icon={Building2} label="Geschossfläche" value={analysis.floor_area ? `${Math.round(Number(analysis.floor_area))} m²` : "—"} />
-            <KpiCard icon={Home} label="Wohnfläche (potenziell)" value={analysis.living_area ? `${Math.round(Number(analysis.living_area))} m²` : "—"} />
-            <KpiCard icon={Home} label="Anzahl Wohnungen" value={analysis.unit_count?.toString() ?? "—"} />
-          </div>
-          <Card>
-            <CardHeader><CardTitle className="font-display text-lg">Wie viele Wohnungen könnten entstehen?</CardTitle></CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Geschätzt auf Basis Grundstücksfläche × Ausnützungsziffer und durchschnittlicher Wohnungs­grösse. Werte ohne Gewähr.
-            </CardContent>
-          </Card>
+          <UnitsPotential
+            areaSize={Number(analysis.area_size ?? 0) || 0}
+            utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
+            maxFloors={Number(analysis.max_floors ?? 0) || 0}
+            floorArea={Number(analysis.floor_area ?? 0) || 0}
+            livingArea={Number(analysis.living_area ?? 0) || 0}
+            unitCount={Number(analysis.unit_count ?? 0) || 0}
+          />
         </TabsContent>
+
 
         {/* Entwicklungspotenzial */}
         <TabsContent value="potential" className="space-y-4">
