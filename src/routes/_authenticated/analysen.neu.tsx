@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { useOrg } from "@/hooks/use-org";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import {
   checkMunicipalityCoverage,
   runKnowledgeAnalysis,
