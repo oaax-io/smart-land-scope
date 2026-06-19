@@ -290,6 +290,7 @@ export function SwissMap({
     hoverAbort.current?.abort();
     lastHoverKey.current = null;
     setHoverParcel(null);
+    setHoverPos(null);
   }, []);
 
   useEffect(
