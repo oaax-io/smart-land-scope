@@ -330,6 +330,97 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback: {
+        Row: {
+          category: Database["public"]["Enums"]["feedback_category"]
+          created_at: string
+          description: string
+          id: string
+          organization_id: string | null
+          page_url: string | null
+          priority: Database["public"]["Enums"]["feedback_priority"]
+          screenshot_path: string | null
+          status: Database["public"]["Enums"]["feedback_status"]
+          title: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["feedback_category"]
+          created_at?: string
+          description: string
+          id?: string
+          organization_id?: string | null
+          page_url?: string | null
+          priority?: Database["public"]["Enums"]["feedback_priority"]
+          screenshot_path?: string | null
+          status?: Database["public"]["Enums"]["feedback_status"]
+          title: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["feedback_category"]
+          created_at?: string
+          description?: string
+          id?: string
+          organization_id?: string | null
+          page_url?: string | null
+          priority?: Database["public"]["Enums"]["feedback_priority"]
+          screenshot_path?: string | null
+          status?: Database["public"]["Enums"]["feedback_status"]
+          title?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_comments: {
+        Row: {
+          body: string
+          created_at: string
+          feedback_id: string
+          id: string
+          is_admin: boolean
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          feedback_id: string
+          id?: string
+          is_admin?: boolean
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          feedback_id?: string
+          id?: string
+          is_admin?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_comments_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_entries: {
         Row: {
           category: string
@@ -856,6 +947,15 @@ export type Database = {
         | "draft"
       app_role: "admin" | "owner" | "member"
       extraction_status: "pending" | "processing" | "completed" | "failed"
+      feedback_category: "bug" | "feature" | "question" | "other"
+      feedback_priority: "low" | "medium" | "high" | "urgent"
+      feedback_status:
+        | "open"
+        | "in_review"
+        | "in_progress"
+        | "resolved"
+        | "closed"
+        | "wont_fix"
       potential_level: "low" | "medium" | "high" | "very_high"
       project_status: "draft" | "active" | "completed" | "archived"
       regulation_doc_type:
@@ -1009,6 +1109,16 @@ export const Constants = {
       ],
       app_role: ["admin", "owner", "member"],
       extraction_status: ["pending", "processing", "completed", "failed"],
+      feedback_category: ["bug", "feature", "question", "other"],
+      feedback_priority: ["low", "medium", "high", "urgent"],
+      feedback_status: [
+        "open",
+        "in_review",
+        "in_progress",
+        "resolved",
+        "closed",
+        "wont_fix",
+      ],
       potential_level: ["low", "medium", "high", "very_high"],
       project_status: ["draft", "active", "completed", "archived"],
       regulation_doc_type: [
