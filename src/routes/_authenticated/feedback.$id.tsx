@@ -238,27 +238,6 @@ function FeedbackDetailPage() {
             </div>
           )}
 
-          {(item.page_url || (isAdmin && item.user_agent)) && (
-            <>
-              <Separator />
-              <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                {item.page_url && (
-                  <div className="min-w-0">
-                    <div className="font-medium uppercase tracking-wider">Seite</div>
-                    <a href={item.page_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 truncate text-foreground hover:underline">
-                      {item.page_url}<ExternalLink className="h-3 w-3 shrink-0" />
-                    </a>
-                  </div>
-                )}
-                {isAdmin && item.user_agent && (
-                  <div className="min-w-0">
-                    <div className="font-medium uppercase tracking-wider">Browser</div>
-                    <p className="truncate text-foreground">{item.user_agent}</p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </CardContent>
       </Card>
 
