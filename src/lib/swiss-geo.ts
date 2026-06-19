@@ -277,6 +277,11 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
 
   if (!parcelNumber && !egrid && !municipality && !canton && !address && !postalCode) return null;
 
+  const geometry =
+    feature?.geometry?.rings
+      ? { type: "Polygon" as const, coordinates: esriRingsToGeoJsonCoordinates(feature.geometry.rings) }
+      : null;
+
   return {
     address,
     postalCode,
@@ -285,7 +290,7 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
     municipality,
     canton,
     areaM2,
-    geometry: feature?.geometry ?? null,
+    geometry,
   };
 }
 
