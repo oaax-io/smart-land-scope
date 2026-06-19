@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import {
   Building2, MapPin, FileText, Upload, Trash2, Download, Plus, ShieldAlert,
   Sparkles, Loader2, CheckCircle2, AlertCircle, RefreshCw, BookOpen, Layers,
-  X, Check, ChevronsUpDown,
+  CloudUpload, X, Check, ChevronsUpDown,
 } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
