@@ -89,6 +89,7 @@ function KartePage() {
         mode="interactive"
         floatingSearch
         allowExpand={false}
+        showCantons
         heightClassName="h-full"
         lat={selected?.lat ?? null}
         lng={selected?.lng ?? null}

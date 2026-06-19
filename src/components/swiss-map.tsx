@@ -1,5 +1,11 @@
-import { useState, useCallback, useRef } from "react";
-import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import Map, {
+  Marker,
+  NavigationControl,
+  Source,
+  Layer,
+  type MapRef,
+} from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapPin, Search, Loader2, Maximize2, Locate } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -12,6 +18,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   searchSwissLocation,
@@ -19,6 +32,15 @@ import {
   type SwissGeoSearchResult,
   type SwissParcelInfo,
 } from "@/lib/swiss-geo";
+import {
+  CANTONS,
+  CANTON_BY_CODE,
+  CANTON_COLOR_MATCH,
+  CANTONS_GEOJSON_URL,
+  bboxOfGeometry,
+  unionBbox,
+  type LngLatBounds,
+} from "@/lib/swiss-cantons";
 
 // swisstopo WMTS — Kartenstile
 function buildMapStyle(base: "cadastral" | "aerial") {
@@ -74,7 +96,16 @@ type SwissMapProps = {
   heightClassName?: string;
   allowExpand?: boolean;
   floatingSearch?: boolean;
+  /** Show coloured cantons overlay and Kanton filter (bottom-right). */
+  showCantons?: boolean;
 };
+
+type CantonFeature = {
+  type: "Feature";
+  geometry: { type: string; coordinates: unknown };
+  properties: { KANTONSNUM: number; NAME: string };
+};
+type CantonFC = { type: "FeatureCollection"; features: CantonFeature[] };
 
 export function SwissMap({
   mode,
@@ -85,6 +116,7 @@ export function SwissMap({
   heightClassName = "h-80",
   allowExpand = true,
   floatingSearch = false,
+  showCantons = false,
 }: SwissMapProps) {
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
@@ -102,6 +134,49 @@ export function SwissMap({
       ? { longitude: lng, latitude: lat, zoom: 16 }
       : DEFAULT_VIEW,
   );
+
+  // Canton overlay state
+  const [cantonsData, setCantonsData] = useState<CantonFC | null>(null);
+  const [cantonFilter, setCantonFilter] = useState<string>("all"); // "all" or canton code
+
+  useEffect(() => {
+    if (!showCantons) return;
+    let cancelled = false;
+    fetch(CANTONS_GEOJSON_URL)
+      .then((r) => r.json())
+      .then((d: CantonFC) => {
+        if (!cancelled) setCantonsData(d);
+      })
+      .catch((e) => console.error("Kantone konnten nicht geladen werden", e));
+    return () => {
+      cancelled = true;
+    };
+  }, [showCantons]);
+
+  // Bounds of selected canton (union of all its parts)
+  const filteredBounds = useMemo<LngLatBounds | null>(() => {
+    if (cantonFilter === "all" || !cantonsData) return null;
+    const info = CANTON_BY_CODE.get(cantonFilter);
+    if (!info) return null;
+    let bounds: LngLatBounds | null = null;
+    for (const f of cantonsData.features) {
+      if (f.properties.KANTONSNUM !== info.num) continue;
+      const bb = bboxOfGeometry(f.geometry);
+      if (!bb) continue;
+      bounds = bounds ? unionBbox(bounds, bb) : bb;
+    }
+    return bounds;
+  }, [cantonFilter, cantonsData]);
+
+  // Auto-fit when filter changes
+  useEffect(() => {
+    if (!filteredBounds || !mapRef.current) return;
+    mapRef.current.fitBounds(filteredBounds, {
+      padding: 48,
+      duration: 800,
+      maxZoom: 11,
+    });
+  }, [filteredBounds]);
 
   const runSearch = useCallback(async (q: string) => {
     setSearchQuery(q);
@@ -198,6 +273,35 @@ export function SwissMap({
     </div>
   );
 
+  // Maplibre expressions for the canton overlay.
+  // When a canton is selected, that canton is shown at higher opacity,
+  // the rest is dimmed (lower opacity + dark tint).
+  const selectedNum = cantonFilter !== "all" ? CANTON_BY_CODE.get(cantonFilter)?.num : null;
+
+  const cantonFillColor: any = ["match", ["get", "KANTONSNUM"], ...CANTON_COLOR_MATCH, "#999999"];
+  const cantonFillOpacity: any =
+    selectedNum != null
+      ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 0.45, 0.18]
+      : 0.28;
+  const cantonLineColor: any =
+    selectedNum != null
+      ? [
+          "case",
+          ["==", ["get", "KANTONSNUM"], selectedNum],
+          "#111111",
+          "rgba(60,60,60,0.6)",
+        ]
+      : "rgba(40,40,40,0.7)";
+  const cantonLineWidth: any =
+    selectedNum != null
+      ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 2.5, 0.6]
+      : 0.8;
+  // Dim overlay for non-selected cantons
+  const dimOpacity: any =
+    selectedNum != null
+      ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 0, 0.35]
+      : 0;
+
   return (
     <div className={cn(floatingSearch ? "relative h-full w-full" : "space-y-2", className)}>
       {!floatingSearch && searchBox}
@@ -219,6 +323,36 @@ export function SwissMap({
           style={{ width: "100%", height: "100%" }}
         >
           <NavigationControl position="top-right" showCompass={false} />
+
+          {showCantons && cantonsData && (
+            <Source id="cantons" type="geojson" data={cantonsData as any}>
+              <Layer
+                id="cantons-fill"
+                type="fill"
+                paint={{
+                  "fill-color": cantonFillColor,
+                  "fill-opacity": cantonFillOpacity,
+                }}
+              />
+              <Layer
+                id="cantons-dim"
+                type="fill"
+                paint={{
+                  "fill-color": "#0b0f17",
+                  "fill-opacity": dimOpacity,
+                }}
+              />
+              <Layer
+                id="cantons-line"
+                type="line"
+                paint={{
+                  "line-color": cantonLineColor,
+                  "line-width": cantonLineWidth,
+                }}
+              />
+            </Source>
+          )}
+
           {marker && (
             <Marker longitude={marker.lng} latitude={marker.lat} anchor="bottom">
               <MapPin className="h-7 w-7 fill-primary text-primary-foreground drop-shadow" />
@@ -250,6 +384,41 @@ export function SwissMap({
           </button>
         </div>
 
+        {/* Kanton-Filter unten rechts */}
+        {showCantons && (
+          <div className="absolute right-2 bottom-8 z-10 rounded-md border bg-background/95 shadow-sm backdrop-blur">
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Kanton
+              </span>
+              <Select value={cantonFilter} onValueChange={setCantonFilter}>
+                <SelectTrigger className="h-8 w-[180px] border-0 bg-transparent px-2 text-sm focus:ring-0">
+                  <SelectValue placeholder="Alle Kantone" />
+                </SelectTrigger>
+                <SelectContent align="end" className="max-h-80">
+                  <SelectItem value="all">
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block h-2.5 w-2.5 rounded-sm bg-muted-foreground/40" />
+                      Alle Kantone
+                    </span>
+                  </SelectItem>
+                  {CANTONS.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-sm"
+                          style={{ backgroundColor: c.color }}
+                        />
+                        {c.code} — {c.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
         {/* Aktionen rechts oben (unter NavigationControl) */}
         {allowExpand && (
           <div className="absolute right-2 bottom-8 z-10 flex flex-col gap-1">
@@ -280,6 +449,7 @@ export function SwissMap({
                   }}
                   heightClassName="h-[75vh]"
                   allowExpand={false}
+                  showCantons={showCantons}
                 />
               </DialogContent>
             </Dialog>
