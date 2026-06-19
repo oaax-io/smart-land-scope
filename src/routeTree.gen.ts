@@ -13,7 +13,9 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlatformReglementeRouteImport } from './routes/platform.reglemente'
 import { Route as AuthenticatedWissenRouteImport } from './routes/_authenticated/wissen'
+import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedProjekteRouteImport } from './routes/_authenticated/projekte'
 import { Route as AuthenticatedEinstellungenRouteImport } from './routes/_authenticated/einstellungen'
 import { Route as AuthenticatedDokumentationRouteImport } from './routes/_authenticated/dokumentation'
@@ -25,8 +27,6 @@ import { Route as AuthenticatedFeedbackIdRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAnalysenNeuRouteImport } from './routes/_authenticated/analysen.neu'
 import { Route as AuthenticatedAnalysenKarteRouteImport } from './routes/_authenticated/analysen.karte'
 import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
-import { Route as AuthenticatedAdminTeamRouteImport } from './routes/_authenticated/admin.team'
-import { Route as AuthenticatedAdminReglementeRouteImport } from './routes/_authenticated/admin.reglemente'
 import { Route as AuthenticatedAnalysenIdBerichtRouteImport } from './routes/_authenticated/analysen.$id.bericht'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -48,9 +48,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformReglementeRoute = PlatformReglementeRouteImport.update({
+  id: '/platform/reglemente',
+  path: '/platform/reglemente',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedWissenRoute = AuthenticatedWissenRouteImport.update({
   id: '/wissen',
   path: '/wissen',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProjekteRoute = AuthenticatedProjekteRouteImport.update({
@@ -114,17 +124,6 @@ const AuthenticatedAnalysenIdRoute = AuthenticatedAnalysenIdRouteImport.update({
   path: '/analysen/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAdminTeamRoute = AuthenticatedAdminTeamRouteImport.update({
-  id: '/admin/team',
-  path: '/admin/team',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedAdminReglementeRoute =
-  AuthenticatedAdminReglementeRouteImport.update({
-    id: '/admin/reglemente',
-    path: '/admin/reglemente',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedAnalysenIdBerichtRoute =
   AuthenticatedAnalysenIdBerichtRouteImport.update({
     id: '/bericht',
@@ -141,9 +140,9 @@ export interface FileRoutesByFullPath {
   '/dokumentation': typeof AuthenticatedDokumentationRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
+  '/team': typeof AuthenticatedTeamRoute
   '/wissen': typeof AuthenticatedWissenRoute
-  '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
-  '/admin/team': typeof AuthenticatedAdminTeamRoute
+  '/platform/reglemente': typeof PlatformReglementeRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
@@ -161,9 +160,9 @@ export interface FileRoutesByTo {
   '/dokumentation': typeof AuthenticatedDokumentationRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
+  '/team': typeof AuthenticatedTeamRoute
   '/wissen': typeof AuthenticatedWissenRoute
-  '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
-  '/admin/team': typeof AuthenticatedAdminTeamRoute
+  '/platform/reglemente': typeof PlatformReglementeRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
@@ -183,9 +182,9 @@ export interface FileRoutesById {
   '/_authenticated/dokumentation': typeof AuthenticatedDokumentationRoute
   '/_authenticated/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/_authenticated/projekte': typeof AuthenticatedProjekteRoute
+  '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/wissen': typeof AuthenticatedWissenRoute
-  '/_authenticated/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
-  '/_authenticated/admin/team': typeof AuthenticatedAdminTeamRoute
+  '/platform/reglemente': typeof PlatformReglementeRoute
   '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/_authenticated/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/_authenticated/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
@@ -205,9 +204,9 @@ export interface FileRouteTypes {
     | '/dokumentation'
     | '/einstellungen'
     | '/projekte'
+    | '/team'
     | '/wissen'
-    | '/admin/reglemente'
-    | '/admin/team'
+    | '/platform/reglemente'
     | '/analysen/$id'
     | '/analysen/karte'
     | '/analysen/neu'
@@ -225,9 +224,9 @@ export interface FileRouteTypes {
     | '/dokumentation'
     | '/einstellungen'
     | '/projekte'
+    | '/team'
     | '/wissen'
-    | '/admin/reglemente'
-    | '/admin/team'
+    | '/platform/reglemente'
     | '/analysen/$id'
     | '/analysen/karte'
     | '/analysen/neu'
@@ -246,9 +245,9 @@ export interface FileRouteTypes {
     | '/_authenticated/dokumentation'
     | '/_authenticated/einstellungen'
     | '/_authenticated/projekte'
+    | '/_authenticated/team'
     | '/_authenticated/wissen'
-    | '/_authenticated/admin/reglemente'
-    | '/_authenticated/admin/team'
+    | '/platform/reglemente'
     | '/_authenticated/analysen/$id'
     | '/_authenticated/analysen/karte'
     | '/_authenticated/analysen/neu'
@@ -263,6 +262,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  PlatformReglementeRoute: typeof PlatformReglementeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -295,11 +295,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform/reglemente': {
+      id: '/platform/reglemente'
+      path: '/platform/reglemente'
+      fullPath: '/platform/reglemente'
+      preLoaderRoute: typeof PlatformReglementeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/wissen': {
       id: '/_authenticated/wissen'
       path: '/wissen'
       fullPath: '/wissen'
       preLoaderRoute: typeof AuthenticatedWissenRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/team': {
+      id: '/_authenticated/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AuthenticatedTeamRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/projekte': {
@@ -379,20 +393,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalysenIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/team': {
-      id: '/_authenticated/admin/team'
-      path: '/admin/team'
-      fullPath: '/admin/team'
-      preLoaderRoute: typeof AuthenticatedAdminTeamRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/admin/reglemente': {
-      id: '/_authenticated/admin/reglemente'
-      path: '/admin/reglemente'
-      fullPath: '/admin/reglemente'
-      preLoaderRoute: typeof AuthenticatedAdminReglementeRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/analysen/$id/bericht': {
       id: '/_authenticated/analysen/$id/bericht'
       path: '/bericht'
@@ -423,9 +423,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDokumentationRoute: typeof AuthenticatedDokumentationRoute
   AuthenticatedEinstellungenRoute: typeof AuthenticatedEinstellungenRoute
   AuthenticatedProjekteRoute: typeof AuthenticatedProjekteRoute
+  AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedWissenRoute: typeof AuthenticatedWissenRoute
-  AuthenticatedAdminReglementeRoute: typeof AuthenticatedAdminReglementeRoute
-  AuthenticatedAdminTeamRoute: typeof AuthenticatedAdminTeamRoute
   AuthenticatedAnalysenIdRoute: typeof AuthenticatedAnalysenIdRouteWithChildren
   AuthenticatedAnalysenKarteRoute: typeof AuthenticatedAnalysenKarteRoute
   AuthenticatedAnalysenNeuRoute: typeof AuthenticatedAnalysenNeuRoute
@@ -440,9 +439,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDokumentationRoute: AuthenticatedDokumentationRoute,
   AuthenticatedEinstellungenRoute: AuthenticatedEinstellungenRoute,
   AuthenticatedProjekteRoute: AuthenticatedProjekteRoute,
+  AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedWissenRoute: AuthenticatedWissenRoute,
-  AuthenticatedAdminReglementeRoute: AuthenticatedAdminReglementeRoute,
-  AuthenticatedAdminTeamRoute: AuthenticatedAdminTeamRoute,
   AuthenticatedAnalysenIdRoute: AuthenticatedAnalysenIdRouteWithChildren,
   AuthenticatedAnalysenKarteRoute: AuthenticatedAnalysenKarteRoute,
   AuthenticatedAnalysenNeuRoute: AuthenticatedAnalysenNeuRoute,
@@ -459,6 +457,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  PlatformReglementeRoute: PlatformReglementeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -28,7 +28,7 @@ import { useOrg } from "@/hooks/use-org";
 import { supabase } from "@/integrations/supabase/client";
 import { createOrgUser } from "@/lib/admin-users.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/team")({
+export const Route = createFileRoute("/_authenticated/team")({
   head: () => ({ meta: [{ title: "Team — SmarTerra" }] }),
   component: TeamPage,
 });
