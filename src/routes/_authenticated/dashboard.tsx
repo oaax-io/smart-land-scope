@@ -83,9 +83,11 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary via-primary to-secondary p-8 text-primary-foreground shadow-lg sm:p-10">
-        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-secondary/30 blur-3xl" aria-hidden />
-        <div className="absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-primary-foreground/10 blur-3xl" aria-hidden />
+      <section className="relative isolate z-10 rounded-2xl border border-border bg-gradient-to-br from-primary via-primary to-secondary p-8 text-primary-foreground shadow-lg sm:p-10">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden>
+          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-secondary/30 blur-3xl" />
+          <div className="absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-primary-foreground/10 blur-3xl" />
+        </div>
         <div className="relative">
           <p className="text-xs uppercase tracking-[0.18em] text-primary-foreground/70">{today}</p>
           <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
@@ -94,11 +96,12 @@ function Dashboard() {
           <p className="mt-2 max-w-2xl text-sm text-primary-foreground/80 sm:text-base">
             Willkommen zurück{currentOrg ? ` bei ${currentOrg.name}` : ""}. Starten Sie unten direkt mit einer Schnellanalyse — Adresse eingeben genügt.
           </p>
-          <div className="mt-6">
+          <div className="relative z-30 mt-6">
             <QuickAnalysisSearch hero />
           </div>
         </div>
       </section>
+
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
