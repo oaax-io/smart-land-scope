@@ -31,11 +31,8 @@ import {
   CloudUpload, X, Check, ChevronsUpDown,
 } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
-import { importLuBzrDocuments } from "@/lib/lu-bzr-import.functions";
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/_authenticated/admin/reglemente")({
   component: ReglementePage,
@@ -118,7 +115,6 @@ function ReglementePage() {
       </div>
 
       <KnowledgeBaseDashboard />
-      <LuBzrImportCard />
       <DocumentsList />
       <AddRegulationDialog open={open} onOpenChange={setOpen} />
     </div>
@@ -126,237 +122,9 @@ function ReglementePage() {
 }
 
 // =====================================================================
-// LU Bulk Import
-// =====================================================================
-
-function LuBzrImportCard() {
-  const qc = useQueryClient();
-  const importFn = useServerFn(importLuBzrDocuments);
-  const extractFn = useServerFn(extractRegulationDocument);
-  const [resultOpen, setResultOpen] = useState(false);
-  const [result, setResult] = useState<{
-    results: { gemeinde: string; status: string; error?: string }[];
-    summary: Record<string, number>;
-  } | null>(null);
-
-  const [analyzing, setAnalyzing] = useState(false);
-  const [progress, setProgress] = useState({ done: 0, total: 0, current: "", failed: 0 });
-  const cancelRef = useRef(false);
-
-  const mutation = useMutation({
-    mutationFn: () => importFn({}),
-    onSuccess: (data) => {
-      setResult(data);
-      setResultOpen(true);
-      qc.invalidateQueries({ queryKey: ["all-regdocs"] });
-      qc.invalidateQueries({ queryKey: ["kb-stats"] });
-      const ins = data.summary.inserted ?? 0;
-      if (ins > 0) toast.success(`${ins} Reglemente importiert`);
-      else toast.error("Keine neuen Reglemente importiert");
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Import fehlgeschlagen"),
-  });
-
-  const failedItems =
-    result?.results.filter((r) => r.status !== "inserted" && r.status !== "already_exists") ?? [];
-
-  const startAnalyzeAll = async () => {
-    setAnalyzing(true);
-    cancelRef.current = false;
-    setProgress({ done: 0, total: 0, current: "", failed: 0 });
-    try {
-      // Fetch all LU BZR documents that don't yet have a completed extraction with zones.
-      const { data: docs, error } = await supabase
-        .from("regulation_documents")
-        .select(
-          "id, title, municipality:municipalities!inner(name, canton:cantons!inner(code)), extraction:regulation_extractions(status, zones)",
-        )
-        .eq("doc_type", "BZR")
-        .eq("active", true)
-        .eq("municipality.canton.code", "LU");
-      if (error) throw error;
-
-      const pending = (docs ?? []).filter((d) => {
-        const ex = Array.isArray(d.extraction) ? d.extraction[0] : d.extraction;
-        if (!ex) return true;
-        if (ex.status !== "completed") return true;
-        const zones = Array.isArray(ex.zones) ? ex.zones : [];
-        return zones.length === 0;
-      });
-
-      setProgress({ done: 0, total: pending.length, current: "", failed: 0 });
-      if (pending.length === 0) {
-        toast.info("Alle LU-Reglemente sind bereits analysiert");
-        return;
-      }
-
-      let failed = 0;
-      for (let i = 0; i < pending.length; i++) {
-        if (cancelRef.current) break;
-        const d = pending[i];
-        const muniName =
-          (Array.isArray(d.municipality) ? d.municipality[0] : d.municipality)?.name ?? d.title;
-        setProgress((p) => ({ ...p, current: muniName }));
-        try {
-          await extractFn({ data: { documentId: d.id } });
-        } catch (e) {
-          failed++;
-          console.error("[LU analyze]", muniName, e);
-        }
-        setProgress((p) => ({ ...p, done: i + 1, failed }));
-      }
-      qc.invalidateQueries({ queryKey: ["all-regdocs"] });
-      qc.invalidateQueries({ queryKey: ["kb-stats"] });
-      if (failed === 0) toast.success(`${pending.length} Reglemente analysiert`);
-      else toast.warning(`${pending.length - failed} analysiert, ${failed} fehlgeschlagen`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Analyse fehlgeschlagen");
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  const pct =
-    progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
-
-  return (
-    <>
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CloudUpload className="h-4 w-4" /> Kanton Luzern – Bulk-Import
-          </CardTitle>
-          <CardDescription>
-            Importiert die aktuellen Bau- und Zonenreglemente (BZR) für 73 von 79 Luzerner
-            Gemeinden direkt von geoshop.lu.ch.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => mutation.mutate()}
-              disabled={mutation.isPending || analyzing}
-              className="gap-2"
-            >
-              {mutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CloudUpload className="h-4 w-4" />
-              )}
-              LU-Reglemente importieren
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={startAnalyzeAll}
-              disabled={analyzing || mutation.isPending}
-              className="gap-2"
-            >
-              {analyzing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              KI-Analyse für alle LU-Reglemente starten
-            </Button>
-            {analyzing && (
-              <Button variant="outline" onClick={() => (cancelRef.current = true)}>
-                Abbrechen
-              </Button>
-            )}
-          </div>
-          {mutation.isPending && (
-            <p className="text-sm text-muted-foreground">
-              Import läuft, das kann 1–2 Minuten dauern…
-            </p>
-          )}
-          {analyzing && (
-            <div className="space-y-2 rounded-md border p-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  Analyse {progress.done} / {progress.total}
-                  {progress.failed > 0 ? ` (${progress.failed} Fehler)` : ""}
-                </span>
-                <span className="font-medium tabular-nums">{pct}%</span>
-              </div>
-              <Progress value={pct} />
-              {progress.current && (
-                <p className="truncate text-xs text-muted-foreground">
-                  Aktuell: {progress.current}
-                </p>
-              )}
-            </div>
-          )}
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>3 Gemeinden manuell ergänzen</AlertTitle>
-            <AlertDescription>
-              3 Gemeinden müssen manuell ergänzt werden, da ihr BZR-Code mit einer anderen
-              Gemeinde kollidiert: Eschenbach (LU) / Escholzmatt-Marbach, Schongau / Schötz,
-              Grosswangen / Grossdietwil. Bitte BZR über „Reglement hinzufügen" manuell
-              hochladen.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-
-
-      <Dialog open={resultOpen} onOpenChange={setResultOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>LU-Import abgeschlossen</DialogTitle>
-            <DialogDescription>Zusammenfassung des Bulk-Imports</DialogDescription>
-          </DialogHeader>
-          {result && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                {Object.entries(result.summary).map(([k, v]) => (
-                  <div
-                    key={k}
-                    className="flex items-center justify-between rounded-md border px-3 py-2"
-                  >
-                    <span className="font-mono text-xs">{k}</span>
-                    <span className="font-semibold tabular-nums">{v}</span>
-                  </div>
-                ))}
-              </div>
-              {failedItems.length > 0 && (
-                <div>
-                  <p className="mb-2 text-sm font-medium">
-                    Nicht importiert ({failedItems.length})
-                  </p>
-                  <ScrollArea className="h-64 rounded-md border">
-                    <div className="divide-y">
-                      {failedItems.map((r, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
-                        >
-                          <span className="truncate">{r.gemeinde}</span>
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {r.status}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResultOpen(false)}>
-              Schliessen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-// =====================================================================
 // Dashboard
 // =====================================================================
+
 
 function KnowledgeBaseDashboard() {
   const stats = useQuery({
