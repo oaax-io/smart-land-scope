@@ -231,7 +231,7 @@ function stripHtml(s: string): string {
   return s.replace(/<[^>]+>/g, "");
 }
 
-function QuickAnalysisSearch() {
+function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
   const { currentOrgId } = useOrg();
   const { user } = useAuth();
   const navigate = useNavigate();
