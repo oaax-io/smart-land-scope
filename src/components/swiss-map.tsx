@@ -67,6 +67,7 @@ type SwissMapProps = {
   }) => void;
   className?: string;
   heightClassName?: string;
+  allowExpand?: boolean;
 };
 
 export function SwissMap({
