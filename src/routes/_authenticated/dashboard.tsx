@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPinned, FolderKanban, Users, FileText, ArrowUpRight, Star, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -12,7 +11,7 @@ import { useOrg } from "@/hooks/use-org";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { searchSwissLocation, identifyParcelAt, type SwissGeoSearchResult } from "@/lib/swiss-geo";
-import { runKnowledgeAnalysis } from "@/lib/analyze-knowledge.functions";
+import { QuickAnalysisModal, type QuickAnalysisInitial } from "@/components/quick-analysis-modal";
 import heroBg from "@/assets/hero-realestate.jpg";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -244,10 +243,7 @@ function stripHtml(s: string): string {
 
 function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
   const { currentOrgId } = useOrg();
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const analyzeFn = useServerFn(runKnowledgeAnalysis);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SwissGeoSearchResult[]>([]);
@@ -255,6 +251,8 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [busyText, setBusyText] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalInitial, setModalInitial] = useState<QuickAnalysisInitial | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -319,136 +317,140 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
           }
         }
 
-        if (!parcel?.municipality) {
-          toast.error("Gemeinde konnte nicht ermittelt werden — bitte über 'Neue Analyse' manuell erfassen");
-          navigate({ to: "/analysen/neu" });
-          return;
-        }
+        // Open the multi-step modal pre-filled with what we found.
+        // The user must complete all steps before navigating to the analysis.
+        const rawLabel = cleanLabel;
+        const plz = extractPostalCode(rawLabel);
+        const street = plz
+          ? rawLabel.split(plz)[0].replace(/[,\s]+$/, "").trim()
+          : rawLabel;
 
-        const { data: created, error: insertErr } = await supabase
-          .from("analyses")
-          .insert({
-            organization_id: currentOrgId,
-            address: cleanLabel,
-            postal_code: extractPostalCode(cleanLabel),
-            municipality: parcel.municipality,
-            canton: parcel.canton,
-            parcel_number: parcel.parcelNumber,
-            area_size: parcel.areaM2,
-            lat: r.lat,
-            lng: r.lng,
-            egrid: parcel.egrid,
-            status: "processing",
-            created_by: user?.id ?? null,
-          })
-          .select("id")
-          .single();
-        if (insertErr || !created) throw insertErr ?? new Error("Insert fehlgeschlagen");
-
-        analyzeFn({ data: { analysisId: created.id } }).catch(console.error);
-
-        queryClient.invalidateQueries({ queryKey: ["dashboard-recent-analyses"] });
-        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-
-        navigate({ to: "/analysen/$id", params: { id: created.id } });
+        setModalInitial({
+          address: street || rawLabel,
+          postal_code: plz ?? "",
+          municipality: parcel?.municipality ?? "",
+          canton: parcel?.canton ?? "",
+          parcel_number: parcel?.parcelNumber ?? "",
+          area_size: parcel?.areaM2 ? String(Math.round(parcel.areaM2)) : "",
+          lat: r.lat,
+          lng: r.lng,
+          egrid: parcel?.egrid ?? null,
+        });
+        setModalOpen(true);
+        setQuery("");
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Unbekannter Fehler";
-        toast.error("Analyse konnte nicht gestartet werden", { description: msg });
+        toast.error("Analyse konnte nicht vorbereitet werden", { description: msg });
       } finally {
         setBusy(false);
         setBusyText("");
       }
     },
-    [currentOrgId, user?.id, navigate, queryClient, analyzeFn],
+    [currentOrgId, navigate],
+  );
+
+  const modal = (
+    <QuickAnalysisModal
+      open={modalOpen}
+      onOpenChange={setModalOpen}
+      initial={modalInitial}
+    />
   );
 
   if (hero) {
     return (
-      <div ref={containerRef} className="relative">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => results.length > 0 && setOpen(true)}
-            placeholder="Adresse, Ort oder Parzellennummer eingeben (z. B. Bahnhofstrasse 1, Luzern)"
-            className="h-14 rounded-xl border border-primary-foreground/20 bg-background/70 pl-12 pr-12 text-base text-foreground shadow-xl backdrop-blur-md placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-secondary sm:text-lg"
-            disabled={busy}
-          />
-          {(searching || busy) && (
-            <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" />
-          )}
-        </div>
-
-        {open && results.length > 0 && !busy && (
-          <Card className="absolute left-0 right-0 top-full z-[9999] mt-2 max-h-80 overflow-y-auto p-1 shadow-2xl">
-            {results.map((r, i) => (
-              <button
-                key={`${r.featureId ?? "x"}-${i}`}
-                type="button"
-                onClick={() => selectResult(r)}
-                className="block w-full rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
-              >
-                <span dangerouslySetInnerHTML={{ __html: r.label }} />
-              </button>
-            ))}
-          </Card>
-        )}
-
-        <p className="mt-3 text-xs text-primary-foreground/75">
-          {busy
-            ? busyText
-            : "Direkt-Suche über das amtliche Schweizer Geoportal (swisstopo). Bei bekannter Gemeinde startet die Analyse sofort."}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-display">Schnellanalyse</CardTitle>
-      </CardHeader>
-      <CardContent>
+      <>
         <div ref={containerRef} className="relative">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => results.length > 0 && setOpen(true)}
               placeholder="Adresse, Ort oder Parzellennummer eingeben (z. B. Bahnhofstrasse 1, Luzern)"
-              className="pl-9 pr-9"
+              className="h-14 rounded-xl border border-primary-foreground/20 bg-background/70 pl-12 pr-12 text-base text-foreground shadow-xl backdrop-blur-md placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-secondary sm:text-lg"
               disabled={busy}
             />
             {(searching || busy) && (
-              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" />
             )}
           </div>
 
           {open && results.length > 0 && !busy && (
-            <Card className="absolute left-0 right-0 top-full z-[9999] mt-1 max-h-80 overflow-y-auto p-1 shadow-2xl">
+            <Card className="absolute left-0 right-0 top-full z-[9999] mt-2 max-h-80 overflow-y-auto p-1 shadow-2xl">
               {results.map((r, i) => (
                 <button
                   key={`${r.featureId ?? "x"}-${i}`}
                   type="button"
                   onClick={() => selectResult(r)}
-                  className="block w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
                 >
                   <span dangerouslySetInnerHTML={{ __html: r.label }} />
                 </button>
               ))}
             </Card>
           )}
-        </div>
 
-        <p className="mt-2 text-xs text-muted-foreground">
-          {busy
-            ? busyText
-            : "Direkt-Suche über das amtliche Schweizer Geoportal (swisstopo). Bei bekannter Gemeinde startet die Analyse sofort."}
-        </p>
-      </CardContent>
-    </Card>
+          <p className="mt-3 text-xs text-primary-foreground/75">
+            {busy
+              ? busyText
+              : "Direkt-Suche über das amtliche Schweizer Geoportal (swisstopo). Adresse wählen, Schritte abschliessen — dann startet die Analyse."}
+          </p>
+        </div>
+        {modal}
+      </>
+    );
+  }
+
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-display">Schnellanalyse</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div ref={containerRef} className="relative">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => results.length > 0 && setOpen(true)}
+                placeholder="Adresse, Ort oder Parzellennummer eingeben (z. B. Bahnhofstrasse 1, Luzern)"
+                className="pl-9 pr-9"
+                disabled={busy}
+              />
+              {(searching || busy) && (
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              )}
+            </div>
+
+            {open && results.length > 0 && !busy && (
+              <Card className="absolute left-0 right-0 top-full z-[9999] mt-1 max-h-80 overflow-y-auto p-1 shadow-2xl">
+                {results.map((r, i) => (
+                  <button
+                    key={`${r.featureId ?? "x"}-${i}`}
+                    type="button"
+                    onClick={() => selectResult(r)}
+                    className="block w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+                  >
+                    <span dangerouslySetInnerHTML={{ __html: r.label }} />
+                  </button>
+                ))}
+              </Card>
+            )}
+          </div>
+
+          <p className="mt-2 text-xs text-muted-foreground">
+            {busy
+              ? busyText
+              : "Direkt-Suche über das amtliche Schweizer Geoportal (swisstopo). Adresse wählen, Schritte abschliessen — dann startet die Analyse."}
+          </p>
+        </CardContent>
+      </Card>
+      {modal}
+    </>
   );
 }
 
