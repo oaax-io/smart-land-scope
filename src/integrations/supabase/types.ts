@@ -535,6 +535,9 @@ export type Database = {
           source_document: string | null
           updated_at: string
           value: string | null
+          verified: boolean
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           category: string
@@ -546,6 +549,9 @@ export type Database = {
           source_document?: string | null
           updated_at?: string
           value?: string | null
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           category?: string
@@ -557,6 +563,9 @@ export type Database = {
           source_document?: string | null
           updated_at?: string
           value?: string | null
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
@@ -908,6 +917,9 @@ export type Database = {
           source_document: string | null
           title: string
           updated_at: string
+          verified: boolean
+          verified_at: string | null
+          verified_by: string | null
           zone: string | null
         }
         Insert: {
@@ -920,6 +932,9 @@ export type Database = {
           source_document?: string | null
           title: string
           updated_at?: string
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
           zone?: string | null
         }
         Update: {
@@ -932,6 +947,9 @@ export type Database = {
           source_document?: string | null
           title?: string
           updated_at?: string
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
           zone?: string | null
         }
         Relationships: [
