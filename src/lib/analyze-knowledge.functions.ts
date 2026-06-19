@@ -87,6 +87,14 @@ const RiskSchema = z.object({
   sources: z.array(SourceRefSchema).default([]).optional(),
 });
 
+const SetbacksSchema = z.object({
+  nord: z.number().nullable().default(null),
+  ost: z.number().nullable().default(null),
+  sued: z.number().nullable().default(null),
+  west: z.number().nullable().default(null),
+  notes: z.string().nullable().default(null),
+});
+
 const KnowledgeAnalysisSchema = z.object({
   feasibility: z.string().default(""),
   zone: z.string().default(""),
@@ -94,6 +102,11 @@ const KnowledgeAnalysisSchema = z.object({
   max_floors: z.number().default(0),
   max_height_m: z.number().default(0),
   utilization_ratio: z.number().default(0),
+  building_coverage_ratio: z.number().nullable().default(null),
+  setbacks: SetbacksSchema.nullable().default(null),
+  special_provisions: z.string().nullable().default(null),
+  noise_zone: z.string().nullable().default(null),
+  water_setbacks: z.string().nullable().default(null),
   floor_area_m2: z.number().default(0),
   living_area_m2: z.number().default(0),
   unit_count: z.number().default(0),
