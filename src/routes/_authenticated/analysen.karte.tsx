@@ -66,6 +66,7 @@ function KartePage() {
           lat: selected.lat,
           lng: selected.lng,
           egrid: selected.egrid,
+          parcel_geometry: selected.geometry as Json | null,
           status: "processing",
           created_by: user?.id ?? null,
         })
