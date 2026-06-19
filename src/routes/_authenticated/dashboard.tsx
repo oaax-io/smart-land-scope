@@ -404,50 +404,53 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
 
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-display">Schnellanalyse</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div ref={containerRef} className="relative">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => results.length > 0 && setOpen(true)}
-              placeholder="Adresse, Ort oder Parzellennummer eingeben (z. B. Bahnhofstrasse 1, Luzern)"
-              className="pl-9 pr-9"
-              disabled={busy}
-            />
-            {(searching || busy) && (
-              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-display">Schnellanalyse</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div ref={containerRef} className="relative">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => results.length > 0 && setOpen(true)}
+                placeholder="Adresse, Ort oder Parzellennummer eingeben (z. B. Bahnhofstrasse 1, Luzern)"
+                className="pl-9 pr-9"
+                disabled={busy}
+              />
+              {(searching || busy) && (
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              )}
+            </div>
+
+            {open && results.length > 0 && !busy && (
+              <Card className="absolute left-0 right-0 top-full z-[9999] mt-1 max-h-80 overflow-y-auto p-1 shadow-2xl">
+                {results.map((r, i) => (
+                  <button
+                    key={`${r.featureId ?? "x"}-${i}`}
+                    type="button"
+                    onClick={() => selectResult(r)}
+                    className="block w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+                  >
+                    <span dangerouslySetInnerHTML={{ __html: r.label }} />
+                  </button>
+                ))}
+              </Card>
             )}
           </div>
 
-          {open && results.length > 0 && !busy && (
-            <Card className="absolute left-0 right-0 top-full z-[9999] mt-1 max-h-80 overflow-y-auto p-1 shadow-2xl">
-              {results.map((r, i) => (
-                <button
-                  key={`${r.featureId ?? "x"}-${i}`}
-                  type="button"
-                  onClick={() => selectResult(r)}
-                  className="block w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
-                >
-                  <span dangerouslySetInnerHTML={{ __html: r.label }} />
-                </button>
-              ))}
-            </Card>
-          )}
-        </div>
-
-        <p className="mt-2 text-xs text-muted-foreground">
-          {busy
-            ? busyText
-            : "Direkt-Suche über das amtliche Schweizer Geoportal (swisstopo). Bei bekannter Gemeinde startet die Analyse sofort."}
-        </p>
-      </CardContent>
-    </Card>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {busy
+              ? busyText
+              : "Direkt-Suche über das amtliche Schweizer Geoportal (swisstopo). Adresse wählen, Schritte abschliessen — dann startet die Analyse."}
+          </p>
+        </CardContent>
+      </Card>
+      {modal}
+    </>
   );
 }
 
