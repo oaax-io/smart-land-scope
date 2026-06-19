@@ -93,8 +93,18 @@ export type SwissParcelInfo = {
   municipality: string | null;
   canton: string | null;
   areaM2: number | null;
-  geometry: unknown | null;
+  geometry: { type: "Polygon"; coordinates: number[][][] } | null;
 };
+
+/** Wandelt Esri-JSON-Polygon-Rings (LV95) in GeoJSON-Polygon-Koordinaten (WGS84) um. */
+export function esriRingsToGeoJsonCoordinates(rings: number[][][]): number[][][] {
+  return rings.map((ring) =>
+    ring.map(([x, y]) => {
+      const { lng, lat } = lv95ToWgs84(x, y);
+      return [lng, lat];
+    }),
+  );
+}
 
 let _warnedAttrs = false;
 
