@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import {
   Building2, MapPin, FileText, Upload, Trash2, Download, Plus, ShieldAlert,
   Sparkles, Loader2, CheckCircle2, AlertCircle, RefreshCw, BookOpen, Layers,
-  CloudUpload, X, Check, ChevronsUpDown,
+  CloudUpload, X, Check, ChevronsUpDown, ShieldCheck,
 } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
 import { listRegulationsMissingKnowledge } from "@/lib/regulation-bulk.functions";
@@ -205,27 +205,39 @@ function KnowledgeBaseDashboard() {
   const stats = useQuery({
     queryKey: ["kb-stats"],
     queryFn: async () => {
-      const [c, m, d, e] = await Promise.all([
+      const [c, m, d, e, ev, r, rv] = await Promise.all([
         supabase.from("cantons").select("id", { count: "exact", head: true }),
         supabase.from("municipalities").select("id", { count: "exact", head: true }),
         supabase.from("regulation_documents").select("id", { count: "exact", head: true }).eq("active", true),
         supabase.from("knowledge_entries").select("id", { count: "exact", head: true }),
+        supabase.from("knowledge_entries").select("id", { count: "exact", head: true }).eq("verified", true),
+        supabase.from("regulation_rules").select("id", { count: "exact", head: true }),
+        supabase.from("regulation_rules").select("id", { count: "exact", head: true }).eq("verified", true),
       ]);
+      const totalItems = (e.count ?? 0) + (r.count ?? 0);
+      const verifiedItems = (ev.count ?? 0) + (rv.count ?? 0);
       return {
         cantons: c.count ?? 0,
         municipalities: m.count ?? 0,
         documents: d.count ?? 0,
         entries: e.count ?? 0,
+        verified: verifiedItems,
+        totalItems,
       };
     },
     staleTime: 30_000,
   });
 
+  const verifiedTile = stats.data
+    ? `${stats.data.verified.toLocaleString("de-CH")} / ${stats.data.totalItems.toLocaleString("de-CH")}`
+    : "—";
+
   const tiles = [
-    { label: "Kantone", value: stats.data?.cantons ?? 0, icon: Layers },
-    { label: "Gemeinden", value: stats.data?.municipalities ?? 0, icon: MapPin },
-    { label: "Dokumente", value: stats.data?.documents ?? 0, icon: FileText },
-    { label: "Wissenseinträge", value: stats.data?.entries ?? 0, icon: BookOpen },
+    { label: "Kantone", value: stats.data?.cantons ?? 0, icon: Layers, display: undefined as string | undefined },
+    { label: "Gemeinden", value: stats.data?.municipalities ?? 0, icon: MapPin, display: undefined },
+    { label: "Dokumente", value: stats.data?.documents ?? 0, icon: FileText, display: undefined },
+    { label: "Wissenseinträge", value: stats.data?.entries ?? 0, icon: BookOpen, display: undefined },
+    { label: "Geprüfte Einträge", value: stats.data?.verified ?? 0, icon: ShieldCheck, display: verifiedTile },
   ];
 
   return (
