@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { ScenarioComparison } from "@/components/scenario-comparison";
 import { runKnowledgeAnalysis } from "@/lib/analyze-knowledge.functions";
 import { DevelopmentScoreCard } from "@/components/development-score-card";
 import { SwissMap } from "@/components/swiss-map";
@@ -327,6 +328,14 @@ function AnalysisDetailPage() {
               })}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Varianten */}
+        <TabsContent value="scenarios" className="space-y-4">
+          <ScenarioComparison
+            analysisId={analysis.id as string}
+            organizationId={analysis.organization_id as string}
+          />
         </TabsContent>
 
         {/* Bericht */}
