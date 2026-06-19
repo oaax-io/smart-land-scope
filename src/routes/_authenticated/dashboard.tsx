@@ -381,7 +381,7 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
         </div>
 
         {open && results.length > 0 && !busy && (
-          <Card className="absolute left-0 right-0 top-full z-20 mt-2 max-h-80 overflow-y-auto p-1 shadow-xl">
+          <Card className="absolute left-0 right-0 top-full z-[9999] mt-2 max-h-80 overflow-y-auto p-1 shadow-2xl">
             {results.map((r, i) => (
               <button
                 key={`${r.featureId ?? "x"}-${i}`}
@@ -427,7 +427,7 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
           </div>
 
           {open && results.length > 0 && !busy && (
-            <Card className="absolute left-0 right-0 top-full z-20 mt-1 max-h-80 overflow-y-auto p-1 shadow-lg">
+            <Card className="absolute left-0 right-0 top-full z-[9999] mt-1 max-h-80 overflow-y-auto p-1 shadow-2xl">
               {results.map((r, i) => (
                 <button
                   key={`${r.featureId ?? "x"}-${i}`}
