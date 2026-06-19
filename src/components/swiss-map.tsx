@@ -201,7 +201,7 @@ export function SwissMap({
           {...viewState}
           onMove={(evt) => setViewState(evt.viewState)}
           onClick={handleMapClick}
-          mapStyle={SWISSTOPO_STYLE as any}
+          mapStyle={buildMapStyle(baseLayer) as any}
           cursor={mode === "interactive" ? "crosshair" : "default"}
           attributionControl={{ compact: true }}
           style={{ width: "100%", height: "100%" }}
@@ -213,6 +213,85 @@ export function SwissMap({
             </Marker>
           )}
         </Map>
+
+        {/* Layer-Umschalter */}
+        <div className="absolute left-2 top-2 z-10 flex overflow-hidden rounded-md border bg-background/95 shadow-sm backdrop-blur">
+          <button
+            type="button"
+            onClick={() => setBaseLayer("cadastral")}
+            className={cn(
+              "px-2.5 py-1 text-xs font-medium transition-colors",
+              baseLayer === "cadastral" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+            )}
+          >
+            Parzellen
+          </button>
+          <button
+            type="button"
+            onClick={() => setBaseLayer("aerial")}
+            className={cn(
+              "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+              baseLayer === "aerial" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+            )}
+          >
+            Luftbild
+          </button>
+        </div>
+
+        {/* Aktionen rechts oben (unter NavigationControl) */}
+        {allowExpand && (
+          <div className="absolute right-2 top-2 z-10 flex gap-1">
+            <Dialog open={expanded} onOpenChange={setExpanded}>
+              <DialogTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="secondary"
+                  className="h-8 w-8 shadow-sm"
+                  title="Karte vergrössern"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-[95vw] sm:max-w-6xl p-4">
+                <DialogHeader>
+                  <DialogTitle>Karte — swisstopo</DialogTitle>
+                </DialogHeader>
+                <SwissMap
+                  mode={mode}
+                  lat={marker?.lat ?? lat}
+                  lng={marker?.lng ?? lng}
+                  onParcelSelected={(d) => {
+                    setMarker({ lat: d.lat, lng: d.lng });
+                    setViewState((v) => ({ ...v, longitude: d.lng, latitude: d.lat }));
+                    onParcelSelected?.(d);
+                  }}
+                  heightClassName="h-[75vh]"
+                  allowExpand={false}
+                />
+              </DialogContent>
+            </Dialog>
+            {marker && (
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                className="h-8 w-8 shadow-sm"
+                title="Auf Markierung zentrieren"
+                onClick={() =>
+                  setViewState((v) => ({
+                    ...v,
+                    longitude: marker.lng,
+                    latitude: marker.lat,
+                    zoom: Math.max(v.zoom, 17),
+                  }))
+                }
+              >
+                <Locate className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {mode === "interactive" && (
