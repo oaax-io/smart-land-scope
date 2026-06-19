@@ -124,6 +124,79 @@ function ReglementePage() {
 }
 
 // =====================================================================
+// Bulk: KI-Analyse für alle Reglemente ohne Wissenseinträge
+// =====================================================================
+
+function BulkExtractButton() {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listRegulationsMissingKnowledge);
+  const extractFn = useServerFn(extractRegulationDocument);
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; current: string } | null>(
+    null,
+  );
+
+  const run = async () => {
+    if (running) return;
+    setRunning(true);
+    try {
+      const docs = await listFn();
+      if (docs.length === 0) {
+        toast.success("Alle Reglemente haben bereits Wissenseinträge.");
+        setRunning(false);
+        return;
+      }
+      setProgress({ done: 0, total: docs.length, current: docs[0].municipalityName });
+      let ok = 0;
+      let fail = 0;
+      for (let i = 0; i < docs.length; i++) {
+        const d = docs[i];
+        setProgress({ done: i, total: docs.length, current: d.municipalityName });
+        try {
+          await extractFn({ data: { documentId: d.id } });
+          ok++;
+        } catch (e) {
+          fail++;
+          console.error("Extract failed for", d.municipalityName, e);
+        }
+      }
+      setProgress(null);
+      toast[fail === 0 ? "success" : "warning"](
+        `KI-Analyse abgeschlossen: ${ok} erfolgreich, ${fail} fehlgeschlagen.`,
+      );
+      qc.invalidateQueries({ queryKey: ["all-regdocs"] });
+      qc.invalidateQueries({ queryKey: ["kb-stats"] });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="outline"
+      size="lg"
+      onClick={run}
+      disabled={running}
+      className="gap-2"
+      title="Führt die KI-Analyse für alle Reglemente ohne Wissenseinträge aus"
+    >
+      {running ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {progress
+            ? `${progress.done}/${progress.total} — ${progress.current}`
+            : "Wird vorbereitet…"}
+        </>
+      ) : (
+        <>
+          <Sparkles className="h-4 w-4" /> KI-Analyse: ausstehende
+        </>
+      )}
+    </Button>
+  );
+}
+
+// =====================================================================
 // Dashboard
 // =====================================================================
 
