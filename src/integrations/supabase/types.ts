@@ -306,6 +306,109 @@ export type Database = {
           },
         ]
       }
+      analysis_scenarios: {
+        Row: {
+          ai_answer: Json | null
+          ai_summary: string | null
+          analysis_id: string
+          building_coverage_ratio: number | null
+          commercial_area: number | null
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          feasibility: string | null
+          floor_area: number | null
+          id: string
+          label: string
+          living_area: number | null
+          max_floors: number | null
+          max_height: number | null
+          organization_id: string
+          potential_level: Database["public"]["Enums"]["potential_level"] | null
+          risks: Json | null
+          status: Database["public"]["Enums"]["analysis_status"]
+          unit_count: number | null
+          updated_at: string
+          usage_assumption: string
+          usage_types: Json | null
+          utilization_ratio: number | null
+          zone: string | null
+        }
+        Insert: {
+          ai_answer?: Json | null
+          ai_summary?: string | null
+          analysis_id: string
+          building_coverage_ratio?: number | null
+          commercial_area?: number | null
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          feasibility?: string | null
+          floor_area?: number | null
+          id?: string
+          label: string
+          living_area?: number | null
+          max_floors?: number | null
+          max_height?: number | null
+          organization_id: string
+          potential_level?:
+            | Database["public"]["Enums"]["potential_level"]
+            | null
+          risks?: Json | null
+          status?: Database["public"]["Enums"]["analysis_status"]
+          unit_count?: number | null
+          updated_at?: string
+          usage_assumption: string
+          usage_types?: Json | null
+          utilization_ratio?: number | null
+          zone?: string | null
+        }
+        Update: {
+          ai_answer?: Json | null
+          ai_summary?: string | null
+          analysis_id?: string
+          building_coverage_ratio?: number | null
+          commercial_area?: number | null
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          feasibility?: string | null
+          floor_area?: number | null
+          id?: string
+          label?: string
+          living_area?: number | null
+          max_floors?: number | null
+          max_height?: number | null
+          organization_id?: string
+          potential_level?:
+            | Database["public"]["Enums"]["potential_level"]
+            | null
+          risks?: Json | null
+          status?: Database["public"]["Enums"]["analysis_status"]
+          unit_count?: number | null
+          updated_at?: string
+          usage_assumption?: string
+          usage_types?: Json | null
+          utilization_ratio?: number | null
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_scenarios_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_scenarios_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cantons: {
         Row: {
           code: string
