@@ -489,7 +489,7 @@ export function SwissMap({
                 <SelectTrigger className="h-8 w-[180px] border-0 bg-transparent px-2 text-sm focus:ring-0">
                   <SelectValue placeholder="Alle Kantone" />
                 </SelectTrigger>
-                <SelectContent align="end" className="max-h-80">
+                <SelectContent align="start" side="top" className="max-h-80">
                   <SelectItem value="all">
                     <span className="flex items-center gap-2">
                       <span className="inline-block h-2.5 w-2.5 rounded-sm bg-muted-foreground/40" />
