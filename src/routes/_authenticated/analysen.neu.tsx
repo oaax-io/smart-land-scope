@@ -187,7 +187,7 @@ function NewAnalysisWizard() {
                 onParcelSelected={(data) => {
                   const rawLabel = (data.address ?? "").trim();
                   const plzMatch = rawLabel.match(/\b(\d{4})\b/);
-                  const plz = plzMatch?.[1] ?? null;
+                  const plz = data.postalCode ?? plzMatch?.[1] ?? null;
                   // Strasse = Teil vor der PLZ (sonst kompletter Label)
                   const street = plz
                     ? rawLabel.split(plz)[0].replace(/[,\s]+$/, "").trim()
