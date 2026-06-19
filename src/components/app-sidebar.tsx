@@ -15,6 +15,7 @@ import {
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Analysen", url: "/analysen", icon: MapPinned },
+  { title: "Karte", url: "/analysen/karte", icon: MapIcon },
   { title: "Wissensdatenbank", url: "/wissen", icon: BookOpen },
   { title: "Projekte", url: "/projekte", icon: FolderKanban },
   { title: "Berichte", url: "/berichte", icon: FileText },
