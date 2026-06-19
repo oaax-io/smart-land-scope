@@ -86,6 +86,8 @@ export async function searchSwissLocation(query: string): Promise<SwissGeoSearch
 }
 
 export type SwissParcelInfo = {
+  address: string | null;
+  postalCode: string | null;
   parcelNumber: string | null;
   egrid: string | null;
   municipality: string | null;
@@ -96,9 +98,8 @@ export type SwissParcelInfo = {
 
 let _warnedAttrs = false;
 
-async function identifyAt(layers: string, lng: number, lat: number) {
+async function identifyAt(layers: string, lng: number, lat: number, tolerance = 2) {
   const { e, n } = wgs84ToLv95(lng, lat);
-  const tolerance = 2;
   const mapExtent = [e - 500, n - 500, e + 500, n + 500].join(",");
   const url = new URL("https://api3.geo.admin.ch/rest/services/api/MapServer/identify");
   url.searchParams.set("geometry", `${e},${n}`);
@@ -136,25 +137,56 @@ function normalizeCanton(value: string | null | undefined): string | null {
   return CANTON_NAME_TO_CODE[v.toLowerCase()] ?? null;
 }
 
+function cleanString(value: unknown): string | null {
+  if (value == null) return null;
+  const str = Array.isArray(value) ? value[0] : value;
+  const cleaned = String(str).trim();
+  return cleaned || null;
+}
+
+function normalizePostalCode(value: unknown): string | null {
+  const raw = cleanString(value);
+  return raw?.match(/\b\d{4}\b/)?.[0] ?? null;
+}
+
 export async function identifyParcelAt(lng: number, lat: number): Promise<SwissParcelInfo | null> {
   // 1) Parzelle aus Cadastralwebmap
-  const parcelResults = await identifyAt("all:ch.kantone.cadastralwebmap", lng, lat);
+  const parcelResults = await identifyAt("all:ch.kantone.cadastralwebmap-farbe", lng, lat);
   const feature = parcelResults?.[0];
   const attrs = feature?.attributes ?? {};
-  let parcelNumber: string | null = attrs.number ?? attrs.parcel_number ?? null;
-  let egrid: string | null = attrs.egris_egrid ?? attrs.egrid ?? null;
-  let municipality: string | null = attrs.municipality_name ?? null;
-  let canton: string | null = normalizeCanton(attrs.canton_abbreviation ?? attrs.canton);
+  let parcelNumber: string | null = cleanString(attrs.number ?? attrs.parcel_number);
+  let egrid: string | null = cleanString(attrs.egris_egrid ?? attrs.egrid);
+  let municipality: string | null = cleanString(attrs.municipality_name);
+  let canton: string | null = normalizeCanton(attrs.ak ?? attrs.canton_abbreviation ?? attrs.canton);
   const areaM2: number | null = attrs.area ?? null;
 
-  // 2) Fallback: Gemeinde- und Kantons-Grenzen (immer abfragen, wenn etwas fehlt)
+  // 2) Nächstgelegene Gebäudeadresse: wichtig bei direktem Klick in die Karte
+  const addressResults = await identifyAt("all:ch.bfs.gebaeude_wohnungs_register", lng, lat, 25);
+  const addressAttrs = addressResults?.[0]?.attributes ?? {};
+  const streetName = cleanString(addressAttrs.strname);
+  const houseNumber = cleanString(addressAttrs.deinr);
+  const composedAddress = [streetName, houseNumber].filter(Boolean).join(" ").trim();
+  const address =
+    cleanString(addressAttrs.strname_deinr) ??
+    (composedAddress || null);
+  const postalCode = normalizePostalCode(addressAttrs.dplz4 ?? addressAttrs.plz_plz6);
+  municipality = municipality ?? cleanString(addressAttrs.ggdename ?? addressAttrs.dplzname);
+  canton = canton ?? normalizeCanton(addressAttrs.gdekt ?? addressAttrs.kanton);
+  parcelNumber = parcelNumber ?? cleanString(addressAttrs.lparz);
+  egrid = egrid ?? cleanString(addressAttrs.egrid);
+
+  // 3) Fallback: Gemeinde- und Kantons-Grenzen (immer abfragen, wenn etwas fehlt)
   if (!municipality || !canton) {
     const boundaryResults = await identifyAt(
       "all:ch.swisstopo.swissboundaries3d-gemeinde-flaeche.fill,ch.swisstopo.swissboundaries3d-kanton-flaeche.fill",
       lng,
       lat,
     );
-    for (const r of boundaryResults ?? []) {
+    const orderedBoundaryResults = [
+      ...(boundaryResults ?? []).filter((r: any) => r.attributes?.is_current_jahr === true),
+      ...(boundaryResults ?? []).filter((r: any) => r.attributes?.is_current_jahr !== true),
+    ];
+    for (const r of orderedBoundaryResults) {
       const a = r.attributes ?? {};
       if (!municipality) {
         municipality = a.gemname ?? a.bez ?? a.name ?? municipality;
@@ -165,14 +197,16 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
     }
   }
 
-  if (!parcelNumber && !egrid && !municipality && !canton && !_warnedAttrs) {
+  if (!parcelNumber && !egrid && !municipality && !canton && !address && !postalCode && !_warnedAttrs) {
     _warnedAttrs = true;
     console.warn("Unbekannte Attribut-Struktur", attrs);
   }
 
-  if (!parcelNumber && !egrid && !municipality && !canton) return null;
+  if (!parcelNumber && !egrid && !municipality && !canton && !address && !postalCode) return null;
 
   return {
+    address,
+    postalCode,
     parcelNumber,
     egrid,
     municipality,
