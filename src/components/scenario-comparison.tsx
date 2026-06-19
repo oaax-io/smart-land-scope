@@ -171,7 +171,7 @@ export function ScenarioComparison({ analysisId, organizationId }: Props) {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
-                  {status === "failed" && s.error_message && (
+                  {status === "failed" && Boolean(s.error_message) && (
                     <p className="text-xs text-destructive">{String(s.error_message)}</p>
                   )}
                   {status === "completed" && (
