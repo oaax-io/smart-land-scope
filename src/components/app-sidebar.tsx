@@ -19,12 +19,12 @@ const items = [
   { title: "Wissensdatenbank", url: "/wissen", icon: BookOpen },
   { title: "Projekte", url: "/projekte", icon: FolderKanban },
   { title: "Berichte", url: "/berichte", icon: FileText },
-  { title: "Team", url: "/team", icon: Users },
   { title: "Einstellungen", url: "/einstellungen", icon: Settings },
 ] as const;
 
 const adminItems = [
   { title: "Reglemente", url: "/admin/reglemente", icon: BookOpen },
+  { title: "Team", url: "/admin/team", icon: Users },
 ] as const;
 
 export function AppSidebar() {

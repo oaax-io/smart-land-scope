@@ -14,7 +14,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedWissenRouteImport } from './routes/_authenticated/wissen'
-import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedRechnerRouteImport } from './routes/_authenticated/rechner'
 import { Route as AuthenticatedProjekteRouteImport } from './routes/_authenticated/projekte'
 import { Route as AuthenticatedEinstellungenRouteImport } from './routes/_authenticated/einstellungen'
@@ -23,6 +22,7 @@ import { Route as AuthenticatedBerichteRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAnalysenIndexRouteImport } from './routes/_authenticated/analysen.index'
 import { Route as AuthenticatedAnalysenNeuRouteImport } from './routes/_authenticated/analysen.neu'
 import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
+import { Route as AuthenticatedAdminTeamRouteImport } from './routes/_authenticated/admin.team'
 import { Route as AuthenticatedAdminReglementeRouteImport } from './routes/_authenticated/admin.reglemente'
 import { Route as AuthenticatedAnalysenIdBerichtRouteImport } from './routes/_authenticated/analysen.$id.bericht'
 
@@ -48,11 +48,6 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedWissenRoute = AuthenticatedWissenRouteImport.update({
   id: '/wissen',
   path: '/wissen',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedRechnerRoute = AuthenticatedRechnerRouteImport.update({
@@ -98,6 +93,11 @@ const AuthenticatedAnalysenIdRoute = AuthenticatedAnalysenIdRouteImport.update({
   path: '/analysen/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminTeamRoute = AuthenticatedAdminTeamRouteImport.update({
+  id: '/admin/team',
+  path: '/admin/team',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminReglementeRoute =
   AuthenticatedAdminReglementeRouteImport.update({
     id: '/admin/reglemente',
@@ -120,9 +120,9 @@ export interface FileRoutesByFullPath {
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
   '/rechner': typeof AuthenticatedRechnerRoute
-  '/team': typeof AuthenticatedTeamRoute
   '/wissen': typeof AuthenticatedWissenRoute
   '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
+  '/admin/team': typeof AuthenticatedAdminTeamRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/analysen/': typeof AuthenticatedAnalysenIndexRoute
@@ -137,9 +137,9 @@ export interface FileRoutesByTo {
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/projekte': typeof AuthenticatedProjekteRoute
   '/rechner': typeof AuthenticatedRechnerRoute
-  '/team': typeof AuthenticatedTeamRoute
   '/wissen': typeof AuthenticatedWissenRoute
   '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
+  '/admin/team': typeof AuthenticatedAdminTeamRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/analysen': typeof AuthenticatedAnalysenIndexRoute
@@ -156,9 +156,9 @@ export interface FileRoutesById {
   '/_authenticated/einstellungen': typeof AuthenticatedEinstellungenRoute
   '/_authenticated/projekte': typeof AuthenticatedProjekteRoute
   '/_authenticated/rechner': typeof AuthenticatedRechnerRoute
-  '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/wissen': typeof AuthenticatedWissenRoute
   '/_authenticated/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
+  '/_authenticated/admin/team': typeof AuthenticatedAdminTeamRoute
   '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/_authenticated/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/_authenticated/analysen/': typeof AuthenticatedAnalysenIndexRoute
@@ -175,9 +175,9 @@ export interface FileRouteTypes {
     | '/einstellungen'
     | '/projekte'
     | '/rechner'
-    | '/team'
     | '/wissen'
     | '/admin/reglemente'
+    | '/admin/team'
     | '/analysen/$id'
     | '/analysen/neu'
     | '/analysen/'
@@ -192,9 +192,9 @@ export interface FileRouteTypes {
     | '/einstellungen'
     | '/projekte'
     | '/rechner'
-    | '/team'
     | '/wissen'
     | '/admin/reglemente'
+    | '/admin/team'
     | '/analysen/$id'
     | '/analysen/neu'
     | '/analysen'
@@ -210,9 +210,9 @@ export interface FileRouteTypes {
     | '/_authenticated/einstellungen'
     | '/_authenticated/projekte'
     | '/_authenticated/rechner'
-    | '/_authenticated/team'
     | '/_authenticated/wissen'
     | '/_authenticated/admin/reglemente'
+    | '/_authenticated/admin/team'
     | '/_authenticated/analysen/$id'
     | '/_authenticated/analysen/neu'
     | '/_authenticated/analysen/'
@@ -261,13 +261,6 @@ declare module '@tanstack/react-router' {
       path: '/wissen'
       fullPath: '/wissen'
       preLoaderRoute: typeof AuthenticatedWissenRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/team': {
-      id: '/_authenticated/team'
-      path: '/team'
-      fullPath: '/team'
-      preLoaderRoute: typeof AuthenticatedTeamRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/rechner': {
@@ -326,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalysenIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/team': {
+      id: '/_authenticated/admin/team'
+      path: '/admin/team'
+      fullPath: '/admin/team'
+      preLoaderRoute: typeof AuthenticatedAdminTeamRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/reglemente': {
       id: '/_authenticated/admin/reglemente'
       path: '/admin/reglemente'
@@ -363,9 +363,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEinstellungenRoute: typeof AuthenticatedEinstellungenRoute
   AuthenticatedProjekteRoute: typeof AuthenticatedProjekteRoute
   AuthenticatedRechnerRoute: typeof AuthenticatedRechnerRoute
-  AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedWissenRoute: typeof AuthenticatedWissenRoute
   AuthenticatedAdminReglementeRoute: typeof AuthenticatedAdminReglementeRoute
+  AuthenticatedAdminTeamRoute: typeof AuthenticatedAdminTeamRoute
   AuthenticatedAnalysenIdRoute: typeof AuthenticatedAnalysenIdRouteWithChildren
   AuthenticatedAnalysenNeuRoute: typeof AuthenticatedAnalysenNeuRoute
   AuthenticatedAnalysenIndexRoute: typeof AuthenticatedAnalysenIndexRoute
@@ -377,9 +377,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEinstellungenRoute: AuthenticatedEinstellungenRoute,
   AuthenticatedProjekteRoute: AuthenticatedProjekteRoute,
   AuthenticatedRechnerRoute: AuthenticatedRechnerRoute,
-  AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedWissenRoute: AuthenticatedWissenRoute,
   AuthenticatedAdminReglementeRoute: AuthenticatedAdminReglementeRoute,
+  AuthenticatedAdminTeamRoute: AuthenticatedAdminTeamRoute,
   AuthenticatedAnalysenIdRoute: AuthenticatedAnalysenIdRouteWithChildren,
   AuthenticatedAnalysenNeuRoute: AuthenticatedAnalysenNeuRoute,
   AuthenticatedAnalysenIndexRoute: AuthenticatedAnalysenIndexRoute,
