@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
 import { z } from "zod";
+import type { Json } from "@/integrations/supabase/types";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 import { asRecord, parseJsonObject, readNumber, readString, readStringArray } from "./ai-json.server";
 
@@ -86,6 +87,14 @@ const RiskSchema = z.object({
   sources: z.array(SourceRefSchema).default([]).optional(),
 });
 
+const SetbacksSchema = z.object({
+  nord: z.number().nullable().default(null),
+  ost: z.number().nullable().default(null),
+  sued: z.number().nullable().default(null),
+  west: z.number().nullable().default(null),
+  notes: z.string().nullable().default(null),
+});
+
 const KnowledgeAnalysisSchema = z.object({
   feasibility: z.string().default(""),
   zone: z.string().default(""),
@@ -93,6 +102,11 @@ const KnowledgeAnalysisSchema = z.object({
   max_floors: z.number().default(0),
   max_height_m: z.number().default(0),
   utilization_ratio: z.number().default(0),
+  building_coverage_ratio: z.number().nullable().default(null),
+  setbacks: SetbacksSchema.nullable().default(null),
+  special_provisions: z.string().nullable().default(null),
+  noise_zone: z.string().nullable().default(null),
+  water_setbacks: z.string().nullable().default(null),
   floor_area_m2: z.number().default(0),
   living_area_m2: z.number().default(0),
   unit_count: z.number().default(0),
@@ -143,6 +157,19 @@ function normalizeKnowledgeAnalysis(value: unknown) {
     max_floors: readNumber(record.max_floors),
     max_height_m: readNumber(record.max_height_m),
     utilization_ratio: readNumber(record.utilization_ratio),
+    building_coverage_ratio: record.building_coverage_ratio == null ? null : clamp(readNumber(record.building_coverage_ratio), 0, 5),
+    setbacks: record.setbacks && typeof record.setbacks === "object" && !Array.isArray(record.setbacks)
+      ? {
+          nord: readNumber(asRecord(record.setbacks).nord) || null,
+          ost: readNumber(asRecord(record.setbacks).ost) || null,
+          sued: readNumber(asRecord(record.setbacks).sued) || null,
+          west: readNumber(asRecord(record.setbacks).west) || null,
+          notes: readString(asRecord(record.setbacks).notes) || null,
+        }
+      : null,
+    special_provisions: readString(record.special_provisions) || null,
+    noise_zone: readString(record.noise_zone) || null,
+    water_setbacks: readString(record.water_setbacks) || null,
     floor_area_m2: readNumber(record.floor_area_m2),
     living_area_m2: readNumber(record.living_area_m2),
     unit_count: readNumber(record.unit_count),
@@ -282,6 +309,12 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         "   Liefere diese Zahlen immer, sobald Fläche und AZ bekannt sind.",
         "4) Wie hoch ist das Entwicklungspotenzial? (potential_level)",
         "5) Welche Risiken bestehen? (risks)",
+        "6) Überbauungsziffer / Grundflächenziffer (building_coverage_ratio), falls in den Daten vorhanden.",
+        "7) Grenzabstände in Metern nach Himmelsrichtung, soweit ermittelbar (setbacks: nord/ost/sued/west). Wenn die Gemeinde keine richtungsspezifischen Angaben macht, sondern nur einen einheitlichen 'kleinen' und 'grossen' Grenzabstand, trage den kleinen Grenzabstand in alle vier Richtungen ein und vermerke das in setbacks.notes.",
+        "8) Sondervorschriften (special_provisions), z. B. Gestaltungsplanpflicht, Ensembleschutz, besondere Bauweisen.",
+        "9) Lärmempfindlichkeitsstufe (noise_zone), z. B. 'ES II' oder 'ES III', falls angegeben.",
+        "10) Gewässerabstand (water_setbacks) in Metern oder als Text, falls relevant/angegeben.",
+        "Wenn ein Wert in der Wissensdatenbank nicht vorkommt, gib null zurück statt zu schätzen — NICHT erfinden.",
         "Liste in 'sources' alle verwendeten Einträge mit Dokument-Titel und Artikel-Referenz.",
       ].join("\n");
 
@@ -301,6 +334,11 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
   "max_floors": 0,
   "max_height_m": 0,
   "utilization_ratio": 0,
+  "building_coverage_ratio": null,
+  "setbacks": { "nord": null, "ost": null, "sued": null, "west": null, "notes": null },
+  "special_provisions": null,
+  "noise_zone": null,
+  "water_setbacks": null,
   "floor_area_m2": 0,
   "living_area_m2": 0,
   "unit_count": 0,
@@ -347,6 +385,11 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
           max_floors: clamp(Math.round(object.max_floors), 0, 50),
           max_height: clamp(object.max_height_m, 0, 300),
           utilization_ratio: clamp(object.utilization_ratio, 0, 10),
+          building_coverage_ratio: object.building_coverage_ratio,
+          setbacks: object.setbacks as Json | null,
+          special_provisions: object.special_provisions,
+          noise_zone: object.noise_zone,
+          water_setbacks: object.water_setbacks,
           floor_area: clamp(floorArea, 0, 1_000_000),
           living_area: clamp(livingArea, 0, 1_000_000),
           unit_count: clamp(Math.round(unitCount), 0, 10_000),
