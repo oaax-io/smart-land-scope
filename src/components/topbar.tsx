@@ -28,7 +28,7 @@ export function Topbar() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name,last_name,email")
+        .select("first_name,last_name,email,avatar_url")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -36,9 +36,19 @@ export function Topbar() {
     },
   });
 
+  const { data: avatarUrl } = useQuery({
+    queryKey: ["avatar-url", profile?.avatar_url],
+    enabled: !!profile?.avatar_url,
+    queryFn: async () => {
+      const { data } = await supabase.storage.from("avatars").createSignedUrl(profile!.avatar_url!, 3600);
+      return data?.signedUrl ?? null;
+    },
+  });
+
   const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
   const displayName = fullName || user?.email || "Benutzer";
   const initial = (fullName ? fullName[0] : user?.email?.[0] ?? "U").toUpperCase();
+
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
