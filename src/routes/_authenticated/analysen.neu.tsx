@@ -185,17 +185,25 @@ function NewAnalysisWizard() {
                 lat={form.lat}
                 lng={form.lng}
                 onParcelSelected={(data) => {
+                  const rawLabel = (data.address ?? "").trim();
+                  const plzMatch = rawLabel.match(/\b(\d{4})\b/);
+                  const plz = plzMatch?.[1] ?? null;
+                  // Strasse = Teil vor der PLZ (sonst kompletter Label)
+                  const street = plz
+                    ? rawLabel.split(plz)[0].replace(/[,\s]+$/, "").trim()
+                    : rawLabel;
                   setForm((f) => ({
                     ...f,
                     lat: data.lat,
                     lng: data.lng,
                     egrid: data.egrid ?? f.egrid,
-                    address: f.address.trim().length === 0 ? (data.address ?? f.address) : f.address,
+                    address: street || rawLabel || f.address,
+                    postal_code: plz ?? f.postal_code,
                     municipality: data.municipality ?? f.municipality,
                     canton: data.canton ?? f.canton,
                     parcel_number: data.parcelNumber ?? f.parcel_number,
                   }));
-                  if (data.municipality) {
+                  if (data.municipality || data.canton) {
                     toast.success("Grundstück erkannt", {
                       description: [data.municipality, data.canton].filter(Boolean).join(", "),
                     });
