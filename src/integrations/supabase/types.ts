@@ -948,7 +948,7 @@ export type Database = {
         | "completed"
         | "failed"
         | "draft"
-      app_role: "admin" | "owner" | "member"
+      app_role: "admin" | "owner" | "member" | "platform_admin"
       extraction_status: "pending" | "processing" | "completed" | "failed"
       feedback_category: "bug" | "feature" | "question" | "other"
       feedback_priority: "low" | "medium" | "high" | "urgent"
@@ -1110,7 +1110,7 @@ export const Constants = {
         "failed",
         "draft",
       ],
-      app_role: ["admin", "owner", "member"],
+      app_role: ["admin", "owner", "member", "platform_admin"],
       extraction_status: ["pending", "processing", "completed", "failed"],
       feedback_category: ["bug", "feature", "question", "other"],
       feedback_priority: ["low", "medium", "high", "urgent"],
