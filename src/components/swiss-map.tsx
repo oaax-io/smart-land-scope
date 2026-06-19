@@ -1,9 +1,17 @@
 import { useState, useCallback, useRef } from "react";
 import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { MapPin, Search, Loader2 } from "lucide-react";
+import { MapPin, Search, Loader2, Maximize2, Locate } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   searchSwissLocation,
@@ -12,34 +20,38 @@ import {
   type SwissParcelInfo,
 } from "@/lib/swiss-geo";
 
-// swisstopo WMTS — Amtliche Vermessung (Cadastral Webmap, farbig) mit Parzellengrenzen
-const SWISSTOPO_STYLE = {
-  version: 8 as const,
-  sources: {
-    "swisstopo-base": {
-      type: "raster" as const,
-      tiles: [
-        "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/{z}/{x}/{y}.jpeg",
-      ],
-      tileSize: 256,
-      attribution: "© swisstopo",
-      maxzoom: 18,
+// swisstopo WMTS — Kartenstile
+function buildMapStyle(base: "cadastral" | "aerial") {
+  const baseTiles =
+    base === "aerial"
+      ? "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg"
+      : "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/{z}/{x}/{y}.jpeg";
+  return {
+    version: 8 as const,
+    sources: {
+      "swisstopo-base": {
+        type: "raster" as const,
+        tiles: [baseTiles],
+        tileSize: 256,
+        attribution: "© swisstopo",
+        maxzoom: 18,
+      },
+      "swisstopo-cadastral": {
+        type: "raster" as const,
+        tiles: [
+          "https://wmts.geo.admin.ch/1.0.0/ch.kantone.cadastralwebmap-farbe/default/current/3857/{z}/{x}/{y}.png",
+        ],
+        tileSize: 256,
+        attribution: "© swisstopo / Kantone (Amtliche Vermessung)",
+        maxzoom: 19,
+      },
     },
-    "swisstopo-cadastral": {
-      type: "raster" as const,
-      tiles: [
-        "https://wmts.geo.admin.ch/1.0.0/ch.kantone.cadastralwebmap-farbe/default/current/3857/{z}/{x}/{y}.png",
-      ],
-      tileSize: 256,
-      attribution: "© swisstopo / Kantone (Amtliche Vermessung)",
-      maxzoom: 19,
-    },
-  },
-  layers: [
-    { id: "base-layer", type: "raster" as const, source: "swisstopo-base" },
-    { id: "cadastral-layer", type: "raster" as const, source: "swisstopo-cadastral" },
-  ],
-};
+    layers: [
+      { id: "base-layer", type: "raster" as const, source: "swisstopo-base" },
+      { id: "cadastral-layer", type: "raster" as const, source: "swisstopo-cadastral" },
+    ],
+  };
+}
 
 
 const DEFAULT_VIEW = { longitude: 8.2275, latitude: 46.8182, zoom: 7 };
@@ -59,6 +71,7 @@ type SwissMapProps = {
   }) => void;
   className?: string;
   heightClassName?: string;
+  allowExpand?: boolean;
 };
 
 export function SwissMap({
@@ -68,7 +81,10 @@ export function SwissMap({
   onParcelSelected,
   className,
   heightClassName = "h-80",
+  allowExpand = true,
 }: SwissMapProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
   const mapRef = useRef<MapRef | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SwissGeoSearchResult[]>([]);
@@ -185,7 +201,7 @@ export function SwissMap({
           {...viewState}
           onMove={(evt) => setViewState(evt.viewState)}
           onClick={handleMapClick}
-          mapStyle={SWISSTOPO_STYLE as any}
+          mapStyle={buildMapStyle(baseLayer) as any}
           cursor={mode === "interactive" ? "crosshair" : "default"}
           attributionControl={{ compact: true }}
           style={{ width: "100%", height: "100%" }}
@@ -197,6 +213,85 @@ export function SwissMap({
             </Marker>
           )}
         </Map>
+
+        {/* Layer-Umschalter */}
+        <div className="absolute left-2 top-2 z-10 flex overflow-hidden rounded-md border bg-background/95 shadow-sm backdrop-blur">
+          <button
+            type="button"
+            onClick={() => setBaseLayer("cadastral")}
+            className={cn(
+              "px-2.5 py-1 text-xs font-medium transition-colors",
+              baseLayer === "cadastral" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+            )}
+          >
+            Parzellen
+          </button>
+          <button
+            type="button"
+            onClick={() => setBaseLayer("aerial")}
+            className={cn(
+              "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+              baseLayer === "aerial" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+            )}
+          >
+            Luftbild
+          </button>
+        </div>
+
+        {/* Aktionen rechts oben (unter NavigationControl) */}
+        {allowExpand && (
+          <div className="absolute right-2 top-2 z-10 flex gap-1">
+            <Dialog open={expanded} onOpenChange={setExpanded}>
+              <DialogTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="secondary"
+                  className="h-8 w-8 shadow-sm"
+                  title="Karte vergrössern"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-[95vw] sm:max-w-6xl p-4">
+                <DialogHeader>
+                  <DialogTitle>Karte — swisstopo</DialogTitle>
+                </DialogHeader>
+                <SwissMap
+                  mode={mode}
+                  lat={marker?.lat ?? lat}
+                  lng={marker?.lng ?? lng}
+                  onParcelSelected={(d) => {
+                    setMarker({ lat: d.lat, lng: d.lng });
+                    setViewState((v) => ({ ...v, longitude: d.lng, latitude: d.lat }));
+                    onParcelSelected?.(d);
+                  }}
+                  heightClassName="h-[75vh]"
+                  allowExpand={false}
+                />
+              </DialogContent>
+            </Dialog>
+            {marker && (
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                className="h-8 w-8 shadow-sm"
+                title="Auf Markierung zentrieren"
+                onClick={() =>
+                  setViewState((v) => ({
+                    ...v,
+                    longitude: marker.lng,
+                    latitude: marker.lat,
+                    zoom: Math.max(v.zoom, 17),
+                  }))
+                }
+              >
+                <Locate className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {mode === "interactive" && (
