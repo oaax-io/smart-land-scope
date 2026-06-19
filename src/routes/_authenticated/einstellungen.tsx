@@ -351,13 +351,27 @@ function OrganizationCard() {
     mutationFn: async () => {
       if (!currentOrgId) throw new Error("Keine Organisation aktiv");
       if (!form.name.trim()) throw new Error("Name darf nicht leer sein");
-      const payload: Record<string, string | null> = {};
-      (Object.keys(form) as (keyof OrgForm)[]).forEach((k) => {
-        const v = form[k];
-        payload[k] = typeof v === "string" ? (v.trim() || null) : v;
-      });
-      const { error } = await supabase.from("organizations").update(payload).eq("id", currentOrgId);
+      const t = (s: string) => (s.trim() ? s.trim() : null);
+      const { error } = await supabase
+        .from("organizations")
+        .update({
+          name: form.name.trim(),
+          address_line1: t(form.address_line1),
+          address_line2: t(form.address_line2),
+          postal_code: t(form.postal_code),
+          city: t(form.city),
+          country: t(form.country),
+          phone: t(form.phone),
+          email: t(form.email),
+          website: t(form.website),
+          vat_number: t(form.vat_number),
+          contact_name: t(form.contact_name),
+          contact_email: t(form.contact_email),
+          contact_phone: t(form.contact_phone),
+        })
+        .eq("id", currentOrgId);
       if (error) throw error;
+
 
     },
     onSuccess: () => {
