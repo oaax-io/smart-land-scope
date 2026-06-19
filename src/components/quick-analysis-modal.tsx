@@ -40,6 +40,7 @@ import {
   checkMunicipalityCoverage,
   runKnowledgeAnalysis,
 } from "@/lib/analyze-knowledge.functions";
+import type { Json } from "@/integrations/supabase/types";
 
 const KANTONE = [
   ["AG","Aargau"],["AI","Appenzell Innerrhoden"],["AR","Appenzell Ausserrhoden"],
