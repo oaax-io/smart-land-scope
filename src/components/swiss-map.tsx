@@ -199,7 +199,7 @@ export function SwissMap({
   );
 
   return (
-    <div className={cn(floatingSearch ? "relative" : "space-y-2", className)}>
+    <div className={cn(floatingSearch ? "relative h-full w-full" : "space-y-2", className)}>
       {!floatingSearch && searchBox}
 
       <div className={cn("relative overflow-hidden border", !floatingSearch && "rounded-md", heightClassName)}>
