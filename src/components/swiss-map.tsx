@@ -233,6 +233,7 @@ export function SwissMap({
         canton: null,
         parcelNumber: null,
         egrid: null,
+        geometry: null,
       });
     } finally {
       setIdentifying(false);
