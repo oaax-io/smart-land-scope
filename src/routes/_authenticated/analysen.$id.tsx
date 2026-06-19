@@ -197,9 +197,23 @@ function AnalysisDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <SwissMap mode="readonly" lat={analysis.lat as number} lng={analysis.lng as number} heightClassName="h-72" />
+                <SwissMap
+                  mode="readonly"
+                  lat={analysis.lat as number}
+                  lng={analysis.lng as number}
+                  heightClassName="h-72"
+                  parcelGeometry={analysis.parcel_geometry as { type: "Polygon"; coordinates: number[][][] } | null}
+                  setbacks={analysis.setbacks as { nord?: number | null; ost?: number | null; sued?: number | null; west?: number | null } | null}
+                />
                 {analysis.egrid && (
                   <p className="text-xs text-muted-foreground">E-GRID: {analysis.egrid as string}</p>
+                )}
+                {analysis.parcel_geometry != null && analysis.setbacks != null && (
+                  <p className="text-xs text-muted-foreground italic">
+                    Das eingezeichnete Baufeld ist eine vereinfachte, indikative Annäherung auf Basis des
+                    kleinsten bekannten Grenzabstands — keine rechtsverbindliche Baulinie. Massgebend sind
+                    immer die Angaben der zuständigen Gemeinde.
+                  </p>
                 )}
               </CardContent>
             </Card>
