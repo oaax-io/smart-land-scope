@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
-import { LogOut, User as UserIcon, Building2 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { LogOut, User as UserIcon, Building2, MessageSquare } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,24 @@ export function Topbar() {
   const { currentOrg, subscription } = useOrg();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("first_name,last_name,email")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
+  const displayName = fullName || user?.email || "Benutzer";
+  const initial = (fullName ? fullName[0] : user?.email?.[0] ?? "U").toUpperCase();
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -53,17 +71,26 @@ export function Topbar() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="gap-2">
             <div className="grid h-7 w-7 place-items-center rounded-full bg-secondary text-secondary-foreground text-xs font-semibold">
-              {(user?.email?.[0] ?? "U").toUpperCase()}
+              {initial}
             </div>
-            <span className="hidden max-w-[160px] truncate text-sm sm:inline">{user?.email}</span>
+            <span className="hidden max-w-[160px] truncate text-sm sm:inline">{displayName}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
+          <DropdownMenuLabel className="flex flex-col">
+            <span className="truncate">{displayName}</span>
+            {fullName && user?.email && (
+              <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+            )}
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => navigate({ to: "/einstellungen" })}>
             <UserIcon className="mr-2 h-4 w-4" />
             Profil & Einstellungen
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate({ to: "/feedback" })}>
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Feedback
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
