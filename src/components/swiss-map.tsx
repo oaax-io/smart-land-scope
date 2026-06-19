@@ -240,7 +240,7 @@ export function SwissMap({
 
         {/* Aktionen rechts oben (unter NavigationControl) */}
         {allowExpand && (
-          <div className="absolute right-2 top-2 z-10 flex gap-1">
+          <div className="absolute right-2 bottom-8 z-10 flex flex-col gap-1">
             <Dialog open={expanded} onOpenChange={setExpanded}>
               <DialogTrigger asChild>
                 <Button
