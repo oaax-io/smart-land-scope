@@ -373,7 +373,7 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => results.length > 0 && setOpen(true)}
             placeholder="Adresse, Ort oder Parzellennummer eingeben (z. B. Bahnhofstrasse 1, Luzern)"
-            className="h-14 rounded-xl border-0 bg-background pl-12 pr-12 text-base text-foreground shadow-xl placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-secondary sm:text-lg"
+            className="h-14 rounded-xl border border-primary-foreground/20 bg-background/70 pl-12 pr-12 text-base text-foreground shadow-xl backdrop-blur-md placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-secondary sm:text-lg"
             disabled={busy}
           />
           {(searching || busy) && (
