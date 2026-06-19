@@ -73,6 +73,7 @@ type SwissMapProps = {
   className?: string;
   heightClassName?: string;
   allowExpand?: boolean;
+  floatingSearch?: boolean;
 };
 
 export function SwissMap({
@@ -83,6 +84,7 @@ export function SwissMap({
   className,
   heightClassName = "h-80",
   allowExpand = true,
+  floatingSearch = false,
 }: SwissMapProps) {
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
@@ -168,37 +170,44 @@ export function SwissMap({
     await resolveParcelAt(lat, lng, null);
   }
 
-  return (
-    <div className={cn("space-y-2", className)}>
-      {mode === "interactive" && (
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Adresse, Ort oder Parzelle suchen …"
-            value={searchQuery}
-            onChange={(e) => runSearch(e.target.value)}
-            className="pl-9"
-          />
-          {searching && (
-            <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-          )}
-          {searchResults.length > 0 && (
-            <Card className="absolute z-20 mt-1 max-h-72 w-full overflow-auto p-1 shadow-lg">
-              {searchResults.map((r, i) => (
-                <button
-                  key={`${r.featureId ?? i}-${i}`}
-                  type="button"
-                  className="block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-accent"
-                  onClick={() => selectSearchResult(r)}
-                  dangerouslySetInnerHTML={{ __html: r.label }}
-                />
-              ))}
-            </Card>
-          )}
-        </div>
+  const searchBox = mode === "interactive" && (
+    <div className={cn("relative", floatingSearch && "w-full max-w-md")}>
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        placeholder="Adresse, Ort oder Parzelle suchen …"
+        value={searchQuery}
+        onChange={(e) => runSearch(e.target.value)}
+        className={cn("pl-9", floatingSearch && "h-11 bg-background/95 shadow-lg backdrop-blur")}
+      />
+      {searching && (
+        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
       )}
+      {searchResults.length > 0 && (
+        <Card className="absolute z-20 mt-1 max-h-72 w-full overflow-auto p-1 shadow-lg">
+          {searchResults.map((r, i) => (
+            <button
+              key={`${r.featureId ?? i}-${i}`}
+              type="button"
+              className="block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-accent"
+              onClick={() => selectSearchResult(r)}
+              dangerouslySetInnerHTML={{ __html: r.label }}
+            />
+          ))}
+        </Card>
+      )}
+    </div>
+  );
 
-      <div className={cn("relative overflow-hidden rounded-md border", heightClassName)}>
+  return (
+    <div className={cn(floatingSearch ? "relative" : "space-y-2", className)}>
+      {!floatingSearch && searchBox}
+
+      <div className={cn("relative overflow-hidden border", !floatingSearch && "rounded-md", heightClassName)}>
+        {floatingSearch && searchBox && (
+          <div className="absolute left-1/2 top-3 z-20 w-[min(90%,28rem)] -translate-x-1/2">
+            {searchBox}
+          </div>
+        )}
         <Map
           ref={mapRef}
           {...viewState}

@@ -20,6 +20,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedBerichteRouteImport } from './routes/_authenticated/berichte'
 import { Route as AuthenticatedAnalysenIndexRouteImport } from './routes/_authenticated/analysen.index'
 import { Route as AuthenticatedAnalysenNeuRouteImport } from './routes/_authenticated/analysen.neu'
+import { Route as AuthenticatedAnalysenKarteRouteImport } from './routes/_authenticated/analysen.karte'
 import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
 import { Route as AuthenticatedAdminTeamRouteImport } from './routes/_authenticated/admin.team'
 import { Route as AuthenticatedAdminReglementeRouteImport } from './routes/_authenticated/admin.reglemente'
@@ -82,6 +83,12 @@ const AuthenticatedAnalysenNeuRoute =
     path: '/analysen/neu',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAnalysenKarteRoute =
+  AuthenticatedAnalysenKarteRouteImport.update({
+    id: '/analysen/karte',
+    path: '/analysen/karte',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAnalysenIdRoute = AuthenticatedAnalysenIdRouteImport.update({
   id: '/analysen/$id',
   path: '/analysen/$id',
@@ -117,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
   '/admin/team': typeof AuthenticatedAdminTeamRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
+  '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/analysen/': typeof AuthenticatedAnalysenIndexRoute
   '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
@@ -133,6 +141,7 @@ export interface FileRoutesByTo {
   '/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
   '/admin/team': typeof AuthenticatedAdminTeamRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
+  '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/analysen': typeof AuthenticatedAnalysenIndexRoute
   '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
@@ -151,6 +160,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/reglemente': typeof AuthenticatedAdminReglementeRoute
   '/_authenticated/admin/team': typeof AuthenticatedAdminTeamRoute
   '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
+  '/_authenticated/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/_authenticated/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/_authenticated/analysen/': typeof AuthenticatedAnalysenIndexRoute
   '/_authenticated/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/admin/reglemente'
     | '/admin/team'
     | '/analysen/$id'
+    | '/analysen/karte'
     | '/analysen/neu'
     | '/analysen/'
     | '/analysen/$id/bericht'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/admin/reglemente'
     | '/admin/team'
     | '/analysen/$id'
+    | '/analysen/karte'
     | '/analysen/neu'
     | '/analysen'
     | '/analysen/$id/bericht'
@@ -202,6 +214,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/reglemente'
     | '/_authenticated/admin/team'
     | '/_authenticated/analysen/$id'
+    | '/_authenticated/analysen/karte'
     | '/_authenticated/analysen/neu'
     | '/_authenticated/analysen/'
     | '/_authenticated/analysen/$id/bericht'
@@ -293,6 +306,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalysenNeuRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/analysen/karte': {
+      id: '/_authenticated/analysen/karte'
+      path: '/analysen/karte'
+      fullPath: '/analysen/karte'
+      preLoaderRoute: typeof AuthenticatedAnalysenKarteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/analysen/$id': {
       id: '/_authenticated/analysen/$id'
       path: '/analysen/$id'
@@ -347,6 +367,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminReglementeRoute: typeof AuthenticatedAdminReglementeRoute
   AuthenticatedAdminTeamRoute: typeof AuthenticatedAdminTeamRoute
   AuthenticatedAnalysenIdRoute: typeof AuthenticatedAnalysenIdRouteWithChildren
+  AuthenticatedAnalysenKarteRoute: typeof AuthenticatedAnalysenKarteRoute
   AuthenticatedAnalysenNeuRoute: typeof AuthenticatedAnalysenNeuRoute
   AuthenticatedAnalysenIndexRoute: typeof AuthenticatedAnalysenIndexRoute
 }
@@ -360,6 +381,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminReglementeRoute: AuthenticatedAdminReglementeRoute,
   AuthenticatedAdminTeamRoute: AuthenticatedAdminTeamRoute,
   AuthenticatedAnalysenIdRoute: AuthenticatedAnalysenIdRouteWithChildren,
+  AuthenticatedAnalysenKarteRoute: AuthenticatedAnalysenKarteRoute,
   AuthenticatedAnalysenNeuRoute: AuthenticatedAnalysenNeuRoute,
   AuthenticatedAnalysenIndexRoute: AuthenticatedAnalysenIndexRoute,
 }

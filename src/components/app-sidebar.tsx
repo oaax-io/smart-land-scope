@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, MapPinned, FolderKanban, FileText, Users, Settings, Layers, BookOpen } from "lucide-react";
+import { LayoutDashboard, MapPinned, FolderKanban, FileText, Users, Settings, Layers, BookOpen, Map as MapIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +15,7 @@ import {
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Analysen", url: "/analysen", icon: MapPinned },
+  { title: "Karte", url: "/analysen/karte", icon: MapIcon },
   { title: "Wissensdatenbank", url: "/wissen", icon: BookOpen },
   { title: "Projekte", url: "/projekte", icon: FolderKanban },
   { title: "Berichte", url: "/berichte", icon: FileText },
@@ -46,7 +47,11 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
-                const active = pathname === item.url || pathname.startsWith(item.url + "/");
+                const matches = pathname === item.url || pathname.startsWith(item.url + "/");
+                const moreSpecific = items.some(
+                  (o) => o.url !== item.url && o.url.startsWith(item.url + "/") && (pathname === o.url || pathname.startsWith(o.url + "/")),
+                );
+                const active = matches && !moreSpecific;
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
