@@ -157,6 +157,19 @@ function normalizeKnowledgeAnalysis(value: unknown) {
     max_floors: readNumber(record.max_floors),
     max_height_m: readNumber(record.max_height_m),
     utilization_ratio: readNumber(record.utilization_ratio),
+    building_coverage_ratio: record.building_coverage_ratio == null ? null : clamp(readNumber(record.building_coverage_ratio), 0, 5),
+    setbacks: record.setbacks && typeof record.setbacks === "object" && !Array.isArray(record.setbacks)
+      ? {
+          nord: readNumber(asRecord(record.setbacks).nord) || null,
+          ost: readNumber(asRecord(record.setbacks).ost) || null,
+          sued: readNumber(asRecord(record.setbacks).sued) || null,
+          west: readNumber(asRecord(record.setbacks).west) || null,
+          notes: readString(asRecord(record.setbacks).notes) || null,
+        }
+      : null,
+    special_provisions: readString(record.special_provisions) || null,
+    noise_zone: readString(record.noise_zone) || null,
+    water_setbacks: readString(record.water_setbacks) || null,
     floor_area_m2: readNumber(record.floor_area_m2),
     living_area_m2: readNumber(record.living_area_m2),
     unit_count: readNumber(record.unit_count),
