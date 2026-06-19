@@ -247,6 +247,73 @@ export function SwissMap({
     await resolveParcelAt(lat, lng, null);
   }
 
+  // --- Parzellen-Hover (gedrosselt, nur ab Zoom 16.5) ---
+  const [hoverParcel, setHoverParcel] = useState<ParcelOutline | null>(null);
+  const hoverTimer = useRef<number | null>(null);
+  const hoverAbort = useRef<AbortController | null>(null);
+  const lastHoverKey = useRef<string | null>(null);
+
+  const handleMapMouseMove = useCallback(
+    (e: { lngLat: { lng: number; lat: number } }) => {
+      if (mode !== "interactive") return;
+      const zoom = mapRef.current?.getMap().getZoom() ?? 0;
+      if (zoom < 16.5) {
+        if (hoverParcel) setHoverParcel(null);
+        return;
+      }
+      const { lng, lat } = e.lngLat;
+      if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
+      hoverTimer.current = window.setTimeout(async () => {
+        const key = `${lng.toFixed(4)}|${lat.toFixed(4)}`;
+        if (key === lastHoverKey.current) return;
+        lastHoverKey.current = key;
+        hoverAbort.current?.abort();
+        const ctrl = new AbortController();
+        hoverAbort.current = ctrl;
+        try {
+          const outline = await getParcelOutlineAt(lng, lat, ctrl.signal);
+          if (ctrl.signal.aborted) return;
+          setHoverParcel(outline);
+        } catch {
+          /* ignored */
+        }
+      }, 110);
+    },
+    [mode, hoverParcel],
+  );
+
+  const handleMapMouseLeave = useCallback(() => {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
+    hoverAbort.current?.abort();
+    lastHoverKey.current = null;
+    setHoverParcel(null);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
+      hoverAbort.current?.abort();
+    },
+    [],
+  );
+
+  const hoverFC = useMemo(
+    () =>
+      hoverParcel
+        ? {
+            type: "FeatureCollection" as const,
+            features: [
+              {
+                type: "Feature" as const,
+                properties: {},
+                geometry: hoverParcel.geometry,
+              },
+            ],
+          }
+        : null,
+    [hoverParcel],
+  );
+
   const searchBox = mode === "interactive" && (
     <div className={cn("relative", floatingSearch && "w-full max-w-md")}>
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
