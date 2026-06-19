@@ -698,6 +698,21 @@ export function SwissMap({
         )}
       </div>
 
+      {buildableField && (
+        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-4 bg-sky-500" />
+            Parzellengrenze
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-4 rounded-sm border border-emerald-600 bg-emerald-500/25" />
+            Indikatives Baufeld (kleinster bekannter Grenzabstand)
+          </span>
+        </div>
+      )}
+
+
+
       {mode === "interactive" && (
         <p className="text-xs text-muted-foreground">
           {identifying
