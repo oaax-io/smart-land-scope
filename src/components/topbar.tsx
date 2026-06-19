@@ -80,8 +80,8 @@ export function Topbar() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="gap-2">
-            <div className="grid h-7 w-7 place-items-center rounded-full bg-secondary text-secondary-foreground text-xs font-semibold">
-              {initial}
+            <div className="grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-secondary text-secondary-foreground text-xs font-semibold">
+              {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
             </div>
             <span className="hidden max-w-[160px] truncate text-sm sm:inline">{displayName}</span>
           </Button>
