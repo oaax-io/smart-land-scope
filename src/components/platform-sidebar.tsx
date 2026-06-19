@@ -13,13 +13,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-const items = [
+const items: { title: string; url: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
   { title: "Übersicht", url: "/platform", icon: LayoutDashboard, exact: true },
   { title: "Organisationen", url: "/platform/organisationen", icon: Building2 },
   { title: "Benutzer", url: "/platform/benutzer", icon: Users },
   { title: "Reglemente", url: "/platform/reglemente", icon: BookOpen },
-  { title: "Feedback", url: "/feedback", icon: MessageSquare, exact: false, external: true },
-] as const;
+  { title: "Feedback", url: "/feedback", icon: MessageSquare },
+];
 
 export function PlatformSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
