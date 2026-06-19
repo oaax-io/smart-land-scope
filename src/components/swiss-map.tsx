@@ -124,6 +124,8 @@ export function SwissMap({
   allowExpand = true,
   floatingSearch = false,
   showCantons = false,
+  parcelGeometry = null,
+  setbacks = null,
 }: SwissMapProps) {
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
