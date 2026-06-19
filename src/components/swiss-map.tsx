@@ -7,6 +7,7 @@ import Map, {
   type MapRef,
 } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
+import * as turf from "@turf/turf";
 import { MapPin, Search, Loader2, Maximize2, Locate } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -93,6 +94,7 @@ type SwissMapProps = {
     canton: string | null;
     parcelNumber: string | null;
     egrid: string | null;
+    geometry: { type: "Polygon"; coordinates: number[][][] } | null;
   }) => void;
   className?: string;
   heightClassName?: string;
@@ -100,6 +102,10 @@ type SwissMapProps = {
   floatingSearch?: boolean;
   /** Show coloured cantons overlay and Kanton filter (bottom-right). */
   showCantons?: boolean;
+  /** Bereits gespeicherte Parzellen-Geometrie (aus der Datenbank) — für die readonly-Detailansicht. */
+  parcelGeometry?: { type: "Polygon"; coordinates: number[][][] } | null;
+  /** Grenzabstände in Metern, für die vereinfachte Baufeld-Berechnung. */
+  setbacks?: { nord?: number | null; ost?: number | null; sued?: number | null; west?: number | null } | null;
 };
 
 type CantonFeature = {
@@ -119,6 +125,8 @@ export function SwissMap({
   allowExpand = true,
   floatingSearch = false,
   showCantons = false,
+  parcelGeometry = null,
+  setbacks = null,
 }: SwissMapProps) {
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
@@ -214,6 +222,7 @@ export function SwissMap({
         canton: parcel?.canton ?? null,
         parcelNumber: parcel?.parcelNumber ?? null,
         egrid: parcel?.egrid ?? null,
+        geometry: parcel?.geometry ?? null,
       });
     } catch {
       onParcelSelected?.({
@@ -225,6 +234,7 @@ export function SwissMap({
         canton: null,
         parcelNumber: null,
         egrid: null,
+        geometry: null,
       });
     } finally {
       setIdentifying(false);
@@ -317,6 +327,34 @@ export function SwissMap({
         : null,
     [hoverParcel],
   );
+
+  const selectedParcelFC = useMemo(
+    () =>
+      parcelGeometry
+        ? {
+            type: "FeatureCollection" as const,
+            features: [{ type: "Feature" as const, properties: {}, geometry: parcelGeometry }],
+          }
+        : null,
+    [parcelGeometry],
+  );
+
+  const buildableField = useMemo(() => {
+    if (!parcelGeometry || !setbacks) return null;
+    const values = [setbacks.nord, setbacks.ost, setbacks.sued, setbacks.west]
+      .filter((v): v is number => typeof v === "number" && v > 0);
+    if (values.length === 0) return null;
+    const minSetback = Math.min(...values);
+    try {
+      const feature = { type: "Feature" as const, properties: {}, geometry: parcelGeometry };
+      const buffered = turf.buffer(feature, -minSetback, { units: "meters" });
+      if (!buffered || buffered.geometry.type !== "Polygon") return null;
+      return { type: "FeatureCollection" as const, features: [buffered] };
+    } catch {
+      return null;
+    }
+  }, [parcelGeometry, setbacks]);
+
 
   const searchBox = mode === "interactive" && (
     <div className={cn("relative", floatingSearch && "w-full max-w-md")}>
@@ -449,6 +487,31 @@ export function SwissMap({
               />
             </Source>
           )}
+
+          {selectedParcelFC && (
+            <Source id="parcel-selected" type="geojson" data={selectedParcelFC as any}>
+              <Layer
+                id="parcel-selected-line"
+                type="line"
+                paint={{ "line-color": "#0ea5e9", "line-width": 2.5 }}
+              />
+            </Source>
+          )}
+          {buildableField && (
+            <Source id="buildable-field" type="geojson" data={buildableField as any}>
+              <Layer
+                id="buildable-field-fill"
+                type="fill"
+                paint={{ "fill-color": "#10b981", "fill-opacity": 0.25 }}
+              />
+              <Layer
+                id="buildable-field-line"
+                type="line"
+                paint={{ "line-color": "#059669", "line-width": 2, "line-dasharray": [2, 2] }}
+              />
+            </Source>
+          )}
+
 
           {marker && (
             <Marker longitude={marker.lng} latitude={marker.lat} anchor="bottom">
@@ -609,6 +672,8 @@ export function SwissMap({
                   heightClassName="h-[75vh]"
                   allowExpand={false}
                   showCantons={showCantons}
+                  parcelGeometry={parcelGeometry}
+                  setbacks={setbacks}
                 />
               </DialogContent>
             </Dialog>
@@ -634,6 +699,21 @@ export function SwissMap({
           </div>
         )}
       </div>
+
+      {buildableField && (
+        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-4 bg-sky-500" />
+            Parzellengrenze
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-4 rounded-sm border border-emerald-600 bg-emerald-500/25" />
+            Indikatives Baufeld (kleinster bekannter Grenzabstand)
+          </span>
+        </div>
+      )}
+
+
 
       {mode === "interactive" && (
         <p className="text-xs text-muted-foreground">

@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { useOrg } from "@/hooks/use-org";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import {
   checkMunicipalityCoverage,
   runKnowledgeAnalysis,
@@ -80,6 +81,7 @@ function NewAnalysisWizard() {
     lat: null as number | null,
     lng: null as number | null,
     egrid: null as string | null,
+    geometry: null as { type: "Polygon"; coordinates: number[][][] } | null,
   });
 
   const set = (k: "address" | "postal_code" | "municipality" | "canton" | "parcel_number" | "area_size", v: string) =>
@@ -130,6 +132,7 @@ function NewAnalysisWizard() {
           lat: form.lat,
           lng: form.lng,
           egrid: form.egrid,
+          parcel_geometry: form.geometry as Json | null,
           status: "processing",
           created_by: user?.id ?? null,
         })
@@ -197,6 +200,7 @@ function NewAnalysisWizard() {
                     lat: data.lat,
                     lng: data.lng,
                     egrid: data.egrid ?? f.egrid,
+                    geometry: data.geometry ?? f.geometry,
                     address: street || rawLabel || f.address,
                     postal_code: plz ?? f.postal_code,
                     municipality: data.municipality ?? f.municipality,

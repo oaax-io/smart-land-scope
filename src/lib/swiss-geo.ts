@@ -93,8 +93,18 @@ export type SwissParcelInfo = {
   municipality: string | null;
   canton: string | null;
   areaM2: number | null;
-  geometry: unknown | null;
+  geometry: { type: "Polygon"; coordinates: number[][][] } | null;
 };
+
+/** Wandelt Esri-JSON-Polygon-Rings (LV95) in GeoJSON-Polygon-Koordinaten (WGS84) um. */
+export function esriRingsToGeoJsonCoordinates(rings: number[][][]): number[][][] {
+  return rings.map((ring) =>
+    ring.map(([x, y]) => {
+      const { lng, lat } = lv95ToWgs84(x, y);
+      return [lng, lat];
+    }),
+  );
+}
 
 let _warnedAttrs = false;
 
@@ -153,12 +163,7 @@ export async function getParcelOutlineAt(
   if (!parcelFeature?.geometry?.rings) return null;
 
   const rings: number[][][] = parcelFeature.geometry.rings;
-  const coords: number[][][] = rings.map((ring) =>
-    ring.map(([x, y]) => {
-      const { lng: lo, lat: la } = lv95ToWgs84(x, y);
-      return [lo, la];
-    }),
-  );
+  const coords = esriRingsToGeoJsonCoordinates(rings);
 
   const pa = parcelFeature.attributes ?? {};
 
@@ -272,6 +277,11 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
 
   if (!parcelNumber && !egrid && !municipality && !canton && !address && !postalCode) return null;
 
+  const geometry =
+    feature?.geometry?.rings
+      ? { type: "Polygon" as const, coordinates: esriRingsToGeoJsonCoordinates(feature.geometry.rings) }
+      : null;
+
   return {
     address,
     postalCode,
@@ -280,7 +290,7 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
     municipality,
     canton,
     areaM2,
-    geometry: feature?.geometry ?? null,
+    geometry,
   };
 }
 

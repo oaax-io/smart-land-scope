@@ -40,6 +40,7 @@ import {
   checkMunicipalityCoverage,
   runKnowledgeAnalysis,
 } from "@/lib/analyze-knowledge.functions";
+import type { Json } from "@/integrations/supabase/types";
 
 const KANTONE = [
   ["AG","Aargau"],["AI","Appenzell Innerrhoden"],["AR","Appenzell Ausserrhoden"],
@@ -74,6 +75,7 @@ export type QuickAnalysisInitial = {
   lat: number | null;
   lng: number | null;
   egrid: string | null;
+  geometry: { type: "Polygon"; coordinates: number[][][] } | null;
 };
 
 export function QuickAnalysisModal({
@@ -96,7 +98,7 @@ export function QuickAnalysisModal({
   const [form, setForm] = useState<QuickAnalysisInitial>({
     address: "", postal_code: "", municipality: "",
     canton: "", parcel_number: "", area_size: "",
-    lat: null, lng: null, egrid: null,
+    lat: null, lng: null, egrid: null, geometry: null,
   });
 
   // Re-seed form when a new selection opens the modal
@@ -150,6 +152,7 @@ export function QuickAnalysisModal({
           lat: form.lat,
           lng: form.lng,
           egrid: form.egrid,
+          parcel_geometry: form.geometry as Json | null,
           status: "processing",
           created_by: user?.id ?? null,
         })

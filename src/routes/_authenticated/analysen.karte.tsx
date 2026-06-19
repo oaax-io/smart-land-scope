@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SwissMap } from "@/components/swiss-map";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useOrg } from "@/hooks/use-org";
 import { useAuth } from "@/hooks/use-auth";
 import { runKnowledgeAnalysis } from "@/lib/analyze-knowledge.functions";
@@ -29,6 +30,7 @@ type Selected = {
   canton: string | null;
   parcelNumber: string | null;
   egrid: string | null;
+  geometry: { type: "Polygon"; coordinates: number[][][] } | null;
 };
 
 function KartePage() {
@@ -64,6 +66,7 @@ function KartePage() {
           lat: selected.lat,
           lng: selected.lng,
           egrid: selected.egrid,
+          parcel_geometry: selected.geometry as Json | null,
           status: "processing",
           created_by: user?.id ?? null,
         })
