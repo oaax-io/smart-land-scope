@@ -20,6 +20,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedBerichteRouteImport } from './routes/_authenticated/berichte'
 import { Route as AuthenticatedFeedbackIndexRouteImport } from './routes/_authenticated/feedback.index'
 import { Route as AuthenticatedAnalysenIndexRouteImport } from './routes/_authenticated/analysen.index'
+import { Route as AuthenticatedFeedbackIdRouteImport } from './routes/_authenticated/feedback.$id'
 import { Route as AuthenticatedAnalysenNeuRouteImport } from './routes/_authenticated/analysen.neu'
 import { Route as AuthenticatedAnalysenKarteRouteImport } from './routes/_authenticated/analysen.karte'
 import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
@@ -84,6 +85,11 @@ const AuthenticatedAnalysenIndexRoute =
     path: '/analysen/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedFeedbackIdRoute = AuthenticatedFeedbackIdRouteImport.update({
+  id: '/feedback/$id',
+  path: '/feedback/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAnalysenNeuRoute =
   AuthenticatedAnalysenNeuRouteImport.update({
     id: '/analysen/neu',
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
+  '/feedback/$id': typeof AuthenticatedFeedbackIdRoute
   '/analysen/': typeof AuthenticatedAnalysenIndexRoute
   '/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
+  '/feedback/$id': typeof AuthenticatedFeedbackIdRoute
   '/analysen': typeof AuthenticatedAnalysenIndexRoute
   '/feedback': typeof AuthenticatedFeedbackIndexRoute
   '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/_authenticated/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
   '/_authenticated/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
+  '/_authenticated/feedback/$id': typeof AuthenticatedFeedbackIdRoute
   '/_authenticated/analysen/': typeof AuthenticatedAnalysenIndexRoute
   '/_authenticated/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/_authenticated/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
     | '/analysen/$id'
     | '/analysen/karte'
     | '/analysen/neu'
+    | '/feedback/$id'
     | '/analysen/'
     | '/feedback/'
     | '/analysen/$id/bericht'
@@ -209,6 +219,7 @@ export interface FileRouteTypes {
     | '/analysen/$id'
     | '/analysen/karte'
     | '/analysen/neu'
+    | '/feedback/$id'
     | '/analysen'
     | '/feedback'
     | '/analysen/$id/bericht'
@@ -228,6 +239,7 @@ export interface FileRouteTypes {
     | '/_authenticated/analysen/$id'
     | '/_authenticated/analysen/karte'
     | '/_authenticated/analysen/neu'
+    | '/_authenticated/feedback/$id'
     | '/_authenticated/analysen/'
     | '/_authenticated/feedback/'
     | '/_authenticated/analysen/$id/bericht'
@@ -319,6 +331,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalysenIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/feedback/$id': {
+      id: '/_authenticated/feedback/$id'
+      path: '/feedback/$id'
+      fullPath: '/feedback/$id'
+      preLoaderRoute: typeof AuthenticatedFeedbackIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/analysen/neu': {
       id: '/_authenticated/analysen/neu'
       path: '/analysen/neu'
@@ -389,6 +408,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnalysenIdRoute: typeof AuthenticatedAnalysenIdRouteWithChildren
   AuthenticatedAnalysenKarteRoute: typeof AuthenticatedAnalysenKarteRoute
   AuthenticatedAnalysenNeuRoute: typeof AuthenticatedAnalysenNeuRoute
+  AuthenticatedFeedbackIdRoute: typeof AuthenticatedFeedbackIdRoute
   AuthenticatedAnalysenIndexRoute: typeof AuthenticatedAnalysenIndexRoute
   AuthenticatedFeedbackIndexRoute: typeof AuthenticatedFeedbackIndexRoute
 }
@@ -404,6 +424,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnalysenIdRoute: AuthenticatedAnalysenIdRouteWithChildren,
   AuthenticatedAnalysenKarteRoute: AuthenticatedAnalysenKarteRoute,
   AuthenticatedAnalysenNeuRoute: AuthenticatedAnalysenNeuRoute,
+  AuthenticatedFeedbackIdRoute: AuthenticatedFeedbackIdRoute,
   AuthenticatedAnalysenIndexRoute: AuthenticatedAnalysenIndexRoute,
   AuthenticatedFeedbackIndexRoute: AuthenticatedFeedbackIndexRoute,
 }
