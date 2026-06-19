@@ -241,7 +241,7 @@ function KnowledgeBaseDashboard() {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {tiles.map((t) => (
         <Card key={t.label}>
           <CardContent className="flex items-center gap-3 p-4">
@@ -250,8 +250,8 @@ function KnowledgeBaseDashboard() {
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">{t.label}</p>
-              <p className="font-display text-2xl font-bold leading-tight">
-                {stats.isLoading ? "—" : t.value.toLocaleString("de-CH")}
+              <p className="font-display text-2xl font-bold leading-tight tabular-nums">
+                {stats.isLoading ? "—" : (t.display ?? t.value.toLocaleString("de-CH"))}
               </p>
             </div>
           </CardContent>
