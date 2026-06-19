@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { LogOut, User as UserIcon, Building2, MessageSquare } from "lucide-react";
+import { LogOut, User as UserIcon, Building2, MessageSquare, ShieldCheck } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -15,10 +15,12 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useOrg } from "@/hooks/use-org";
 import { supabase } from "@/integrations/supabase/client";
+import { usePlatformAdmin } from "@/hooks/use-platform-admin";
 
 export function Topbar() {
   const { user } = useAuth();
   const { currentOrg, subscription } = useOrg();
+  const { isAdmin } = usePlatformAdmin();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -102,6 +104,12 @@ export function Topbar() {
             <MessageSquare className="mr-2 h-4 w-4" />
             Feedback
           </DropdownMenuItem>
+          {isAdmin && (
+            <DropdownMenuItem onClick={() => navigate({ to: "/platform" })}>
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Plattform-Admin
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
             <LogOut className="mr-2 h-4 w-4" />
