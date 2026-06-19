@@ -273,81 +273,12 @@ function NewAnalysisWizard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-display text-lg">
-              <Upload className="h-4 w-4 text-secondary" />
-              Schritt 2 — Dokumente hochladen
+              <CheckCircle2 className="h-4 w-4 text-secondary" />
+              Schritt 2 — Übersicht & Start
             </CardTitle>
             <CardDescription>
-              BZR, BZO, Zonenplan oder weitere PDFs — mehrere Dateien gleichzeitig möglich. Optional, aber empfohlen.
+              Die KI nutzt die hinterlegte Wissensdatenbank der Gemeinde — kein manueller Dokumenten-Upload nötig.
             </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div
-              className="rounded-lg border border-dashed bg-muted/30 p-6 text-center"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
-            >
-              <FileUp className="mx-auto h-7 w-7 text-muted-foreground" />
-              <p className="mt-2 text-sm text-muted-foreground">
-                Dateien hierher ziehen oder auswählen (PDF / DOCX / TXT, max. 20 MB pro Datei)
-              </p>
-              <Button type="button" variant="outline" size="sm" className="mt-3"
-                onClick={() => fileInputRef.current?.click()}>
-                Dateien auswählen
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.txt,.doc,.docx"
-                className="hidden"
-                onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
-              />
-            </div>
-
-            {docs.length > 0 && (
-              <div className="space-y-2">
-                {docs.map((d) => (
-                  <div key={d.id} className="flex items-center gap-3 rounded-md border bg-card p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{d.file.name}</p>
-                      <p className="text-xs text-muted-foreground">{(d.file.size / 1024).toFixed(0)} KB</p>
-                    </div>
-                    <Select value={d.kind} onValueChange={(v) => setKind(d.id, v as DocKind)}>
-                      <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {KIND_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeDoc(d.id)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex justify-between pt-2">
-              <Button variant="ghost" onClick={() => setStep(1)}>
-                <ArrowLeft className="mr-2 h-4 w-4" />Zurück
-              </Button>
-              <Button onClick={() => setStep(3)}>
-                Weiter <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {step === 3 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-display text-lg">
-              <CheckCircle2 className="h-4 w-4 text-secondary" />
-              Schritt 3 — Übersicht & Start
-            </CardTitle>
-            <CardDescription>Bitte prüfen Sie Ihre Angaben vor dem Start der Analyse.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -356,7 +287,6 @@ function NewAnalysisWizard() {
               <SummaryRow label="Kanton" value={form.canton} />
               <SummaryRow label="Fläche" value={form.area_size ? `${form.area_size} m²` : "—"} />
               <SummaryRow label="Parzelle" value={form.parcel_number || "—"} />
-              <SummaryRow label="Dokumente" value={`${docs.length}`} />
               {form.lat != null && form.lng != null && (
                 <SummaryRow
                   label="Koordinaten"
@@ -365,25 +295,16 @@ function NewAnalysisWizard() {
               )}
             </div>
 
-            {docs.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {docs.map((d) => (
-                  <Badge key={d.id} variant="secondary">{d.kind.toUpperCase()} · {d.file.name}</Badge>
-                ))}
-              </div>
-            )}
-
-            {submit.isPending && (
-              <div className="space-y-2">
-                <Progress value={uploadProgress} />
-                <p className="text-xs text-muted-foreground">
-                  Dokumente werden hochgeladen … {uploadProgress}%
-                </p>
-              </div>
-            )}
+            <CoverageHint
+              loading={coverage.isFetching}
+              data={coverage.data}
+              enabled={debounced.municipality.length >= 2 && debounced.canton.length === 2}
+              municipality={debounced.municipality}
+              canton={debounced.canton}
+            />
 
             <div className="flex justify-between pt-2">
-              <Button variant="ghost" onClick={() => setStep(2)} disabled={submit.isPending}>
+              <Button variant="ghost" onClick={() => setStep(1)} disabled={submit.isPending}>
                 <ArrowLeft className="mr-2 h-4 w-4" />Zurück
               </Button>
               <Button onClick={() => submit.mutate()} disabled={submit.isPending || !stepOneValid}>
@@ -394,6 +315,7 @@ function NewAnalysisWizard() {
           </CardContent>
         </Card>
       )}
+
     </div>
   );
 }
