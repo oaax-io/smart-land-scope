@@ -243,10 +243,7 @@ function stripHtml(s: string): string {
 
 function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
   const { currentOrgId } = useOrg();
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const analyzeFn = useServerFn(runKnowledgeAnalysis);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SwissGeoSearchResult[]>([]);
@@ -254,6 +251,8 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [busyText, setBusyText] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalInitial, setModalInitial] = useState<QuickAnalysisInitial | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -318,47 +317,36 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
           }
         }
 
-        if (!parcel?.municipality) {
-          toast.error("Gemeinde konnte nicht ermittelt werden — bitte über 'Neue Analyse' manuell erfassen");
-          navigate({ to: "/analysen/neu" });
-          return;
-        }
+        // Open the multi-step modal pre-filled with what we found.
+        // The user must complete all steps before navigating to the analysis.
+        const rawLabel = cleanLabel;
+        const plz = extractPostalCode(rawLabel);
+        const street = plz
+          ? rawLabel.split(plz)[0].replace(/[,\s]+$/, "").trim()
+          : rawLabel;
 
-        const { data: created, error: insertErr } = await supabase
-          .from("analyses")
-          .insert({
-            organization_id: currentOrgId,
-            address: cleanLabel,
-            postal_code: extractPostalCode(cleanLabel),
-            municipality: parcel.municipality,
-            canton: parcel.canton,
-            parcel_number: parcel.parcelNumber,
-            area_size: parcel.areaM2,
-            lat: r.lat,
-            lng: r.lng,
-            egrid: parcel.egrid,
-            status: "processing",
-            created_by: user?.id ?? null,
-          })
-          .select("id")
-          .single();
-        if (insertErr || !created) throw insertErr ?? new Error("Insert fehlgeschlagen");
-
-        analyzeFn({ data: { analysisId: created.id } }).catch(console.error);
-
-        queryClient.invalidateQueries({ queryKey: ["dashboard-recent-analyses"] });
-        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-
-        navigate({ to: "/analysen/$id", params: { id: created.id } });
+        setModalInitial({
+          address: street || rawLabel,
+          postal_code: plz ?? "",
+          municipality: parcel?.municipality ?? "",
+          canton: parcel?.canton ?? "",
+          parcel_number: parcel?.parcelNumber ?? "",
+          area_size: parcel?.areaM2 ? String(Math.round(parcel.areaM2)) : "",
+          lat: r.lat,
+          lng: r.lng,
+          egrid: parcel?.egrid ?? null,
+        });
+        setModalOpen(true);
+        setQuery("");
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Unbekannter Fehler";
-        toast.error("Analyse konnte nicht gestartet werden", { description: msg });
+        toast.error("Analyse konnte nicht vorbereitet werden", { description: msg });
       } finally {
         setBusy(false);
         setBusyText("");
       }
     },
-    [currentOrgId, user?.id, navigate, queryClient, analyzeFn],
+    [currentOrgId, navigate],
   );
 
   if (hero) {
