@@ -88,7 +88,7 @@ export type SwissParcelInfo = {
   municipality: string | null;
   canton: string | null;
   areaM2: number | null;
-  geometry: GeoJSON.Geometry | null;
+  geometry: unknown | null;
 };
 
 let _warnedAttrs = false;
