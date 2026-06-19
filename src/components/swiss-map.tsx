@@ -203,7 +203,7 @@ export function SwissMap({
         <p className="text-xs text-muted-foreground">
           {identifying
             ? "Parzelle wird ermittelt …"
-            : "Adresse eingeben oder direkt auf die gewünschte Parzelle in der Karte klicken."}
+            : "Adresse suchen — Parzelle, Gemeinde und Kanton werden automatisch erkannt. Sie können auch direkt in die Karte klicken."}
         </p>
       )}
     </div>
