@@ -281,7 +281,7 @@ function NewFeedbackDialog({ onSuccess }: { onSuccess: () => void }) {
       onSuccess();
       navigate({ to: "/feedback/$id", params: { id: data.id } });
     },
-    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+    onError: (e: Error) => setError(e.message || "Unbekannter Fehler"),
   });
 
   return (
