@@ -73,6 +73,7 @@ type SwissMapProps = {
   className?: string;
   heightClassName?: string;
   allowExpand?: boolean;
+  floatingSearch?: boolean;
 };
 
 export function SwissMap({
@@ -83,6 +84,7 @@ export function SwissMap({
   className,
   heightClassName = "h-80",
   allowExpand = true,
+  floatingSearch = false,
 }: SwissMapProps) {
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
