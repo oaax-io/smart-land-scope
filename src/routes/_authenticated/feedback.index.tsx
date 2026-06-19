@@ -388,7 +388,7 @@ function NewFeedbackDialog({ onSuccess }: { onSuccess: () => void }) {
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onSuccess} disabled={submit.isPending}>Abbrechen</Button>
-        <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
+        <Button onClick={() => { setError(null); submit.mutate(); }} disabled={submit.isPending}>
           {submit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
           Senden
         </Button>
