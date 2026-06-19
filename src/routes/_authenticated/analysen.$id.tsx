@@ -175,11 +175,12 @@ function AnalysisDetailPage() {
       )}
 
       <Tabs defaultValue="feasibility" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-6">
           <TabsTrigger value="feasibility"><CheckCircle2 className="mr-2 h-4 w-4" />Machbarkeit</TabsTrigger>
           <TabsTrigger value="units"><Home className="mr-2 h-4 w-4" />Wohnungspotenzial</TabsTrigger>
           <TabsTrigger value="potential"><TrendingUp className="mr-2 h-4 w-4" />Entwicklung</TabsTrigger>
           <TabsTrigger value="risks"><AlertTriangle className="mr-2 h-4 w-4" />Risiken</TabsTrigger>
+          <TabsTrigger value="scenarios"><Sparkles className="mr-2 h-4 w-4" />Varianten</TabsTrigger>
           <TabsTrigger value="report"><FileText className="mr-2 h-4 w-4" />Bericht</TabsTrigger>
         </TabsList>
 
