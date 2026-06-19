@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -163,6 +164,14 @@ function AnalysisDetailPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {analysis.status === "failed" && analysis.error_message && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Analyse fehlgeschlagen</AlertTitle>
+          <AlertDescription>{analysis.error_message as string}</AlertDescription>
+        </Alert>
       )}
 
       <Tabs defaultValue="feasibility" className="space-y-6">
