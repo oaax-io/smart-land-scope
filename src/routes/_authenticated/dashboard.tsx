@@ -349,47 +349,59 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
     [currentOrgId, navigate],
   );
 
+  const modal = (
+    <QuickAnalysisModal
+      open={modalOpen}
+      onOpenChange={setModalOpen}
+      initial={modalInitial}
+    />
+  );
+
   if (hero) {
     return (
-      <div ref={containerRef} className="relative">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => results.length > 0 && setOpen(true)}
-            placeholder="Adresse, Ort oder Parzellennummer eingeben (z. B. Bahnhofstrasse 1, Luzern)"
-            className="h-14 rounded-xl border border-primary-foreground/20 bg-background/70 pl-12 pr-12 text-base text-foreground shadow-xl backdrop-blur-md placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-secondary sm:text-lg"
-            disabled={busy}
-          />
-          {(searching || busy) && (
-            <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" />
+      <>
+        <div ref={containerRef} className="relative">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => results.length > 0 && setOpen(true)}
+              placeholder="Adresse, Ort oder Parzellennummer eingeben (z. B. Bahnhofstrasse 1, Luzern)"
+              className="h-14 rounded-xl border border-primary-foreground/20 bg-background/70 pl-12 pr-12 text-base text-foreground shadow-xl backdrop-blur-md placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-secondary sm:text-lg"
+              disabled={busy}
+            />
+            {(searching || busy) && (
+              <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" />
+            )}
+          </div>
+
+          {open && results.length > 0 && !busy && (
+            <Card className="absolute left-0 right-0 top-full z-[9999] mt-2 max-h-80 overflow-y-auto p-1 shadow-2xl">
+              {results.map((r, i) => (
+                <button
+                  key={`${r.featureId ?? "x"}-${i}`}
+                  type="button"
+                  onClick={() => selectResult(r)}
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                >
+                  <span dangerouslySetInnerHTML={{ __html: r.label }} />
+                </button>
+              ))}
+            </Card>
           )}
+
+          <p className="mt-3 text-xs text-primary-foreground/75">
+            {busy
+              ? busyText
+              : "Direkt-Suche über das amtliche Schweizer Geoportal (swisstopo). Adresse wählen, Schritte abschliessen — dann startet die Analyse."}
+          </p>
         </div>
-
-        {open && results.length > 0 && !busy && (
-          <Card className="absolute left-0 right-0 top-full z-[9999] mt-2 max-h-80 overflow-y-auto p-1 shadow-2xl">
-            {results.map((r, i) => (
-              <button
-                key={`${r.featureId ?? "x"}-${i}`}
-                type="button"
-                onClick={() => selectResult(r)}
-                className="block w-full rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
-              >
-                <span dangerouslySetInnerHTML={{ __html: r.label }} />
-              </button>
-            ))}
-          </Card>
-        )}
-
-        <p className="mt-3 text-xs text-primary-foreground/75">
-          {busy
-            ? busyText
-            : "Direkt-Suche über das amtliche Schweizer Geoportal (swisstopo). Bei bekannter Gemeinde startet die Analyse sofort."}
-        </p>
-      </div>
+        {modal}
+      </>
     );
   }
+
 
   return (
     <Card>
