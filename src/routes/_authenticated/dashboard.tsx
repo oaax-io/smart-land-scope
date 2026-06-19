@@ -95,7 +95,7 @@ function Dashboard() {
             Willkommen zurück{currentOrg ? ` bei ${currentOrg.name}` : ""}. Starten Sie unten direkt mit einer Schnellanalyse — Adresse eingeben genügt.
           </p>
           <div className="mt-6">
-            <QuickAnalysisSearch variant="hero" />
+            <QuickAnalysisSearch hero />
           </div>
         </div>
       </section>
