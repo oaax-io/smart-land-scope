@@ -70,12 +70,15 @@ export async function searchSwissLocation(query: string): Promise<SwissGeoSearch
   const json = await res.json();
 
   return (json.results ?? []).map((r: any) => {
-    const { lat, lng } = lv95ToWgs84(r.attrs.x, r.attrs.y);
+    // swisstopo SearchServer liefert lat/lon direkt als WGS84 – verlässlicher als x/y,
+    // weil dort in LV95 die Reihenfolge x=North/y=East vertauscht ist.
+    const lat = typeof r.attrs.lat === "number" ? r.attrs.lat : null;
+    const lng = typeof r.attrs.lon === "number" ? r.attrs.lon : null;
     return {
       label: r.attrs.label,
       featureId: r.attrs.featureId ?? null,
-      lat,
-      lng,
+      lat: lat ?? lv95ToWgs84(r.attrs.y, r.attrs.x).lat,
+      lng: lng ?? lv95ToWgs84(r.attrs.y, r.attrs.x).lng,
       zoomLevel: r.attrs.zoomlevel ?? 16,
       origin: r.attrs.origin,
     };
