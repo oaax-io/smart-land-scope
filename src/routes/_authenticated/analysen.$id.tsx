@@ -166,6 +166,14 @@ function AnalysisDetailPage() {
         </Card>
       )}
 
+      {analysis.status === "failed" && analysis.error_message && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Analyse fehlgeschlagen</AlertTitle>
+          <AlertDescription>{analysis.error_message as string}</AlertDescription>
+        </Alert>
+      )}
+
       <Tabs defaultValue="feasibility" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-5">
           <TabsTrigger value="feasibility"><CheckCircle2 className="mr-2 h-4 w-4" />Machbarkeit</TabsTrigger>
