@@ -134,6 +134,7 @@ function NewAnalysisWizard() {
           lng: form.lng,
           egrid: form.egrid,
           parcel_geometry: form.geometry as Json | null,
+          detected_zone: form.zone,
           status: "processing",
           created_by: user?.id ?? null,
         })
