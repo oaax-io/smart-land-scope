@@ -109,6 +109,37 @@ export function esriRingsToGeoJsonCoordinates(rings: number[][][]): number[][][]
 
 let _warnedAttrs = false;
 
+/**
+ * Liest aus den Attributen des swisstopo-Layers `ch.are.bauzonen` eine
+ * lesbare Zonen-Bezeichnung. Die harmonisierte Bundes-Karte verwendet
+ * `ch_bez_d` (DE-Label, z. B. "Wohnzonen") und `ch_code_hn` (numerischer
+ * Hauptklassen-Code). Die früheren Feldnamen (`ch_bezeichnung`, `kt_klasse`)
+ * existieren in der API nicht.
+ */
+const BAUZONE_HN_LABEL: Record<string, string> = {
+  "11": "Wohnzonen",
+  "12": "Arbeitszonen",
+  "13": "Mischzonen",
+  "14": "Zonen für öffentliche Nutzungen",
+  "15": "eingeschränkte Bauzonen",
+  "16": "Tourismus- und Freizeitzonen",
+  "17": "Verkehrszonen innerhalb der Bauzonen",
+  "19": "weitere Bauzonen",
+};
+
+function extractBauzone(attrs: any): string | null {
+  if (!attrs) return null;
+  const label =
+    cleanString(attrs.ch_bez_d) ??
+    cleanString(attrs.ch_bez_f) ??
+    cleanString(attrs.ch_bez_i) ??
+    null;
+  if (label) return label;
+  const code = cleanString(attrs.ch_code_hn);
+  if (code && BAUZONE_HN_LABEL[code]) return BAUZONE_HN_LABEL[code];
+  return null;
+}
+
 async function identifyAt(
   layers: string,
   lng: number,
@@ -169,13 +200,7 @@ export async function getParcelOutlineAt(
   const pa = parcelFeature.attributes ?? {};
 
   const zoneFeature = results.find((r: any) => r.layerBodId === "ch.are.bauzonen");
-  const za = zoneFeature?.attributes ?? {};
-  const zone =
-    cleanString(za.ch_bezeichnung) ??
-    cleanString(za.kt_bezeichnung) ??
-    cleanString(za.ch_klasse) ??
-    cleanString(za.kt_klasse) ??
-    null;
+  const zone = extractBauzone(zoneFeature?.attributes);
 
   return {
     egrid: cleanString(pa.egris_egrid ?? pa.egrid) ?? null,
@@ -285,18 +310,13 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
     }
   }
 
-  // 4) Amtliche Bauzone (ch.are.bauzonen) für die Parzelle — wichtig für die KI-Auswertung,
-  //    damit die richtige Zonen-Kennzahl aus der KB verknüpft werden kann.
+  // 4) Amtliche Bauzone (ch.are.bauzonen) — harmonisierte Bundes-Karte, liefert
+  //    nur die Hauptkategorie ("Wohnzonen", "Arbeitszonen", …), nicht den
+  //    lokalen Code (W2/W3). Reicht als Hinweis für die KI-Auswertung.
   let zone: string | null = null;
   try {
     const zoneResults = await identifyAt("all:ch.are.bauzonen", lng, lat, 2);
-    const za = zoneResults?.[0]?.attributes ?? {};
-    zone =
-      cleanString(za.ch_bezeichnung) ??
-      cleanString(za.kt_bezeichnung) ??
-      cleanString(za.ch_klasse) ??
-      cleanString(za.kt_klasse) ??
-      null;
+    zone = extractBauzone(zoneResults?.[0]?.attributes);
   } catch {
     zone = null;
   }
