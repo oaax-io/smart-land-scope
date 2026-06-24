@@ -26,6 +26,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           design_plan_required: boolean | null
+          detected_zone: string | null
           development_potential: Json | null
           document_name: string | null
           document_path: string | null
@@ -60,6 +61,7 @@ export type Database = {
           utilization_ratio: number | null
           water_setbacks: string | null
           zone: string | null
+          zone_override: string | null
         }
         Insert: {
           address?: string | null
@@ -72,6 +74,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           design_plan_required?: boolean | null
+          detected_zone?: string | null
           development_potential?: Json | null
           document_name?: string | null
           document_path?: string | null
@@ -108,6 +111,7 @@ export type Database = {
           utilization_ratio?: number | null
           water_setbacks?: string | null
           zone?: string | null
+          zone_override?: string | null
         }
         Update: {
           address?: string | null
@@ -120,6 +124,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           design_plan_required?: boolean | null
+          detected_zone?: string | null
           development_potential?: Json | null
           document_name?: string | null
           document_path?: string | null
@@ -156,6 +161,7 @@ export type Database = {
           utilization_ratio?: number | null
           water_setbacks?: string | null
           zone?: string | null
+          zone_override?: string | null
         }
         Relationships: [
           {
