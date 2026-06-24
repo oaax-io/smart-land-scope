@@ -202,6 +202,7 @@ function NewAnalysisWizard() {
                     lat: data.lat,
                     lng: data.lng,
                     egrid: data.egrid ?? f.egrid,
+                    zone: data.zone ?? f.zone,
                     geometry: data.geometry ?? f.geometry,
                     address: street || rawLabel || f.address,
                     postal_code: plz ?? f.postal_code,
