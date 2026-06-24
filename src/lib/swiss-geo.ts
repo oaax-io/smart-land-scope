@@ -279,18 +279,13 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
     }
   }
 
-  // 4) Amtliche Bauzone (ch.are.bauzonen) für die Parzelle — wichtig für die KI-Auswertung,
-  //    damit die richtige Zonen-Kennzahl aus der KB verknüpft werden kann.
+  // 4) Amtliche Bauzone (ch.are.bauzonen) — harmonisierte Bundes-Karte, liefert
+  //    nur die Hauptkategorie ("Wohnzonen", "Arbeitszonen", …), nicht den
+  //    lokalen Code (W2/W3). Reicht als Hinweis für die KI-Auswertung.
   let zone: string | null = null;
   try {
     const zoneResults = await identifyAt("all:ch.are.bauzonen", lng, lat, 2);
-    const za = zoneResults?.[0]?.attributes ?? {};
-    zone =
-      cleanString(za.ch_bezeichnung) ??
-      cleanString(za.kt_bezeichnung) ??
-      cleanString(za.ch_klasse) ??
-      cleanString(za.kt_klasse) ??
-      null;
+    zone = extractBauzone(zoneResults?.[0]?.attributes);
   } catch {
     zone = null;
   }
