@@ -223,6 +223,7 @@ export function SwissMap({
         canton: parcel?.canton ?? null,
         parcelNumber: parcel?.parcelNumber ?? null,
         egrid: parcel?.egrid ?? null,
+        areaM2: parcel?.areaM2 ?? null,
         geometry: parcel?.geometry ?? null,
       });
     } catch {
@@ -235,6 +236,7 @@ export function SwissMap({
         canton: null,
         parcelNumber: null,
         egrid: null,
+        areaM2: null,
         geometry: null,
       });
     } finally {
