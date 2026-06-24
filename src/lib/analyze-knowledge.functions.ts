@@ -199,7 +199,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
     const { data: analysis, error: fetchErr } = await supabase
       .from("analyses")
       .select(
-        "id, address, postal_code, municipality, canton, parcel_number, area_size",
+        "id, address, postal_code, municipality, canton, parcel_number, area_size, detected_zone, zone_override",
       )
       .eq("id", data.analysisId)
       .maybeSingle();
@@ -281,6 +281,13 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
 
       const cantonCode = (muni.canton as unknown as { code?: string } | null)?.code;
 
+      const zoneHint = analysis.zone_override?.trim() || analysis.detected_zone?.trim() || null;
+      const zoneSource = analysis.zone_override?.trim()
+        ? "manuell vom Benutzer ausgewählt"
+        : analysis.detected_zone?.trim()
+          ? "automatisch aus dem amtlichen swisstopo-Bauzonen-Layer (ch.are.bauzonen) ermittelt"
+          : null;
+
       const prompt = [
         "Du bist Experte für Schweizer Bau- und Zonenrecht und erstellst eine strukturierte Machbarkeitsanalyse AUSSCHLIESSLICH auf Basis der hinterlegten Wissensdatenbank.",
         "Antworte auf Deutsch (Schweizer Hochdeutsch, kein ß).",
@@ -292,6 +299,9 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         `- Kanton: ${cantonCode ?? analysis.canton ?? "—"}`,
         `- Parzelle: ${analysis.parcel_number ?? "—"}`,
         `- Fläche: ${analysis.area_size ? `${analysis.area_size} m²` : "unbekannt"}`,
+        zoneHint
+          ? `- Bauzone (${zoneSource}): "${zoneHint}" — diese Zone ist verbindlich. Suche in der Wissensdatenbank den passenden Zonen-Eintrag (z.B. anhand des Zonen-Codes oder einer ähnlichen Bezeichnung wie W2/W3/WG3) und verwende dessen AZ/Geschosse/Höhe.`
+          : "- Bauzone: nicht eindeutig erkannt — wähle die plausibelste dokumentierte Wohn-/Mischzone und vermerke die Unsicherheit.",
         "",
         "Wissensdatenbank — Knowledge Entries:",
         entryBlock || "(keine Einträge)",
@@ -301,7 +311,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         "",
         "Beantworte:",
         "1) Was darf gebaut werden? (feasibility, allowed_use in usage_types).",
-        "2) Bestimme die wahrscheinlichste Bauzone für dieses Grundstück anhand Adresse, PLZ und der Wissensdatenbank. Wenn die exakte Zonenzuteilung nicht eindeutig hervorgeht, wähle die für die Lage plausibelste Wohn- oder Mischzone (z.B. W2, W3, WG3) aus den dokumentierten Zonen und vermerke dies in 'feasibility'. Gib für diese Zone die konkreten Werte aus der Wissensdatenbank an: 'zone', 'utilization_ratio' (AZ), 'max_floors' (Vollgeschosse), 'max_height_m'. Lass diese Felder NIEMALS auf 0 / leer wenn die Wissensdatenbank entsprechende Zonenwerte enthält — wähle dann den plausibelsten Wert und erwähne die Unsicherheit im 'feasibility'-Text.",
+        "2) Bestimme die Bauzone für dieses Grundstück. Wenn oben eine Bauzone vorgegeben ist, MUSST du diese verwenden (Code 1:1 ins 'zone'-Feld übernehmen) und die zugehörigen Werte aus der Wissensdatenbank heraussuchen. Sonst wähle die für die Lage plausibelste Wohn- oder Mischzone aus den dokumentierten Zonen. Gib für diese Zone die konkreten Werte aus der Wissensdatenbank an: 'zone', 'utilization_ratio' (AZ), 'max_floors' (Vollgeschosse), 'max_height_m'. Lass diese Felder NIEMALS auf 0 / leer wenn die Wissensdatenbank entsprechende Zonenwerte enthält — wähle dann den plausibelsten Wert und erwähne die Unsicherheit im 'feasibility'-Text.",
         "3) Berechne das Wohnungspotenzial konkret:",
         "   - floor_area_m2 = Grundstücksfläche × utilization_ratio (falls beide Werte verfügbar)",
         "   - living_area_m2 = floor_area_m2 × 0.8 (Nettowohnfläche-Faktor)",

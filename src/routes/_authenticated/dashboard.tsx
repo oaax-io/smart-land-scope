@@ -335,6 +335,7 @@ function QuickAnalysisSearch({ hero = false }: { hero?: boolean }) {
           lat: r.lat,
           lng: r.lng,
           egrid: parcel?.egrid ?? null,
+          zone: parcel?.zone ?? null,
           geometry: parcel?.geometry ?? null,
         });
         setModalOpen(true);

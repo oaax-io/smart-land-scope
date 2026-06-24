@@ -31,6 +31,7 @@ type Selected = {
   parcelNumber: string | null;
   egrid: string | null;
   areaM2: number | null;
+  zone: string | null;
   geometry: { type: "Polygon"; coordinates: number[][][] } | null;
 };
 
@@ -68,6 +69,7 @@ function KartePage() {
           lng: selected.lng,
           egrid: selected.egrid,
           parcel_geometry: selected.geometry as Json | null,
+          detected_zone: selected.zone,
           status: "processing",
           created_by: user?.id ?? null,
         })

@@ -21,6 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { ScenarioComparison } from "@/components/scenario-comparison";
@@ -286,6 +287,16 @@ function AnalysisDetailPage() {
 
         {/* Wohnungspotenzial */}
         <TabsContent value="units" className="space-y-4">
+          <ZoneOverrideCard
+            analysisId={id}
+            municipalityName={analysis.municipality}
+            cantonCode={analysis.canton}
+            detectedZone={analysis.detected_zone}
+            zoneOverride={analysis.zone_override}
+            currentZone={analysis.zone}
+            utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
+            onReanalyzed={() => queryClient.invalidateQueries({ queryKey: ["analysis", id] })}
+          />
           <UnitsPotential
             areaSize={Number(analysis.area_size ?? 0) || 0}
             utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
@@ -542,6 +553,131 @@ function UnitsPotential({
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+function ZoneOverrideCard({
+  analysisId,
+  municipalityName,
+  cantonCode,
+  detectedZone,
+  zoneOverride,
+  currentZone,
+  utilizationRatio,
+  onReanalyzed,
+}: {
+  analysisId: string;
+  municipalityName: string | null;
+  cantonCode: string | null;
+  detectedZone: string | null;
+  zoneOverride: string | null;
+  currentZone: string | null;
+  utilizationRatio: number;
+  onReanalyzed: () => void;
+}) {
+  const analyzeFn = useServerFn(runKnowledgeAnalysis);
+
+  // Load available zones from the municipality knowledge base.
+  const zonesQ = useQuery({
+    queryKey: ["kb-zones", municipalityName, cantonCode],
+    enabled: !!municipalityName && !!cantonCode,
+    queryFn: async () => {
+      let muniQ = supabase
+        .from("municipalities")
+        .select("id, cantons!inner(code)")
+        .ilike("name", (municipalityName ?? "").trim());
+      if (cantonCode) muniQ = muniQ.eq("cantons.code", cantonCode);
+      const { data: munis } = await muniQ.limit(1);
+      const muniId = munis?.[0]?.id;
+      if (!muniId) return [] as string[];
+      const { data: rules } = await supabase
+        .from("regulation_rules")
+        .select("zone")
+        .eq("municipality_id", muniId)
+        .not("zone", "is", null);
+      const set = new Set<string>();
+      for (const r of rules ?? []) if (r.zone) set.add(r.zone);
+      return [...set].sort();
+    },
+    staleTime: 60_000,
+  });
+
+  const reanalyze = useMutation({
+    mutationFn: async (selectedZone: string | null) => {
+      const { error } = await supabase
+        .from("analyses")
+        .update({ zone_override: selectedZone, status: "processing", error_message: null })
+        .eq("id", analysisId);
+      if (error) throw error;
+      await analyzeFn({ data: { analysisId } });
+    },
+    onSuccess: () => {
+      toast.success("Analyse mit neuer Zone neu berechnet");
+      onReanalyzed();
+    },
+    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+  });
+
+  const needsHelp = utilizationRatio <= 0;
+  const activeZone = zoneOverride ?? currentZone ?? detectedZone ?? null;
+
+  return (
+    <Card className={needsHelp ? "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20" : ""}>
+      <CardHeader className="pb-3">
+        <CardTitle className="font-display text-base flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-secondary" />
+          Bauzone {needsHelp ? "— bitte präzisieren" : "anpassen"}
+        </CardTitle>
+        <CardDescription>
+          {needsHelp
+            ? "Das Wohnungspotenzial konnte nicht berechnet werden, weil keine Ausnützungsziffer für die Zone ermittelt wurde. Wähle die korrekte Zone aus der Wissensdatenbank, um die Auswertung neu zu starten."
+            : "Falls die automatisch erkannte Zone nicht stimmt, wähle hier die korrekte Zone aus der Wissensdatenbank."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+          <InfoLine label="Automatisch erkannt (swisstopo)" value={detectedZone ?? "—"} />
+          <InfoLine label="Manuell überschrieben" value={zoneOverride ?? "—"} />
+          <InfoLine label="Aktiv in Analyse" value={activeZone ?? "—"} />
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Select
+            value={zoneOverride ?? "__auto__"}
+            onValueChange={(v) => reanalyze.mutate(v === "__auto__" ? null : v)}
+            disabled={reanalyze.isPending || zonesQ.isLoading}
+          >
+            <SelectTrigger className="sm:max-w-xs">
+              <SelectValue placeholder="Zone wählen …" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__auto__">Automatisch (swisstopo)</SelectItem>
+              {(zonesQ.data ?? []).map((z) => (
+                <SelectItem key={z} value={z}>{z}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {reanalyze.isPending && (
+            <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Analyse läuft …
+            </span>
+          )}
+        </div>
+        {!zonesQ.isLoading && (zonesQ.data ?? []).length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Keine Zonen in der Wissensdatenbank dieser Gemeinde gefunden.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function InfoLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-background/50 p-2">
+      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="truncate text-sm" title={value}>{value}</div>
     </div>
   );
 }

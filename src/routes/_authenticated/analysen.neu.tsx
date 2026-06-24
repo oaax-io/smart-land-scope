@@ -81,6 +81,7 @@ function NewAnalysisWizard() {
     lat: null as number | null,
     lng: null as number | null,
     egrid: null as string | null,
+    zone: null as string | null,
     geometry: null as { type: "Polygon"; coordinates: number[][][] } | null,
   });
 
@@ -133,6 +134,7 @@ function NewAnalysisWizard() {
           lng: form.lng,
           egrid: form.egrid,
           parcel_geometry: form.geometry as Json | null,
+          detected_zone: form.zone,
           status: "processing",
           created_by: user?.id ?? null,
         })
@@ -200,6 +202,7 @@ function NewAnalysisWizard() {
                     lat: data.lat,
                     lng: data.lng,
                     egrid: data.egrid ?? f.egrid,
+                    zone: data.zone ?? f.zone,
                     geometry: data.geometry ?? f.geometry,
                     address: street || rawLabel || f.address,
                     postal_code: plz ?? f.postal_code,

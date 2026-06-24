@@ -93,6 +93,7 @@ export type SwissParcelInfo = {
   municipality: string | null;
   canton: string | null;
   areaM2: number | null;
+  zone: string | null;
   geometry: { type: "Polygon"; coordinates: number[][][] } | null;
 };
 
@@ -284,6 +285,22 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
     }
   }
 
+  // 4) Amtliche Bauzone (ch.are.bauzonen) für die Parzelle — wichtig für die KI-Auswertung,
+  //    damit die richtige Zonen-Kennzahl aus der KB verknüpft werden kann.
+  let zone: string | null = null;
+  try {
+    const zoneResults = await identifyAt("all:ch.are.bauzonen", lng, lat, 2);
+    const za = zoneResults?.[0]?.attributes ?? {};
+    zone =
+      cleanString(za.ch_bezeichnung) ??
+      cleanString(za.kt_bezeichnung) ??
+      cleanString(za.ch_klasse) ??
+      cleanString(za.kt_klasse) ??
+      null;
+  } catch {
+    zone = null;
+  }
+
   if (!parcelNumber && !egrid && !municipality && !canton && !address && !postalCode && !_warnedAttrs) {
     _warnedAttrs = true;
     console.warn("Unbekannte Attribut-Struktur", attrs);
@@ -303,6 +320,7 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
     municipality,
     canton,
     areaM2,
+    zone,
     geometry,
   };
 }
