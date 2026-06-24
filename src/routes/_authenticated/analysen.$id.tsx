@@ -287,6 +287,16 @@ function AnalysisDetailPage() {
 
         {/* Wohnungspotenzial */}
         <TabsContent value="units" className="space-y-4">
+          <ZoneOverrideCard
+            analysisId={id}
+            municipalityName={analysis.municipality}
+            cantonCode={analysis.canton}
+            detectedZone={analysis.detected_zone}
+            zoneOverride={analysis.zone_override}
+            currentZone={analysis.zone}
+            utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
+            onReanalyzed={() => queryClient.invalidateQueries({ queryKey: ["analysis", id] })}
+          />
           <UnitsPotential
             areaSize={Number(analysis.area_size ?? 0) || 0}
             utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
