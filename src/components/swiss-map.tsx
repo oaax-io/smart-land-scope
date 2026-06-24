@@ -94,6 +94,7 @@ type SwissMapProps = {
     canton: string | null;
     parcelNumber: string | null;
     egrid: string | null;
+    areaM2: number | null;
     geometry: { type: "Polygon"; coordinates: number[][][] } | null;
   }) => void;
   className?: string;
