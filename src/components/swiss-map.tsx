@@ -225,6 +225,7 @@ export function SwissMap({
         parcelNumber: parcel?.parcelNumber ?? null,
         egrid: parcel?.egrid ?? null,
         areaM2: parcel?.areaM2 ?? null,
+        zone: parcel?.zone ?? null,
         geometry: parcel?.geometry ?? null,
       });
     } catch {
@@ -238,6 +239,7 @@ export function SwissMap({
         parcelNumber: null,
         egrid: null,
         areaM2: null,
+        zone: null,
         geometry: null,
       });
     } finally {
