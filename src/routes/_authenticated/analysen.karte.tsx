@@ -99,7 +99,7 @@ function KartePage() {
         lng={selected?.lng ?? null}
         onParcelSelected={(d) => {
           setSelected(d);
-          setAreaSize("");
+          setAreaSize(d.areaM2 ? String(Math.round(d.areaM2)) : "");
         }}
       />
 
