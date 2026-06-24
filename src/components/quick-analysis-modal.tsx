@@ -99,7 +99,7 @@ export function QuickAnalysisModal({
   const [form, setForm] = useState<QuickAnalysisInitial>({
     address: "", postal_code: "", municipality: "",
     canton: "", parcel_number: "", area_size: "",
-    lat: null, lng: null, egrid: null, geometry: null,
+    lat: null, lng: null, egrid: null, zone: null, geometry: null,
   });
 
   // Re-seed form when a new selection opens the modal
