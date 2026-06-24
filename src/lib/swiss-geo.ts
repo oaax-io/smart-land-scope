@@ -169,13 +169,7 @@ export async function getParcelOutlineAt(
   const pa = parcelFeature.attributes ?? {};
 
   const zoneFeature = results.find((r: any) => r.layerBodId === "ch.are.bauzonen");
-  const za = zoneFeature?.attributes ?? {};
-  const zone =
-    cleanString(za.ch_bezeichnung) ??
-    cleanString(za.kt_bezeichnung) ??
-    cleanString(za.ch_klasse) ??
-    cleanString(za.kt_klasse) ??
-    null;
+  const zone = extractBauzone(zoneFeature?.attributes);
 
   return {
     egrid: cleanString(pa.egris_egrid ?? pa.egrid) ?? null,
