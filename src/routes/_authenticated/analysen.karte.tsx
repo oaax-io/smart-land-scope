@@ -150,6 +150,11 @@ function KartePage() {
                   onChange={(e) => setAreaSize(e.target.value)}
                 />
               </div>
+              {selected.areaM2 != null && (
+                <p className="text-[11px] text-muted-foreground">
+                  Automatisch aus dem amtlichen Kataster übernommen ({Math.round(selected.areaM2).toLocaleString("de-CH")} m²) — bei Bedarf anpassen.
+                </p>
+              )}
             </div>
 
             {(!selected.municipality || !selected.canton) && (
