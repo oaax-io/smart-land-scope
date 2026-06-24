@@ -75,6 +75,7 @@ export type QuickAnalysisInitial = {
   lat: number | null;
   lng: number | null;
   egrid: string | null;
+  zone: string | null;
   geometry: { type: "Polygon"; coordinates: number[][][] } | null;
 };
 
