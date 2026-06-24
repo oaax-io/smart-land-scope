@@ -223,15 +223,29 @@ function normalizePostalCode(value: unknown): string | null {
 }
 
 export async function identifyParcelAt(lng: number, lat: number): Promise<SwissParcelInfo | null> {
-  // 1) Parzelle aus Cadastralwebmap
-  const parcelResults = await identifyAt("all:ch.kantone.cadastralwebmap-farbe", lng, lat);
+  // 1) Parzelle aus Cadastralwebmap — Geometrie gleich mitholen, damit wir die
+  //    Fläche auch dann ableiten können, wenn das Attribut `area` nicht geliefert wird.
+  const parcelResults = await identifyAt("all:ch.kantone.cadastralwebmap-farbe", lng, lat, 2, {
+    returnGeometry: true,
+  });
   const feature = parcelResults?.[0];
   const attrs = feature?.attributes ?? {};
   let parcelNumber: string | null = cleanString(attrs.number ?? attrs.parcel_number);
   let egrid: string | null = cleanString(attrs.egris_egrid ?? attrs.egrid);
   let municipality: string | null = cleanString(attrs.municipality_name);
   let canton: string | null = normalizeCanton(attrs.ak ?? attrs.canton_abbreviation ?? attrs.canton);
-  const areaM2: number | null = attrs.area ?? null;
+
+  const rings: number[][][] | undefined = feature?.geometry?.rings;
+  let areaM2: number | null =
+    typeof attrs.area === "number"
+      ? attrs.area
+      : typeof attrs.flaeche === "number"
+        ? attrs.flaeche
+        : null;
+  if (areaM2 == null && rings) {
+    const computed = lv95RingsAreaM2(rings);
+    if (computed > 0) areaM2 = Math.round(computed);
+  }
 
   // 2) Nächstgelegene Gebäudeadresse: wichtig bei direktem Klick in die Karte
   const addressResults = await identifyAt("all:ch.bfs.gebaeude_wohnungs_register", lng, lat, 25);
@@ -277,10 +291,9 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
 
   if (!parcelNumber && !egrid && !municipality && !canton && !address && !postalCode) return null;
 
-  const geometry =
-    feature?.geometry?.rings
-      ? { type: "Polygon" as const, coordinates: esriRingsToGeoJsonCoordinates(feature.geometry.rings) }
-      : null;
+  const geometry = rings
+    ? { type: "Polygon" as const, coordinates: esriRingsToGeoJsonCoordinates(rings) }
+    : null;
 
   return {
     address,
@@ -293,4 +306,24 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
     geometry,
   };
 }
+
+/**
+ * Fläche eines Esri-Rings in LV95 (Meter) via Shoelace-Formel.
+ * Erster Ring = äußere Hülle, weitere Ringe = Löcher (werden subtrahiert).
+ */
+function lv95RingsAreaM2(rings: number[][][]): number {
+  if (!rings.length) return 0;
+  const ringArea = (ring: number[][]) => {
+    let sum = 0;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i];
+      const [xj, yj] = ring[j];
+      sum += xj * yi - xi * yj;
+    }
+    return Math.abs(sum) / 2;
+  };
+  const [outer, ...holes] = rings;
+  return ringArea(outer) - holes.reduce((acc, h) => acc + ringArea(h), 0);
+}
+
 

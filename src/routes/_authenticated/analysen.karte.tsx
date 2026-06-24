@@ -131,6 +131,10 @@ function KartePage() {
               <InfoField label="PLZ / Ort" value={[selected.postalCode, selected.municipality].filter(Boolean).join(" ") || "—"} />
               <InfoField label="Kanton" value={selected.canton ?? "—"} />
               <InfoField label="Parzelle" value={selected.parcelNumber ?? "—"} />
+              <InfoField
+                label="Fläche"
+                value={selected.areaM2 != null ? `${Math.round(selected.areaM2).toLocaleString("de-CH")} m²` : "—"}
+              />
               <InfoField label="E-GRID" value={selected.egrid ?? "—"} mono />
             </div>
 
