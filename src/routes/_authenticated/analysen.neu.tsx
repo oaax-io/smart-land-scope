@@ -206,6 +206,10 @@ function NewAnalysisWizard() {
                     municipality: data.municipality ?? f.municipality,
                     canton: data.canton ?? f.canton,
                     parcel_number: data.parcelNumber ?? f.parcel_number,
+                    area_size:
+                      data.areaM2 != null && !f.area_size
+                        ? String(Math.round(data.areaM2))
+                        : f.area_size,
                   }));
                   if (data.municipality || data.canton) {
                     toast.success("Grundstück erkannt", {

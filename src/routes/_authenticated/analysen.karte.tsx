@@ -30,6 +30,7 @@ type Selected = {
   canton: string | null;
   parcelNumber: string | null;
   egrid: string | null;
+  areaM2: number | null;
   geometry: { type: "Polygon"; coordinates: number[][][] } | null;
 };
 
@@ -98,7 +99,7 @@ function KartePage() {
         lng={selected?.lng ?? null}
         onParcelSelected={(d) => {
           setSelected(d);
-          setAreaSize("");
+          setAreaSize(d.areaM2 ? String(Math.round(d.areaM2)) : "");
         }}
       />
 
@@ -149,6 +150,11 @@ function KartePage() {
                   onChange={(e) => setAreaSize(e.target.value)}
                 />
               </div>
+              {selected.areaM2 != null && (
+                <p className="text-[11px] text-muted-foreground">
+                  Automatisch aus dem amtlichen Kataster übernommen ({Math.round(selected.areaM2).toLocaleString("de-CH")} m²) — bei Bedarf anpassen.
+                </p>
+              )}
             </div>
 
             {(!selected.municipality || !selected.canton) && (

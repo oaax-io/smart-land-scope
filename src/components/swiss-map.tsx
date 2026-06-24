@@ -94,6 +94,7 @@ type SwissMapProps = {
     canton: string | null;
     parcelNumber: string | null;
     egrid: string | null;
+    areaM2: number | null;
     geometry: { type: "Polygon"; coordinates: number[][][] } | null;
   }) => void;
   className?: string;
@@ -222,6 +223,7 @@ export function SwissMap({
         canton: parcel?.canton ?? null,
         parcelNumber: parcel?.parcelNumber ?? null,
         egrid: parcel?.egrid ?? null,
+        areaM2: parcel?.areaM2 ?? null,
         geometry: parcel?.geometry ?? null,
       });
     } catch {
@@ -234,6 +236,7 @@ export function SwissMap({
         canton: null,
         parcelNumber: null,
         egrid: null,
+        areaM2: null,
         geometry: null,
       });
     } finally {
