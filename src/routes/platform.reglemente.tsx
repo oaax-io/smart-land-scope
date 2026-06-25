@@ -28,10 +28,11 @@ import { toast } from "sonner";
 import {
   Building2, MapPin, FileText, Upload, Trash2, Download, Plus, ShieldAlert,
   Sparkles, Loader2, CheckCircle2, AlertCircle, RefreshCw, BookOpen, Layers,
-  CloudUpload, X, Check, ChevronsUpDown, ShieldCheck,
+  CloudUpload, X, Check, ChevronsUpDown, ShieldCheck, DatabaseZap,
 } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
-import { listRegulationsMissingKnowledge } from "@/lib/regulation-bulk.functions";
+import { listLuRegulationsToFill, listRegulationsMissingKnowledge } from "@/lib/regulation-bulk.functions";
+import { importLuBzrDocuments } from "@/lib/lu-bzr-import.functions";
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -69,10 +70,9 @@ function useIsAdmin() {
     queryKey: ["is-admin", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle();
+      const { data, error } = await supabase.rpc("is_platform_admin", { _user_id: user!.id });
       if (error) throw error;
-      return !!data;
+      return Boolean(data);
     },
   });
 }
@@ -109,6 +109,7 @@ function ReglementePage() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline">Admin</Badge>
+          <LuAutofillButton />
           <BulkExtractButton />
           <Button onClick={() => setOpen(true)} size="lg" className="gap-2">
             <Plus className="h-4 w-4" /> Reglement hinzufügen
@@ -190,6 +191,83 @@ function BulkExtractButton() {
       ) : (
         <>
           <Sparkles className="h-4 w-4" /> KI-Analyse: ausstehende
+        </>
+      )}
+    </Button>
+  );
+}
+
+function LuAutofillButton() {
+  const qc = useQueryClient();
+  const importFn = useServerFn(importLuBzrDocuments);
+  const listFn = useServerFn(listLuRegulationsToFill);
+  const extractFn = useServerFn(extractRegulationDocument);
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; current: string } | null>(
+    null,
+  );
+
+  const run = async () => {
+    if (running) return;
+    setRunning(true);
+    try {
+      setProgress({ done: 0, total: 0, current: "LU-Dokumente importieren" });
+      const imported = await importFn();
+      const docs = await listFn();
+      if (docs.length === 0) {
+        toast.success("Kanton Luzern ist bereits befüllt.");
+        return;
+      }
+
+      let ok = 0;
+      let fail = 0;
+      for (let i = 0; i < docs.length; i++) {
+        const doc = docs[i];
+        setProgress({ done: i, total: docs.length, current: doc.municipalityName });
+        try {
+          await extractFn({ data: { documentId: doc.id, force: doc.status === "processing" } });
+          ok++;
+        } catch (e) {
+          fail++;
+          console.error("LU autofill failed for", doc.municipalityName, e);
+        }
+        qc.invalidateQueries({ queryKey: ["all-regdocs"] });
+        qc.invalidateQueries({ queryKey: ["kb-stats"] });
+      }
+
+      const inserted = imported.summary.inserted ?? 0;
+      toast[fail === 0 ? "success" : "warning"](
+        `LU-Befüllung abgeschlossen: ${inserted} neu importiert, ${ok} verarbeitet, ${fail} Fehler.`,
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setProgress(null);
+      setRunning(false);
+      qc.invalidateQueries({ queryKey: ["all-regdocs"] });
+      qc.invalidateQueries({ queryKey: ["kb-stats"] });
+    }
+  };
+
+  return (
+    <Button
+      variant="outline"
+      size="lg"
+      onClick={run}
+      disabled={running}
+      className="gap-2"
+      title="Importiert Luzerner BZR-Dokumente und füllt fehlende Wissenseinträge"
+    >
+      {running ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {progress && progress.total > 0
+            ? `${progress.done}/${progress.total} — ${progress.current}`
+            : progress?.current ?? "LU wird vorbereitet…"}
+        </>
+      ) : (
+        <>
+          <DatabaseZap className="h-4 w-4" /> LU befüllen
         </>
       )}
     </Button>
