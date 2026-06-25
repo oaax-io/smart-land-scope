@@ -221,19 +221,25 @@ function LuAutofillButton() {
 
       let ok = 0;
       let fail = 0;
-      for (let i = 0; i < docs.length; i++) {
-        const doc = docs[i];
-        setProgress({ done: i, total: docs.length, current: doc.municipalityName });
-        try {
-          await extractFn({ data: { documentId: doc.id, force: doc.status === "processing" } });
-          ok++;
-        } catch (e) {
-          fail++;
-          console.error("LU autofill failed for", doc.municipalityName, e);
+      let cursor = 0;
+      let done = 0;
+      const workers = Array.from({ length: Math.min(2, docs.length) }, async () => {
+        while (cursor < docs.length) {
+          const doc = docs[cursor++];
+          setProgress({ done, total: docs.length, current: doc.municipalityName });
+          try {
+            await extractFn({ data: { documentId: doc.id, force: doc.status === "processing" } });
+            ok++;
+          } catch (e) {
+            fail++;
+            console.error("LU autofill failed for", doc.municipalityName, e);
+          } finally {
+            done++;
+            setProgress({ done, total: docs.length, current: doc.municipalityName });
+          }
         }
-        qc.invalidateQueries({ queryKey: ["all-regdocs"] });
-        qc.invalidateQueries({ queryKey: ["kb-stats"] });
-      }
+      });
+      await Promise.all(workers);
 
       const inserted = imported.summary.inserted ?? 0;
       toast[fail === 0 ? "success" : "warning"](
