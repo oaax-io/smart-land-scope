@@ -31,8 +31,7 @@ import {
   CloudUpload, X, Check, ChevronsUpDown, ShieldCheck, DatabaseZap,
 } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
-import { listLuRegulationsToFill, listRegulationsMissingKnowledge } from "@/lib/regulation-bulk.functions";
-import { importLuBzrDocuments } from "@/lib/lu-bzr-import.functions";
+import { startLuFillJob, cancelJob, getActiveLuJob } from "@/lib/background-jobs.functions";
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
