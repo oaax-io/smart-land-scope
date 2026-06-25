@@ -96,13 +96,10 @@ export const importLuBzrDocuments = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
-    const { data: adminRow } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (!adminRow) throw new Error("Forbidden");
+    const { data: isAdmin, error: adminErr } = await supabase.rpc("is_platform_admin", {
+      _user_id: userId,
+    });
+    if (adminErr || !isAdmin) throw new Error("Forbidden");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
