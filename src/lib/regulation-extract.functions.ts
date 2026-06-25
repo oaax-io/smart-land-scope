@@ -601,7 +601,13 @@ async function buildKnowledgeBase(params: {
   if (uniqueEntries.length > 0) {
     const { error: insertEntriesErr } = await supabaseAdmin
       .from("knowledge_entries")
-      .upsert(uniqueEntries, { onConflict: "municipality_id,category,key" });
+      .upsert(
+        uniqueEntries.map((entry) => ({
+          ...entry,
+          updated_at: new Date().toISOString(),
+        })),
+        { onConflict: "municipality_id,category,key" },
+      );
     if (insertEntriesErr) throw insertEntriesErr;
   }
 
