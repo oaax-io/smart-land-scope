@@ -421,6 +421,7 @@ export type Database = {
           created_by: string | null
           current_label: string | null
           done: number
+          errors: Json
           failed: number
           finished_at: string | null
           id: string
@@ -438,6 +439,7 @@ export type Database = {
           created_by?: string | null
           current_label?: string | null
           done?: number
+          errors?: Json
           failed?: number
           finished_at?: string | null
           id?: string
@@ -455,6 +457,7 @@ export type Database = {
           created_by?: string | null
           current_label?: string | null
           done?: number
+          errors?: Json
           failed?: number
           finished_at?: string | null
           id?: string
@@ -1162,6 +1165,7 @@ export type Database = {
         Returns: boolean
       }
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
+      tick_lu_fill_job: { Args: never; Returns: undefined }
     }
     Enums: {
       analysis_document_kind: "bzr" | "bzo" | "zonenplan" | "other"
