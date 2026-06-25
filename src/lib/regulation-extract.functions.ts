@@ -589,8 +589,9 @@ async function buildKnowledgeBase(params: {
   addEntry("Lärmvorschriften", G, extraction.noise_provisions);
   addEntry("Zusammenfassung", G, extraction.summary);
 
-  // Idempotent rebuild per document. There is no unique constraint across
-  // municipality/category/key, so delete+insert is safer than upsert here.
+  // Idempotent rebuild per document. Delete rows from this document first, then
+  // upsert on the municipality/category/key uniqueness constraint so duplicate
+  // zone codes inside one BZR cannot make the rebuild fail.
   const { error: deleteEntriesErr } = await supabaseAdmin
     .from("knowledge_entries")
     .delete()
