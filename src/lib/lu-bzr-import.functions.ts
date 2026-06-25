@@ -89,8 +89,6 @@ type ImportStatus =
 
 type ImportResult = { gemeinde: string; status: ImportStatus | string; error?: string };
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 export const importLuBzrDocuments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -123,7 +121,6 @@ export const importLuBzrDocuments = createServerFn({ method: "POST" })
           .maybeSingle();
         if (!muni) {
           results.push({ gemeinde: src.gemeinde, status: "no_municipality" });
-          await sleep(300);
           continue;
         }
 
@@ -136,7 +133,6 @@ export const importLuBzrDocuments = createServerFn({ method: "POST" })
           .maybeSingle();
         if (existing) {
           results.push({ gemeinde: src.gemeinde, status: "already_exists" });
-          await sleep(300);
           continue;
         }
 
@@ -149,12 +145,10 @@ export const importLuBzrDocuments = createServerFn({ method: "POST" })
             status: "fetch_failed",
             error: e instanceof Error ? e.message : String(e),
           });
-          await sleep(300);
           continue;
         }
         if (!resp.ok) {
           results.push({ gemeinde: src.gemeinde, status: `http_${resp.status}` });
-          await sleep(300);
           continue;
         }
 
@@ -162,7 +156,6 @@ export const importLuBzrDocuments = createServerFn({ method: "POST" })
         const head = buf.subarray(0, 5).toString("utf-8");
         if (buf.length < 2000 || head !== "%PDF-") {
           results.push({ gemeinde: src.gemeinde, status: "not_a_pdf" });
-          await sleep(300);
           continue;
         }
 
@@ -172,7 +165,6 @@ export const importLuBzrDocuments = createServerFn({ method: "POST" })
           .upload(filePath, buf, { contentType: "application/pdf", upsert: true });
         if (upErr) {
           results.push({ gemeinde: src.gemeinde, status: "upload_failed", error: upErr.message });
-          await sleep(300);
           continue;
         }
 
@@ -189,7 +181,6 @@ export const importLuBzrDocuments = createServerFn({ method: "POST" })
         });
         if (insErr) {
           results.push({ gemeinde: src.gemeinde, status: "insert_failed", error: insErr.message });
-          await sleep(300);
           continue;
         }
 
@@ -201,7 +192,6 @@ export const importLuBzrDocuments = createServerFn({ method: "POST" })
           error: e instanceof Error ? e.message : String(e),
         });
       }
-      await sleep(300);
     }
 
     const summary: Record<string, number> = {};
