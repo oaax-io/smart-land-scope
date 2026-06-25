@@ -37,9 +37,20 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   });
 }
 
+async function handleCustomRoute(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname === "/api/cron/lu-tick") {
+    const { handleLuFillTick } = await import("./lib/lu-fill-tick.server");
+    return handleLuFillTick(request);
+  }
+  return null;
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const custom = await handleCustomRoute(request);
+      if (custom) return custom;
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
