@@ -597,8 +597,11 @@ async function buildKnowledgeBase(params: {
     .eq("source_document", documentId);
   if (deleteEntriesErr) throw deleteEntriesErr;
 
-  if (entries.length > 0) {
-    const { error: insertEntriesErr } = await supabaseAdmin.from("knowledge_entries").insert(entries);
+  const uniqueEntries = mergeKnowledgeEntries(entries);
+  if (uniqueEntries.length > 0) {
+    const { error: insertEntriesErr } = await supabaseAdmin
+      .from("knowledge_entries")
+      .upsert(uniqueEntries, { onConflict: "municipality_id,category,key" });
     if (insertEntriesErr) throw insertEntriesErr;
   }
 
@@ -612,4 +615,36 @@ async function buildKnowledgeBase(params: {
     const { error: insertRulesErr } = await supabaseAdmin.from("regulation_rules").insert(rules);
     if (insertRulesErr) throw insertRulesErr;
   }
+}
+
+function mergeKnowledgeEntries<T extends {
+  municipality_id: string;
+  category: string;
+  key: string;
+  value: string;
+  source_document: string;
+  source_article: string | null;
+}>(entries: T[]): T[] {
+  const merged = new Map<string, T>();
+  for (const entry of entries) {
+    const mapKey = `${entry.municipality_id}|${entry.category}|${entry.key}`;
+    const existing = merged.get(mapKey);
+    if (!existing) {
+      merged.set(mapKey, entry);
+      continue;
+    }
+
+    const values = new Set(
+      [existing.value, entry.value]
+        .flatMap((value) => value.split(" | "))
+        .map((value) => value.trim())
+        .filter(Boolean),
+    );
+    merged.set(mapKey, {
+      ...existing,
+      value: Array.from(values).join(" | "),
+      source_article: existing.source_article ?? entry.source_article,
+    });
+  }
+  return Array.from(merged.values());
 }
