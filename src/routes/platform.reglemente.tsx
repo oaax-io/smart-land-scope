@@ -31,8 +31,7 @@ import {
   CloudUpload, X, Check, ChevronsUpDown, ShieldCheck, DatabaseZap,
 } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
-import { listLuRegulationsToFill, listRegulationsMissingKnowledge } from "@/lib/regulation-bulk.functions";
-import { importLuBzrDocuments } from "@/lib/lu-bzr-import.functions";
+import { startLuFillJob, cancelJob, getActiveLuJob } from "@/lib/background-jobs.functions";
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -109,8 +108,7 @@ function ReglementePage() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline">Admin</Badge>
-          <LuAutofillButton />
-          <BulkExtractButton />
+          <LuJobButton />
           <Button onClick={() => setOpen(true)} size="lg" className="gap-2">
             <Plus className="h-4 w-4" /> Reglement hinzufügen
           </Button>
@@ -125,160 +123,116 @@ function ReglementePage() {
 }
 
 // =====================================================================
-// Bulk: KI-Analyse für alle Reglemente ohne Wissenseinträge
+// LU Background-Job: Importiert + analysiert alle Luzerner Reglemente
+// im Hintergrund (pg_cron-Tick alle 60 s, 3 Dokumente pro Tick).
 // =====================================================================
 
-function BulkExtractButton() {
+function LuJobButton() {
   const qc = useQueryClient();
-  const listFn = useServerFn(listRegulationsMissingKnowledge);
-  const extractFn = useServerFn(extractRegulationDocument);
-  const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number; current: string } | null>(
-    null,
-  );
+  const startFn = useServerFn(startLuFillJob);
+  const cancelFn = useServerFn(cancelJob);
+  const statusFn = useServerFn(getActiveLuJob);
+  const [starting, setStarting] = useState(false);
 
-  const run = async () => {
-    if (running) return;
-    setRunning(true);
-    try {
-      const docs = await listFn();
-      if (docs.length === 0) {
-        toast.success("Alle Reglemente haben bereits Wissenseinträge.");
-        setRunning(false);
-        return;
+  const job = useQuery({
+    queryKey: ["lu-fill-job"],
+    queryFn: () => statusFn(),
+    refetchInterval: 5000,
+  });
+
+  const j = job.data as
+    | {
+        id: string;
+        status: string;
+        done: number;
+        total: number;
+        ok: number;
+        failed: number;
+        current_label: string | null;
+        last_error: string | null;
       }
-      setProgress({ done: 0, total: docs.length, current: docs[0].municipalityName });
-      let ok = 0;
-      let fail = 0;
-      for (let i = 0; i < docs.length; i++) {
-        const d = docs[i];
-        setProgress({ done: i, total: docs.length, current: d.municipalityName });
-        try {
-          await extractFn({ data: { documentId: d.id } });
-          ok++;
-        } catch (e) {
-          fail++;
-          console.error("Extract failed for", d.municipalityName, e);
-        }
-      }
-      setProgress(null);
-      toast[fail === 0 ? "success" : "warning"](
-        `KI-Analyse abgeschlossen: ${ok} erfolgreich, ${fail} fehlgeschlagen.`,
-      );
+    | null
+    | undefined;
+
+  const isActive = j && (j.status === "queued" || j.status === "running");
+
+  // Refresh tables when the job reports new progress.
+  useEffect(() => {
+    if (isActive) {
       qc.invalidateQueries({ queryKey: ["all-regdocs"] });
       qc.invalidateQueries({ queryKey: ["kb-stats"] });
-    } finally {
-      setRunning(false);
     }
-  };
+  }, [isActive, j?.done, qc]);
 
-  return (
-    <Button
-      variant="outline"
-      size="lg"
-      onClick={run}
-      disabled={running}
-      className="gap-2"
-      title="Führt die KI-Analyse für alle Reglemente ohne Wissenseinträge aus"
-    >
-      {running ? (
-        <>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {progress
-            ? `${progress.done}/${progress.total} — ${progress.current}`
-            : "Wird vorbereitet…"}
-        </>
-      ) : (
-        <>
-          <Sparkles className="h-4 w-4" /> KI-Analyse: ausstehende
-        </>
-      )}
-    </Button>
-  );
-}
-
-function LuAutofillButton() {
-  const qc = useQueryClient();
-  const importFn = useServerFn(importLuBzrDocuments);
-  const listFn = useServerFn(listLuRegulationsToFill);
-  const extractFn = useServerFn(extractRegulationDocument);
-  const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number; current: string } | null>(
-    null,
-  );
-
-  const run = async () => {
-    if (running) return;
-    setRunning(true);
+  const start = async () => {
+    if (starting || isActive) return;
+    setStarting(true);
     try {
-      setProgress({ done: 0, total: 0, current: "LU-Dokumente importieren" });
-      const imported = await importFn();
-      const docs = await listFn();
-      if (docs.length === 0) {
-        toast.success("Kanton Luzern ist bereits befüllt.");
-        return;
+      const r = await startFn();
+      if (r.alreadyRunning) {
+        toast.info("Ein LU-Job läuft bereits im Hintergrund.");
+      } else if ((r as { total?: number }).total === 0) {
+        toast.success("Kanton Luzern ist bereits vollständig befüllt.");
+      } else {
+        toast.success(
+          `LU-Job gestartet – läuft im Hintergrund (${(r as { imported?: number }).imported ?? 0} Reglemente neu importiert).`,
+        );
       }
-
-      let ok = 0;
-      let fail = 0;
-      let cursor = 0;
-      let done = 0;
-      const workers = Array.from({ length: Math.min(2, docs.length) }, async () => {
-        while (cursor < docs.length) {
-          const doc = docs[cursor++];
-          setProgress({ done, total: docs.length, current: doc.municipalityName });
-          try {
-            await extractFn({ data: { documentId: doc.id, force: doc.status === "processing" } });
-            ok++;
-          } catch (e) {
-            fail++;
-            console.error("LU autofill failed for", doc.municipalityName, e);
-          } finally {
-            done++;
-            setProgress({ done, total: docs.length, current: doc.municipalityName });
-          }
-        }
-      });
-      await Promise.all(workers);
-
-      const inserted = imported.summary.inserted ?? 0;
-      toast[fail === 0 ? "success" : "warning"](
-        `LU-Befüllung abgeschlossen: ${inserted} neu importiert, ${ok} verarbeitet, ${fail} Fehler.`,
-      );
+      job.refetch();
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(e instanceof Error ? e.message : "Fehler beim Starten");
     } finally {
-      setProgress(null);
-      setRunning(false);
-      qc.invalidateQueries({ queryKey: ["all-regdocs"] });
-      qc.invalidateQueries({ queryKey: ["kb-stats"] });
+      setStarting(false);
     }
   };
+
+  const cancel = async () => {
+    if (!j) return;
+    try {
+      await cancelFn({ data: { jobId: j.id } });
+      toast.success("Job abgebrochen");
+      job.refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Fehler beim Abbrechen");
+    }
+  };
+
+  if (isActive) {
+    const pct = j!.total > 0 ? Math.round((j!.done / j!.total) * 100) : 0;
+    return (
+      <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        <div className="flex flex-col leading-tight">
+          <span className="font-medium">
+            LU läuft im Hintergrund · {j!.done}/{j!.total} ({pct}%)
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {j!.current_label ?? "Wartet auf Cron-Tick…"}
+            {j!.failed > 0 ? ` · ${j!.failed} Fehler` : ""}
+          </span>
+        </div>
+        <Button variant="ghost" size="sm" onClick={cancel} className="ml-2">
+          <X className="h-3 w-3" /> Stop
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <Button
       variant="outline"
       size="lg"
-      onClick={run}
-      disabled={running}
+      onClick={start}
+      disabled={starting}
       className="gap-2"
-      title="Importiert Luzerner BZR-Dokumente und füllt fehlende Wissenseinträge"
+      title="Startet einen Hintergrund-Job (pg_cron, 3 Reglemente/Minute), der LU vollständig befüllt. Browser-Tab kann geschlossen werden."
     >
-      {running ? (
-        <>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {progress && progress.total > 0
-            ? `${progress.done}/${progress.total} — ${progress.current}`
-            : progress?.current ?? "LU wird vorbereitet…"}
-        </>
-      ) : (
-        <>
-          <DatabaseZap className="h-4 w-4" /> LU befüllen
-        </>
-      )}
+      {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <DatabaseZap className="h-4 w-4" />}
+      LU im Hintergrund befüllen
     </Button>
   );
 }
+
 
 // =====================================================================
 // Dashboard

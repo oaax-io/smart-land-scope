@@ -41,7 +41,9 @@ function useMunicipalities() {
     queryFn: async (): Promise<Muni[]> => {
       const { data: munis, error } = await supabase
         .from("municipalities")
-        .select("id, name, canton:cantons(code, name)")
+        .select("id, name, active, canton:cantons!inner(code, name, active)")
+        .eq("active", true)
+        .eq("cantons.active", true)
         .order("name");
       if (error) throw error;
       const { data: counts } = await supabase

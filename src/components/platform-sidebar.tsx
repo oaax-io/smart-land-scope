@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ShieldCheck, Building2, Users, BookOpen, LayoutDashboard, ArrowLeft, MessageSquare } from "lucide-react";
+import { ShieldCheck, Building2, Users, BookOpen, LayoutDashboard, ArrowLeft, MessageSquare, Map } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +18,7 @@ const items: { title: string; url: string; icon: typeof LayoutDashboard; exact?:
   { title: "Organisationen", url: "/platform/organisationen", icon: Building2 },
   { title: "Benutzer", url: "/platform/benutzer", icon: Users },
   { title: "Reglemente", url: "/platform/reglemente", icon: BookOpen },
+  { title: "Regionen", url: "/platform/regionen", icon: Map },
   { title: "Feedback", url: "/feedback", icon: MessageSquare },
 ];
 

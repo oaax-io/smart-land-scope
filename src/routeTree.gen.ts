@@ -16,6 +16,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
 import { Route as PlatformReglementeRouteImport } from './routes/platform.reglemente'
+import { Route as PlatformRegionenRouteImport } from './routes/platform.regionen'
 import { Route as PlatformOrganisationenRouteImport } from './routes/platform.organisationen'
 import { Route as PlatformBenutzerRouteImport } from './routes/platform.benutzer'
 import { Route as AuthenticatedWissenRouteImport } from './routes/_authenticated/wissen'
@@ -65,6 +66,11 @@ const PlatformIndexRoute = PlatformIndexRouteImport.update({
 const PlatformReglementeRoute = PlatformReglementeRouteImport.update({
   id: '/reglemente',
   path: '/reglemente',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformRegionenRoute = PlatformRegionenRouteImport.update({
+  id: '/regionen',
+  path: '/regionen',
   getParentRoute: () => PlatformRoute,
 } as any)
 const PlatformOrganisationenRoute = PlatformOrganisationenRouteImport.update({
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/wissen': typeof AuthenticatedWissenRoute
   '/platform/benutzer': typeof PlatformBenutzerRoute
   '/platform/organisationen': typeof PlatformOrganisationenRoute
+  '/platform/regionen': typeof PlatformRegionenRoute
   '/platform/reglemente': typeof PlatformReglementeRoute
   '/platform/': typeof PlatformIndexRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/wissen': typeof AuthenticatedWissenRoute
   '/platform/benutzer': typeof PlatformBenutzerRoute
   '/platform/organisationen': typeof PlatformOrganisationenRoute
+  '/platform/regionen': typeof PlatformRegionenRoute
   '/platform/reglemente': typeof PlatformReglementeRoute
   '/platform': typeof PlatformIndexRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
@@ -218,6 +226,7 @@ export interface FileRoutesById {
   '/_authenticated/wissen': typeof AuthenticatedWissenRoute
   '/platform/benutzer': typeof PlatformBenutzerRoute
   '/platform/organisationen': typeof PlatformOrganisationenRoute
+  '/platform/regionen': typeof PlatformRegionenRoute
   '/platform/reglemente': typeof PlatformReglementeRoute
   '/platform/': typeof PlatformIndexRoute
   '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/wissen'
     | '/platform/benutzer'
     | '/platform/organisationen'
+    | '/platform/regionen'
     | '/platform/reglemente'
     | '/platform/'
     | '/analysen/$id'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/wissen'
     | '/platform/benutzer'
     | '/platform/organisationen'
+    | '/platform/regionen'
     | '/platform/reglemente'
     | '/platform'
     | '/analysen/$id'
@@ -292,6 +303,7 @@ export interface FileRouteTypes {
     | '/_authenticated/wissen'
     | '/platform/benutzer'
     | '/platform/organisationen'
+    | '/platform/regionen'
     | '/platform/reglemente'
     | '/platform/'
     | '/_authenticated/analysen/$id'
@@ -360,6 +372,13 @@ declare module '@tanstack/react-router' {
       path: '/reglemente'
       fullPath: '/platform/reglemente'
       preLoaderRoute: typeof PlatformReglementeRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/regionen': {
+      id: '/platform/regionen'
+      path: '/regionen'
+      fullPath: '/platform/regionen'
+      preLoaderRoute: typeof PlatformRegionenRouteImport
       parentRoute: typeof PlatformRoute
     }
     '/platform/organisationen': {
@@ -529,6 +548,7 @@ const AuthenticatedRouteRouteWithChildren =
 interface PlatformRouteChildren {
   PlatformBenutzerRoute: typeof PlatformBenutzerRoute
   PlatformOrganisationenRoute: typeof PlatformOrganisationenRoute
+  PlatformRegionenRoute: typeof PlatformRegionenRoute
   PlatformReglementeRoute: typeof PlatformReglementeRoute
   PlatformIndexRoute: typeof PlatformIndexRoute
 }
@@ -536,6 +556,7 @@ interface PlatformRouteChildren {
 const PlatformRouteChildren: PlatformRouteChildren = {
   PlatformBenutzerRoute: PlatformBenutzerRoute,
   PlatformOrganisationenRoute: PlatformOrganisationenRoute,
+  PlatformRegionenRoute: PlatformRegionenRoute,
   PlatformReglementeRoute: PlatformReglementeRoute,
   PlatformIndexRoute: PlatformIndexRoute,
 }

@@ -415,8 +415,66 @@ export type Database = {
           },
         ]
       }
+      background_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          current_label: string | null
+          done: number
+          errors: Json
+          failed: number
+          finished_at: string | null
+          id: string
+          job_type: string
+          last_error: string | null
+          ok: number
+          scope: Json
+          started_at: string | null
+          status: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          current_label?: string | null
+          done?: number
+          errors?: Json
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          job_type: string
+          last_error?: string | null
+          ok?: number
+          scope?: Json
+          started_at?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          current_label?: string | null
+          done?: number
+          errors?: Json
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          ok?: number
+          scope?: Json
+          started_at?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cantons: {
         Row: {
+          active: boolean
           code: string
           created_at: string
           id: string
@@ -424,6 +482,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active?: boolean
           code: string
           created_at?: string
           id?: string
@@ -431,6 +490,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active?: boolean
           code?: string
           created_at?: string
           id?: string
@@ -592,6 +652,7 @@ export type Database = {
       }
       municipalities: {
         Row: {
+          active: boolean
           bfs_number: number | null
           canton_id: string
           created_at: string
@@ -600,6 +661,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active?: boolean
           bfs_number?: number | null
           canton_id: string
           created_at?: string
@@ -608,6 +670,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active?: boolean
           bfs_number?: number | null
           canton_id?: string
           created_at?: string
@@ -1102,6 +1165,7 @@ export type Database = {
         Returns: boolean
       }
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
+      tick_lu_fill_job: { Args: never; Returns: undefined }
     }
     Enums: {
       analysis_document_kind: "bzr" | "bzo" | "zonenplan" | "other"
