@@ -4,7 +4,10 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
-const InputSchema = z.object({ documentId: z.string().uuid() });
+const InputSchema = z.object({
+  documentId: z.string().uuid(),
+  force: z.boolean().optional(),
+});
 
 // Per-zone schema — carries the actual density metrics PER zone (e.g. WO3, WA4).
 // Most Swiss BZRs define these per Ordnungsnummer in an appendix, not globally.
@@ -91,13 +94,10 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const { data: adminRow } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (!adminRow) throw new Error("Forbidden");
+    const { data: isAdmin, error: adminErr } = await supabase.rpc("is_platform_admin", {
+      _user_id: userId,
+    });
+    if (adminErr || !isAdmin) throw new Error("Forbidden");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -108,8 +108,9 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
       .maybeSingle();
     if (docErr || !doc) throw new Error("Dokument nicht gefunden");
 
-    // Idempotency: only skip if a previous run produced zones. An empty
-    // completed run is treated as redo-able.
+    // Idempotency: only skip if a previous run produced zones AND the derived
+    // knowledge rows exist. Older runs sometimes completed with zones but wrote
+    // zero knowledge rows; those are rebuilt without calling the AI again.
     const { data: existing } = await supabaseAdmin
       .from("regulation_extractions")
       .select("id, status, zones, raw_extraction")
@@ -117,12 +118,31 @@ export const extractRegulationDocument = createServerFn({ method: "POST" })
       .maybeSingle();
     const existingRaw = existing?.raw_extraction as { fallback?: boolean } | null | undefined;
     if (
+      !data.force &&
       existing?.status === "completed" &&
       Array.isArray(existing.zones) &&
       (existing.zones as unknown[]).length > 0 &&
       existingRaw?.fallback !== true
     ) {
-      return { skipped: true, extractionId: existing.id };
+      const { count, error: countErr } = await supabaseAdmin
+        .from("knowledge_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("source_document", doc.id);
+      if (countErr) throw countErr;
+
+      if ((count ?? 0) > 0) {
+        return { skipped: true, rebuilt: false, extractionId: existing.id };
+      }
+
+      const storedExtraction = normalizeExtraction(
+        extractionFromStored(existing.raw_extraction, existing.zones),
+      );
+      await buildKnowledgeBase({
+        municipalityId: doc.municipality_id,
+        documentId: doc.id,
+        extraction: storedExtraction,
+      });
+      return { skipped: false, rebuilt: true, extractionId: existing.id };
     }
 
     const { data: extr, error: upErr } = await supabaseAdmin
@@ -263,7 +283,7 @@ Nicht im Dokument vorhandene Werte: setze null. KEINE Werte erfinden.`;
         extraction: object,
       });
 
-      return { skipped: false, extractionId: extr.id };
+      return { skipped: false, rebuilt: false, extractionId: extr.id };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       await supabaseAdmin
@@ -371,6 +391,52 @@ function normalizeExtraction(extraction: Extraction): Extraction {
     }));
 
   return { ...extraction, zones };
+}
+
+function extractionFromStored(raw: unknown, zones: unknown): Extraction {
+  if (raw) {
+    try {
+      const parsed = parseExtractionJson(JSON.stringify(raw));
+      if (parsed && (parsed.zones?.length ?? 0) > 0) return parsed;
+    } catch {
+      // Fall through to the zones column.
+    }
+  }
+
+  return {
+    zones: Array.isArray(zones)
+      ? zones
+          .filter((z): z is Record<string, unknown> => !!z && typeof z === "object")
+          .map((z) => ({
+            code: asString(z.code),
+            name: asString(z.name),
+            description: asString(z.description),
+            usage_category: asString(z.usage_category),
+            allowed_uses: Array.isArray(z.allowed_uses)
+              ? z.allowed_uses.filter((u): u is string => typeof u === "string")
+              : [],
+            max_floors: asNumber(z.max_floors),
+            max_height_m: asNumber(z.max_height_m),
+            utilization_ratio: asNumber(z.utilization_ratio),
+            building_coverage_ratio: asNumber(z.building_coverage_ratio),
+            setback_small_m: asNumber(z.setback_small_m),
+            setback_large_m: asNumber(z.setback_large_m),
+            noise_sensitivity: asString(z.noise_sensitivity),
+            article_reference: asString(z.article_reference),
+          }))
+      : [],
+  };
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const parsed = Number(value.replace("'", "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function createFallbackExtraction(title: string, fileName: string | null): Extraction {
@@ -523,15 +589,69 @@ async function buildKnowledgeBase(params: {
   addEntry("Lärmvorschriften", G, extraction.noise_provisions);
   addEntry("Zusammenfassung", G, extraction.summary);
 
-  // Idempotent rebuild per document. There is no unique constraint across
-  // municipality/category/key, so delete+insert is safer than upsert here.
-  await supabaseAdmin.from("knowledge_entries").delete().eq("source_document", documentId);
-  if (entries.length > 0) {
-    await supabaseAdmin.from("knowledge_entries").insert(entries);
+  // Idempotent rebuild per document. Delete rows from this document first, then
+  // upsert on the municipality/category/key uniqueness constraint so duplicate
+  // zone codes inside one BZR cannot make the rebuild fail.
+  const { error: deleteEntriesErr } = await supabaseAdmin
+    .from("knowledge_entries")
+    .delete()
+    .eq("source_document", documentId);
+  if (deleteEntriesErr) throw deleteEntriesErr;
+
+  const uniqueEntries = mergeKnowledgeEntries(entries);
+  if (uniqueEntries.length > 0) {
+    const { error: insertEntriesErr } = await supabaseAdmin
+      .from("knowledge_entries")
+      .upsert(
+        uniqueEntries.map((entry) => ({
+          ...entry,
+          updated_at: new Date().toISOString(),
+        })),
+        { onConflict: "municipality_id,category,key" },
+      );
+    if (insertEntriesErr) throw insertEntriesErr;
   }
 
-  await supabaseAdmin.from("regulation_rules").delete().eq("source_document", documentId);
+  const { error: deleteRulesErr } = await supabaseAdmin
+    .from("regulation_rules")
+    .delete()
+    .eq("source_document", documentId);
+  if (deleteRulesErr) throw deleteRulesErr;
+
   if (rules.length > 0) {
-    await supabaseAdmin.from("regulation_rules").insert(rules);
+    const { error: insertRulesErr } = await supabaseAdmin.from("regulation_rules").insert(rules);
+    if (insertRulesErr) throw insertRulesErr;
   }
+}
+
+function mergeKnowledgeEntries<T extends {
+  municipality_id: string;
+  category: string;
+  key: string;
+  value: string;
+  source_document: string;
+  source_article: string | null;
+}>(entries: T[]): T[] {
+  const merged = new Map<string, T>();
+  for (const entry of entries) {
+    const mapKey = `${entry.municipality_id}|${entry.category}|${entry.key}`;
+    const existing = merged.get(mapKey);
+    if (!existing) {
+      merged.set(mapKey, entry);
+      continue;
+    }
+
+    const values = new Set(
+      [existing.value, entry.value]
+        .flatMap((value) => value.split(" | "))
+        .map((value) => value.trim())
+        .filter(Boolean),
+    );
+    merged.set(mapKey, {
+      ...existing,
+      value: Array.from(values).join(" | "),
+      source_article: existing.source_article ?? entry.source_article,
+    });
+  }
+  return Array.from(merged.values());
 }
