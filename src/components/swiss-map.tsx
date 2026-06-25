@@ -395,11 +395,22 @@ export function SwissMap({
   // the rest is dimmed (lower opacity + dark tint).
   const selectedNum = cantonFilter !== "all" ? CANTON_BY_CODE.get(cantonFilter)?.num : null;
 
+  // Beim Hineinzoomen das Kanton-Overlay ausblenden, damit der Fokus auf
+  // der Parzelle liegt und keine flächige Einfärbung über der Stadt liegt.
+  // Vollständig sichtbar bis Zoom 11, linear ausblenden bis Zoom 14.
+  const fadeStops = (full: number) => [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    11, full,
+    14, 0,
+  ];
+
   const cantonFillColor: any = ["match", ["get", "KANTONSNUM"], ...CANTON_COLOR_MATCH, "#999999"];
   const cantonFillOpacity: any =
     selectedNum != null
-      ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 0.45, 0.18]
-      : 0.28;
+      ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], fadeStops(0.45), fadeStops(0.18)]
+      : fadeStops(0.28);
   const cantonLineColor: any =
     selectedNum != null
       ? [
@@ -413,11 +424,12 @@ export function SwissMap({
     selectedNum != null
       ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 2.5, 0.6]
       : 0.8;
-  // Dim overlay for non-selected cantons
+  // Dim overlay for non-selected cantons (auch ausblenden beim Zoomen)
   const dimOpacity: any =
     selectedNum != null
-      ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 0, 0.35]
+      ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 0, fadeStops(0.35)]
       : 0;
+
 
   return (
     <div className={cn(floatingSearch ? "relative h-full w-full" : "space-y-2", className)}>
