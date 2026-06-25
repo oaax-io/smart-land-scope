@@ -108,8 +108,7 @@ function ReglementePage() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline">Admin</Badge>
-          <LuAutofillButton />
-          <BulkExtractButton />
+          <LuJobButton />
           <Button onClick={() => setOpen(true)} size="lg" className="gap-2">
             <Plus className="h-4 w-4" /> Reglement hinzufügen
           </Button>
