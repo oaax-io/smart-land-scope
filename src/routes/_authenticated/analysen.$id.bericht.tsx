@@ -305,9 +305,10 @@ function ReportPage() {
           {a.lat != null && a.lng != null ? (
             <div className="overflow-hidden rounded-lg border">
               <SwissMap
+                mode="readonly"
                 lat={Number(a.lat)}
                 lng={Number(a.lng)}
-                height={420}
+                heightClassName="h-[420px]"
                 allowExpand={false}
                 parcelGeometry={a.parcel_geometry as never}
               />
