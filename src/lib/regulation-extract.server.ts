@@ -523,6 +523,28 @@ async function buildKnowledgeBase(params: {
     if (z.setback_small_m != null) addEntry("Grenzabstand klein", key, `${z.setback_small_m} m`, art);
     if (z.setback_large_m != null) addEntry("Grenzabstand gross", key, `${z.setback_large_m} m`, art);
     if (z.noise_sensitivity) addEntry("Lärmempfindlichkeit", key, z.noise_sensitivity, art);
+    if (z.max_height_valley_m != null)
+      addEntry("Fassadenhöhe talseitig", key, `${z.max_height_valley_m} m`, art);
+    if (z.building_mass_ratio != null)
+      addEntry("Baumassenziffer", key, z.building_mass_ratio, art);
+    if (z.open_space_ratio != null)
+      addEntry("Freiflächenziffer", key, z.open_space_ratio, art);
+    if (z.max_building_length_m != null)
+      addEntry("Max. Gebäudelänge", key, `${z.max_building_length_m} m`, art);
+    if (z.max_facade_length_m != null)
+      addEntry("Max. Fassadenlänge", key, `${z.max_facade_length_m} m`, art);
+    if (z.height_bonus_m != null)
+      addEntry("Mehrhöhenzuschlag", key, `${z.height_bonus_m} m`, art);
+    if (z.attic_floor_counted != null)
+      addEntry("Anrechenbares DG", key, z.attic_floor_counted ? "Ja" : "Nein", art);
+    if (z.basement_counted != null)
+      addEntry("Anrechenbares UG", key, z.basement_counted ? "Ja" : "Nein", art);
+    if (z.transit_quality != null)
+      addEntry("Erschliessungsqualität ÖV", key, z.transit_quality, art);
+    if (z.play_area_m2_per_apt != null)
+      addEntry("Spiel- und Ruhefläche", key, `${z.play_area_m2_per_apt} m² / Wohnung`, art);
+    if (z.parking_rate != null)
+      addEntry("Parkierung", key, z.parking_rate, art);
 
     rules.push({
       municipality_id: municipalityId,
