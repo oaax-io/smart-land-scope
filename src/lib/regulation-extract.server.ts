@@ -198,7 +198,18 @@ Antworte AUSSCHLIESSLICH mit reinem JSON in genau dieser Form (keine Markdown-Fe
       "setback_small_m": 3.5,
       "setback_large_m": 7,
       "noise_sensitivity": "II",
-      "article_reference": "Art. 12 / Anhang 1"
+      "article_reference": "Art. 12 / Anhang 1",
+      "max_height_valley_m": null,
+      "building_mass_ratio": null,
+      "open_space_ratio": null,
+      "max_building_length_m": null,
+      "max_facade_length_m": null,
+      "height_bonus_m": null,
+      "attic_floor_counted": null,
+      "basement_counted": null,
+      "transit_quality": null,
+      "play_area_m2_per_apt": null,
+      "parking_rate": null
     }
   ],
   "special_provisions": "string oder null",
