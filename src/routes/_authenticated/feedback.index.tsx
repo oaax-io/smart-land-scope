@@ -74,7 +74,21 @@ function FeedbackListPage() {
         .select("id,user_id,title,description,category,priority,status,screenshot_path,created_at,updated_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as FeedbackRow[];
+      const rows = (data ?? []) as FeedbackRow[];
+      const userIds = Array.from(new Set(rows.map((r) => r.user_id)));
+      const profileMap = new Map<string, { first_name: string | null; last_name: string | null; email: string | null }>();
+      if (userIds.length) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id,first_name,last_name,email")
+          .in("id", userIds);
+        (profs ?? []).forEach((p) => profileMap.set(p.id, p));
+      }
+      return rows.map((r) => {
+        const p = profileMap.get(r.user_id);
+        const name = p ? [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || p.email || null : null;
+        return { ...r, author_name: name };
+      });
     },
   });
 
