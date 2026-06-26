@@ -13,6 +13,7 @@ import {
   MapPin,
   RefreshCcw,
   Sparkles,
+  ShieldCheck,
   TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
