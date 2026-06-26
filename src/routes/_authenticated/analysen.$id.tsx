@@ -12,6 +12,7 @@ import {
   Loader2,
   MapPin,
   RefreshCcw,
+  ScrollText,
   Sparkles,
   ShieldCheck,
   TrendingUp,
