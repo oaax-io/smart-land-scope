@@ -369,6 +369,15 @@ function AnalysisDetailPage() {
           />
         </TabsContent>
 
+        {/* ÖREB */}
+        <TabsContent value="oereb" className="space-y-4">
+          <OEREBTabContent
+            analysisId={analysis.id as string}
+            lat={(analysis.lat as number | null) ?? null}
+            lng={(analysis.lng as number | null) ?? null}
+          />
+        </TabsContent>
+
         {/* Bericht */}
         <TabsContent value="report">
           <Card>
