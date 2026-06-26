@@ -197,17 +197,72 @@ function ReportPage() {
   if (hasGrundriss) toc.push(["A2", "Grundrisse (Beilagen)"]);
   if (hasSchnitt) toc.push(["A3", "Schnitte (Beilagen)"]);
 
+  const buildReportHtml = () => {
+    const body = document.getElementById("report-body");
+    if (!body) throw new Error("Bericht-Inhalt nicht gefunden");
+    // Inline-Styles für Standalone-Dokument (kein Tailwind im neuen Tab/Word)
+    const styles = `
+      *{box-sizing:border-box}
+      body{font-family:Calibri,Arial,sans-serif;color:#111;margin:24px;line-height:1.45}
+      h1{font-size:22pt;margin:0 0 8pt}
+      h2{font-size:14pt;border-bottom:1px solid #888;padding-bottom:2pt;margin-top:18pt}
+      h3{font-size:12pt;margin-top:12pt}
+      p{margin:4pt 0}
+      table{border-collapse:collapse;width:100%;margin:6pt 0}
+      td,th{border:1px solid #bbb;padding:6pt;text-align:left;font-size:10pt;vertical-align:top}
+      th{background:#f3f4f6}
+      .muted{color:#666}
+      .kpi{font-size:18pt;font-weight:bold}
+      canvas,iframe{display:none}
+      img{max-width:100%}
+      .print\\:hidden,[data-print-hide]{display:none !important}
+      @media print{@page{size:A4;margin:18mm}}
+    `;
+    return `<!doctype html><html><head><meta charset="utf-8"><title>Machbarkeitsstudie</title><style>${styles}</style></head><body>${body.outerHTML}</body></html>`;
+  };
+
+  const exportPdf = () => {
+    try {
+      const html = buildReportHtml();
+      const w = window.open("", "_blank");
+      if (!w) {
+        toast.error("Popup blockiert", { description: "Bitte Popups für diese Seite erlauben." });
+        return;
+      }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      // Warten bis Inhalt geladen, dann Druck-Dialog
+      const trigger = () => {
+        try { w.focus(); w.print(); } catch (e) { console.error(e); }
+      };
+      if (w.document.readyState === "complete") setTimeout(trigger, 300);
+      else w.addEventListener("load", () => setTimeout(trigger, 300));
+    } catch (e) {
+      console.error(e);
+      toast.error("PDF-Export fehlgeschlagen", { description: e instanceof Error ? e.message : String(e) });
+    }
+  };
+
   const exportWord = () => {
-    const html = document.getElementById("report-body")?.outerHTML ?? "";
-    const doc = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Machbarkeitsstudie</title><style>body{font-family:Calibri,Arial,sans-serif;color:#111;}h1{font-size:22pt;margin-bottom:4pt}h2{font-size:14pt;border-bottom:1px solid #888;padding-bottom:2pt;margin-top:18pt}table{border-collapse:collapse;width:100%;margin:6pt 0}td,th{border:1px solid #bbb;padding:6pt;text-align:left;font-size:10pt}.muted{color:#666}.kpi{font-size:18pt;font-weight:bold}</style></head><body>${html}</body></html>`;
-    const blob = new Blob(["\ufeff", doc], { type: "application/msword" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const projectRef = (a.project_number as string | null) ?? id.slice(0, 8).toUpperCase();
-    link.href = url;
-    link.download = `Machbarkeitsstudie-${projectRef}-${(a.address ?? "Grundstueck").replace(/\s+/g, "-")}.doc`;
-    link.click();
-    URL.revokeObjectURL(url);
+    try {
+      const html = buildReportHtml();
+      const doc = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>${html.replace(/^<!doctype html>/i, "")}`;
+      const blob = new Blob(["\ufeff", doc], { type: "application/msword" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const projectRef = (a.project_number as string | null) ?? id.slice(0, 8).toUpperCase();
+      link.href = url;
+      link.download = `Machbarkeitsstudie-${projectRef}-${(a.address ?? "Grundstueck").replace(/\s+/g, "-")}.doc`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success("Word-Dokument wird heruntergeladen");
+    } catch (e) {
+      console.error(e);
+      toast.error("Word-Export fehlgeschlagen", { description: e instanceof Error ? e.message : String(e) });
+    }
   };
 
   return (
@@ -220,7 +275,7 @@ function ReportPage() {
           </Link>
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
+          <Button variant="outline" size="sm" onClick={exportPdf}>
             <Printer className="mr-2 h-4 w-4" />PDF exportieren
           </Button>
           <Button size="sm" onClick={exportWord}>
