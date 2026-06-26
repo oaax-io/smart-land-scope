@@ -503,10 +503,10 @@ function OEREBTabContent({
 
 
 function KpiCard({
-  icon: Icon, label, value,
-}: { icon?: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+  icon: Icon, label, value, tooltip,
+}: { icon?: React.ComponentType<{ className?: string }>; label: string; value: string; tooltip?: string }) {
   return (
-    <Card>
+    <Card title={tooltip}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
         {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
