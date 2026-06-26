@@ -25,6 +25,28 @@ function ReportPage() {
       return data;
     },
   });
+  const { data: floors = [] } = useQuery({
+    queryKey: ["analysis-floors", id, "report"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_floors")
+        .select("*")
+        .eq("analysis_id", id)
+        .order("floor_index", { ascending: true });
+      return data ?? [];
+    },
+  });
+  const { data: units = [] } = useQuery({
+    queryKey: ["analysis-units", id, "report"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_units")
+        .select("*")
+        .eq("analysis_id", id)
+        .order("floor_index", { ascending: true });
+      return data ?? [];
+    },
+  });
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Lade Bericht …</div>;
   if (!a) return null;
