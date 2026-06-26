@@ -679,8 +679,8 @@ function NewVersionForm({
           <Input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="z. B. 2024-1" />
         </div>
         <div>
-          <Label>Gültig ab</Label>
-          <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+          <Label>Gültig ab *</Label>
+          <Input type="date" required value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
         </div>
         <div className="col-span-2">
           <Label>Notizen (optional)</Label>
