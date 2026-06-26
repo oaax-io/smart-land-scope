@@ -324,8 +324,59 @@ function ReportPage() {
           />
         </Section>
 
-        {/* 3 Lage / Situation */}
-        <Section title="3. Lage / Situation">
+        {/* 3 Dienstbarkeiten */}
+        <Section title="3. Dienstbarkeiten & Lasten">
+          {easements.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Keine Dienstbarkeiten erfasst. Vor Projektierung Grundbuchauszug prüfen.
+            </p>
+          ) : (
+            <div className="overflow-hidden rounded-lg border">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50">
+                  <tr className="text-left">
+                    <th className="p-2 font-medium">Typ</th>
+                    <th className="p-2 font-medium">Stichwort</th>
+                    <th className="p-2 font-medium">Beschreibung</th>
+                    <th className="p-2 font-medium">Betr. / Beleg</th>
+                    <th className="p-2 font-medium">Betrag</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {easements.map((e, i) => (
+                    <tr key={i} className="border-t align-top">
+                      <td className="p-2 capitalize">{e.easement_type}</td>
+                      <td className="p-2 font-medium">
+                        {e.title}
+                        {e.reg_nr ? (
+                          <span className="ml-1 font-mono text-muted-foreground">({e.reg_nr})</span>
+                        ) : null}
+                      </td>
+                      <td className="p-2 text-muted-foreground">{e.description ?? "—"}</td>
+                      <td className="p-2 text-muted-foreground">{e.beneficiary ?? "—"}</td>
+                      <td className="p-2">
+                        {e.amount_chf != null
+                          ? `CHF ${e.amount_chf.toLocaleString("de-CH")} (Pst. ${e.rank ?? "?"})`
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Quelle:{" "}
+            {easements.some((e) => e.source === "ai")
+              ? "KI-Extraktion aus Grundbuchauszug + manuelle Ergänzungen"
+              : "Manuelle Erfassung"}
+            . Vollständige Rechtsverbindlichkeit nur aus dem originalen Grundbuchauszug.
+          </p>
+        </Section>
+
+        {/* 4 Lage / Situation */}
+        <Section title="4. Lage / Situation">
+
           {a.lat != null && a.lng != null ? (
             <div className="overflow-hidden rounded-lg border">
               <SwissMap
