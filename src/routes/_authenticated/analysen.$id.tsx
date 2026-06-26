@@ -30,6 +30,8 @@ import { runKnowledgeAnalysis } from "@/lib/analyze-knowledge.functions";
 import { DevelopmentScoreCard } from "@/components/development-score-card";
 import { SwissMap } from "@/components/swiss-map";
 import { LegalDisclaimer } from "@/components/legal-disclaimer";
+import { OEREBTopicsTable } from "@/components/oereb-topics-table";
+import { loadOEREBData } from "@/lib/oereb.functions";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
   head: ({ params }) => ({ meta: [{ title: `Analyse ${params.id.slice(0, 8)} — SmarTerra` }] }),
