@@ -365,3 +365,82 @@ function lv95RingsAreaM2(rings: number[][][]): number {
 }
 
 
+export type OEREBTopic = {
+  theme: string;
+  type: string | null;
+  coverage: string | null;
+  area_m2: number | null;
+  legal_basis: string | null;
+  authority: string | null;
+};
+
+/**
+ * Liest ÖREB-nahe Themen (Bauzonen, Projektierungszonen Eisenbahn, Sicherheitszonen
+ * Luftfahrt, amtliche Vermessung) an einem Punkt vom swisstopo-Identify-Endpoint.
+ * Wird aktuell serverseitig aufgerufen (oereb.functions.ts), funktioniert aber
+ * isomorph.
+ */
+export async function fetchOEREBTopics(lat: number, lng: number): Promise<OEREBTopic[]> {
+  const layers = [
+    "ch.kantone.cadastralwebmap-farbe",
+    "ch.are.bauzonen",
+    "ch.bav.sachplan-eisenbahn_anlagen-projektierungszonen",
+    "ch.bazl.sachplan-infrastruktur-luftfahrt_anlagen",
+  ].join(",");
+
+  let results: any[] | null = null;
+  try {
+    results = await identifyAt(`all:${layers}`, lng, lat, 2, { returnGeometry: false });
+  } catch {
+    results = null;
+  }
+  if (!results?.length) return [];
+
+  const topics: OEREBTopic[] = [];
+
+  for (const r of results) {
+    const a = r.attributes ?? {};
+    const layerId: string = r.layerBodId ?? "";
+
+    if (layerId === "ch.are.bauzonen") {
+      topics.push({
+        theme: "Zonenplan (Bauzonen Bund)",
+        type: extractBauzone(a),
+        coverage: null,
+        area_m2: null,
+        legal_basis: "RPG / kantonales PBG",
+        authority: "Bundesamt für Raumentwicklung (ARE)",
+      });
+    } else if (layerId === "ch.kantone.cadastralwebmap-farbe") {
+      topics.push({
+        theme: "Amtliche Vermessung",
+        type: `Parzelle ${cleanString(a.number ?? a.parcel_number) ?? "—"}`,
+        coverage: "100%",
+        area_m2: typeof a.area === "number" ? a.area : null,
+        legal_basis: null,
+        authority: "Kanton / Gemeinde",
+      });
+    } else if (layerId === "ch.bav.sachplan-eisenbahn_anlagen-projektierungszonen") {
+      topics.push({
+        theme: "Projektierungszone Eisenbahn",
+        type: cleanString(a.name ?? a.beschreibung ?? a.bezeichnung) ?? "Vorhanden",
+        coverage: null,
+        area_m2: null,
+        legal_basis: cleanString(a.link_rechtsvorschrift) ?? null,
+        authority: "Bundesamt für Verkehr (BAV)",
+      });
+    } else if (layerId === "ch.bazl.sachplan-infrastruktur-luftfahrt_anlagen") {
+      topics.push({
+        theme: "Sicherheitszone Luftfahrt",
+        type: cleanString(a.name ?? a.beschreibung ?? a.bezeichnung) ?? "Vorhanden",
+        coverage: null,
+        area_m2: null,
+        legal_basis: null,
+        authority: "Bundesamt für Zivilluftfahrt (BAZL)",
+      });
+    }
+  }
+
+  return topics;
+}
+
