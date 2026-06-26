@@ -209,7 +209,7 @@ function FeedbackCard({ item, showOwner }: { item: FeedbackRow; showOwner: boole
             <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
             <p className="mt-2 text-xs text-muted-foreground">
               {new Date(item.created_at).toLocaleString("de-CH")}
-              {showOwner && ` · von ${item.user_id.slice(0, 8)}…`}
+              {showOwner && ` · von ${item.author_name ?? item.user_id.slice(0, 8) + "…"}`}
             </p>
           </div>
         </CardContent>
