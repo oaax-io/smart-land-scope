@@ -123,7 +123,15 @@ function ReportPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Erstellt am {new Date().toLocaleDateString("de-CH", { day: "2-digit", month: "long", year: "numeric" })}
               {" · "}Referenz {id.slice(0, 8).toUpperCase()}
+              {a.project_number ? ` · Projekt-Nr. ${a.project_number}` : ""}
             </p>
+            {(a.client_name || a.project_manager) && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {a.client_name ? `Auftraggeber: ${a.client_name}` : ""}
+                {a.client_name && a.project_manager ? " · " : ""}
+                {a.project_manager ? `Projektleiter: ${a.project_manager}` : ""}
+              </p>
+            )}
           </div>
           <div className="text-right">
             <p className="font-display text-xl font-bold">SmarTerra</p>
