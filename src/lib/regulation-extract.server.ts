@@ -23,6 +23,17 @@ const ZoneSchema = z.object({
   setback_small_m: z.number().nullable().optional(),
   setback_large_m: z.number().nullable().optional(),
   noise_sensitivity: z.string().nullable().optional(),
+  max_height_valley_m: z.number().nullable().optional(),
+  building_mass_ratio: z.number().nullable().optional(),
+  open_space_ratio: z.number().nullable().optional(),
+  max_building_length_m: z.number().nullable().optional(),
+  max_facade_length_m: z.number().nullable().optional(),
+  height_bonus_m: z.number().nullable().optional(),
+  attic_floor_counted: z.boolean().nullable().optional(),
+  basement_counted: z.boolean().nullable().optional(),
+  transit_quality: z.string().nullable().optional(),
+  play_area_m2_per_apt: z.number().nullable().optional(),
+  parking_rate: z.string().nullable().optional(),
   article_reference: z.string().nullable().optional(),
 });
 
@@ -63,6 +74,19 @@ Zonen-Kategorien (usage_category):
 - "oeffentlich" für Zonen für öffentliche Zwecke, Sport/Freizeit, Allmend
 - "landwirtschaft" für Landwirtschaftszonen
 - "sonstige" für Schutz-, Tourismus-, Sonderzonen
+
+Neue Felder in Kürze:
+- max_height_valley_m: talseitige (talwärts gewandte) Fassadenhöhe in Metern, oft gleich max_height_m, manchmal abweichend
+- building_mass_ratio: Baumassenziffer (BMZ), Verhältnis Gebäudevolumen zu Grundstücksfläche (typisch 0.4–2.5)
+- open_space_ratio: Freiflächenziffer, Anteil unbebauter/begrünter Fläche (typisch 0.3–0.6)
+- max_building_length_m: maximale Gebäudelänge in Metern
+- max_facade_length_m: maximale Fassadenlänge in Metern
+- height_bonus_m: Mehrhöhenzuschlag in Metern (falls BZR Zuschläge kennt)
+- attic_floor_counted: true wenn Dachgeschoss als anrechenbares Vollgeschoss gilt, false wenn nicht, null wenn nicht definiert
+- basement_counted: true wenn Untergeschoss als anrechenbares Geschoss gilt
+- transit_quality: Erschliessungsqualität des öffentlichen Verkehrs (z. B. "Klasse A", "Klasse B", "Gebiet B"), falls im BZR erwähnt
+- play_area_m2_per_apt: Spiel- und Ruhefläche in m², oft angegeben als "15 m² pro 3.5-Zi-Whg" → dann diesen Wert nehmen; null wenn nicht definiert
+- parking_rate: Parkierungsvorschrift als Freitext exakt wie im BZR (z. B. "1 PP / 100 m² HNF oder min. 1 PP / Wohnung")
 
 Antworte ausschliesslich im vorgegebenen JSON-Format.`;
 
@@ -174,7 +198,18 @@ Antworte AUSSCHLIESSLICH mit reinem JSON in genau dieser Form (keine Markdown-Fe
       "setback_small_m": 3.5,
       "setback_large_m": 7,
       "noise_sensitivity": "II",
-      "article_reference": "Art. 12 / Anhang 1"
+      "article_reference": "Art. 12 / Anhang 1",
+      "max_height_valley_m": null,
+      "building_mass_ratio": null,
+      "open_space_ratio": null,
+      "max_building_length_m": null,
+      "max_facade_length_m": null,
+      "height_bonus_m": null,
+      "attic_floor_counted": null,
+      "basement_counted": null,
+      "transit_quality": null,
+      "play_area_m2_per_apt": null,
+      "parking_rate": null
     }
   ],
   "special_provisions": "string oder null",
@@ -312,6 +347,17 @@ function parseExtractionJson(raw: string): Extraction | null {
     setback_small_m: typeof z.setback_small_m === "number" ? z.setback_small_m : null,
     setback_large_m: typeof z.setback_large_m === "number" ? z.setback_large_m : null,
     noise_sensitivity: typeof z.noise_sensitivity === "string" ? z.noise_sensitivity : null,
+    max_height_valley_m: typeof z.max_height_valley_m === "number" ? z.max_height_valley_m : null,
+    building_mass_ratio: typeof z.building_mass_ratio === "number" ? z.building_mass_ratio : null,
+    open_space_ratio: typeof z.open_space_ratio === "number" ? z.open_space_ratio : null,
+    max_building_length_m: typeof z.max_building_length_m === "number" ? z.max_building_length_m : null,
+    max_facade_length_m: typeof z.max_facade_length_m === "number" ? z.max_facade_length_m : null,
+    height_bonus_m: typeof z.height_bonus_m === "number" ? z.height_bonus_m : null,
+    attic_floor_counted: typeof z.attic_floor_counted === "boolean" ? z.attic_floor_counted : null,
+    basement_counted: typeof z.basement_counted === "boolean" ? z.basement_counted : null,
+    transit_quality: typeof z.transit_quality === "string" ? z.transit_quality : null,
+    play_area_m2_per_apt: typeof z.play_area_m2_per_apt === "number" ? z.play_area_m2_per_apt : null,
+    parking_rate: typeof z.parking_rate === "string" ? z.parking_rate : null,
     article_reference: typeof z.article_reference === "string" ? z.article_reference : null,
   }));
   return {
@@ -477,6 +523,28 @@ async function buildKnowledgeBase(params: {
     if (z.setback_small_m != null) addEntry("Grenzabstand klein", key, `${z.setback_small_m} m`, art);
     if (z.setback_large_m != null) addEntry("Grenzabstand gross", key, `${z.setback_large_m} m`, art);
     if (z.noise_sensitivity) addEntry("Lärmempfindlichkeit", key, z.noise_sensitivity, art);
+    if (z.max_height_valley_m != null)
+      addEntry("Fassadenhöhe talseitig", key, `${z.max_height_valley_m} m`, art);
+    if (z.building_mass_ratio != null)
+      addEntry("Baumassenziffer", key, z.building_mass_ratio, art);
+    if (z.open_space_ratio != null)
+      addEntry("Freiflächenziffer", key, z.open_space_ratio, art);
+    if (z.max_building_length_m != null)
+      addEntry("Max. Gebäudelänge", key, `${z.max_building_length_m} m`, art);
+    if (z.max_facade_length_m != null)
+      addEntry("Max. Fassadenlänge", key, `${z.max_facade_length_m} m`, art);
+    if (z.height_bonus_m != null)
+      addEntry("Mehrhöhenzuschlag", key, `${z.height_bonus_m} m`, art);
+    if (z.attic_floor_counted != null)
+      addEntry("Anrechenbares DG", key, z.attic_floor_counted ? "Ja" : "Nein", art);
+    if (z.basement_counted != null)
+      addEntry("Anrechenbares UG", key, z.basement_counted ? "Ja" : "Nein", art);
+    if (z.transit_quality != null)
+      addEntry("Erschliessungsqualität ÖV", key, z.transit_quality, art);
+    if (z.play_area_m2_per_apt != null)
+      addEntry("Spiel- und Ruhefläche", key, `${z.play_area_m2_per_apt} m² / Wohnung`, art);
+    if (z.parking_rate != null)
+      addEntry("Parkierung", key, z.parking_rate, art);
 
     rules.push({
       municipality_id: municipalityId,
