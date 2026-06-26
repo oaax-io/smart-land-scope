@@ -415,6 +415,16 @@ function AnalysisDetailPage() {
           />
         </TabsContent>
 
+        {/* Dienstbarkeiten */}
+        <TabsContent value="dienstbarkeiten" className="space-y-4">
+          <EasementsPanel
+            analysisId={analysis.id as string}
+            organizationId={analysis.organization_id as string}
+          />
+        </TabsContent>
+
+
+
 
         {/* Bericht */}
         <TabsContent value="report">
