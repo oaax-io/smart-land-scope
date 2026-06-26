@@ -27,14 +27,50 @@ src/
       team.tsx               Mitglieder & Einladungen
       einstellungen.tsx      Profil, Org, Abo
 
+      feedback.index.tsx       Feedback-Liste mit Autor-Namen
+      platform.reglemente.tsx  BZR-Reglemente, Hintergrund-Jobs
+      platform.regionen.tsx    Kantone/Gemeinden aktivieren
+
   components/
-    swiss-map.tsx            MapLibre-Karte, Hover, Kanton-Highlight
-    quick-analysis-modal.tsx Analyse-Wizard im Dashboard
+    swiss-map.tsx                  MapLibre-Karte, Hover, Baufeld
+    quick-analysis-modal.tsx       Analyse-Wizard im Dashboard
+    rechtliche-grundlagen-table.tsx Conea-Format Kennzahlentabelle
+    oereb-topics-table.tsx         ÖREB-Themen pro EGRID
+    easements-panel.tsx            Dienstbarkeiten (manuell + KI)
+    analysis-project-tab.tsx       Projektdaten, Geschoss-/Volumenrechner, Uploads
+    scenario-comparison.tsx        Varianten-Vergleich
+    legal-disclaimer.tsx           Wiederverwendbarer Haftungshinweis
+    regulation/municipality-detail-dialog.tsx  Inline-Korrektur mit Verifizierung
 
   lib/
-    swiss-cantons.ts         26 Kantone (Name, Kürzel, BBox, Farbe)
-    swiss-geo.ts             swisstopo Identify (Adresse, Parzelle, Outline)
+    swiss-cantons.ts                26 Kantone (Name, Kürzel, BBox, Farbe)
+    swiss-geo.ts                    swisstopo Identify, Parzellengeometrie
+    oereb.functions.ts              ÖREB-Kataster-Abfrage per EGRID
+    easement-extract.functions.ts   KI-Extraktion Grundbuchauszug
+    analyze-knowledge.functions.ts  KI-Analyse (DB-first Zone)
+    analyze-scenario.functions.ts   Szenario-Berechnung
+    regulation-extract.server.ts    BZR-Extraktion (erweitertes ZoneSchema)
+    background-jobs.functions.ts    Hintergrund-Job-Queue (pg_cron Tick)
 ```
+
+## Analyse-Module
+
+- **Machbarkeit / Wohnungspotenzial / Entwicklung / Risiken** — KI-gestützte Auswertung pro Analyse.
+- **Varianten** — Szenario-Vergleich mehrerer Bebauungsoptionen (`analysis_scenarios`).
+- **ÖREB** — alle Themen des ÖREB-Katasters pro EGRID (Conea-Format).
+- **Projekt** — Projektdaten, parametrischer Geschoss-/Volumenrechner (`analysis_floors`, generated `volume_m3`), Wohnungs-Mix (`analysis_units`), Upload-Slots für Architekten-Dokumente (Situation, Grundriss, Schnitt, Fassade).
+- **Dienstbarkeiten** — Manuelle Erfassung oder KI-Extraktion aus Grundbuchauszug (Gemini 2.5 Pro).
+- **Bericht** — druckbare Machbarkeitsstudie im Conea-Format inkl. Word-Export.
+
+## Reglemente / Wissensdatenbank
+
+- `regulation-extract.server.ts` extrahiert Zonen-Kennzahlen aus BZR-PDFs (Grenzabstände, Überbauungsziffer, BMZ, Lärmempfindlichkeit, Gewässerabstand, Sondervorschriften, Parkplatzpflicht u. v. m.).
+- **Hintergrund-Verarbeitung** über `pg_cron`-Tick und `background-jobs.functions.ts` (3 Dokumente/Minute), Live-Progress in `platform.reglemente.tsx`.
+- **Inline-Korrektur**: KI-Werte können nachträglich korrigiert werden; Tracking via `verified`, `verified_by`, `verified_at`.
+- **Versionierung**: Neue BZR-Uploads erfordern `Gültig ab` und archivieren ältere Versionen automatisch (`active = false`).
+- **Regionen-Admin** (`/platform/regionen`): Kantone/Gemeinden aktivieren/deaktivieren.
+
+
 
 ## Karten-Modul (`/analysen/karte`)
 

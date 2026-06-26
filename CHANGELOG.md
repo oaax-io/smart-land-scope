@@ -6,21 +6,38 @@ Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0
 ## [Unreleased]
 
 ### Hinzugefügt
-- **Interaktive Schweizer Karte** (`/analysen/karte`) mit MapLibre + swisstopo-Layern.
-- **Kanton-Filter** (unten links auf der Karte): Auswahl eines der 26 Kantone zoomt und hebt den Kanton hervor; alle Kantone bleiben farbig dargestellt.
-- **Parzellen-Hover** (ab Zoom 16.5): Über den swisstopo Identify-Endpoint wird der Polygonumriss der Parzelle unter dem Cursor geladen und gelb hervorgehoben (debounced 110 ms, abbrechbar).
-- **Parzellen-Tooltip** beim Hover mit: Parzellennummer, Kanton, Fläche (m²), Gemeinde, Bauzone (z. B. W2) und E-GRID. Quelle: `ch.kantone.cadastralwebmap-farbe` + `ch.are.bauzonen`.
-- **Quick-Analysis-Modal** im Dashboard: Klick auf eine Adresse öffnet die Analyse-Schritte direkt im Modal; Weiterleitung zur Analyse-Seite erst nach Abschluss aller Schritte.
-- **Kantons-Daten** (`src/lib/swiss-cantons.ts`) mit Name, Kürzel, Bounding-Box und Farbe für alle 26 Kantone.
+- **Dienstbarkeiten-Modul** (`/analysen/$id` → Tab "Dienstbarkeiten"): manuelle Erfassung von Dienstbarkeiten, Grundlasten und Pfandrechten **oder** Upload eines Grundbuchauszugs (PDF/Scan) mit automatischer KI-Extraktion via `easement-extract.functions.ts` (Gemini 2.5 Pro). Erfasste Lasten erscheinen als neues Kapitel 3 "Dienstbarkeiten & Lasten" im Bericht.
+- **Machbarkeitsstudie-Workflow**: Projektdaten (Projektnummer, Auftraggeber, Projektleiter), parametrischer Geschoss-/Volumenrechner (`analysis_floors`, generated `volume_m3`), Wohnungs-Mix (`analysis_units`), Upload-Slots für Architekten-Zeichnungen (Situation, Grundriss, Schnitt, Fassade) — alle Daten fliessen in den Bericht ein.
+- **Professioneller Bericht** (`/analysen/$id/bericht`): druckbare Machbarkeitsstudie im Conea-Format mit Titelseite, Inhaltsverzeichnis, Executive Summary, Kapiteln 1–9 (Rechtliche Grundlagen, ÖREB, Dienstbarkeiten, Lage, Wohnungen, Volumen, Baurecht, Potenzial, Risiken), KI-Empfehlung und Beilagen; Word-Export inkl. Projektnummer im Dateinamen.
+- **ÖREB-Kataster-Integration** (`oereb.functions.ts`): automatische Abfrage aller Themen per EGRID aus dem offiziellen schweizerischen ÖREB-Kataster, eigener "ÖREB"-Tab und Bericht-Kapitel.
+- **Rechtliche-Grundlagen-Tabelle** mit gruppierter Darstellung (Lage, Dichte, Masse, Abstände, Freiräume, Verkehr) und erweitertem `ZoneSchema` (BMZ, Pflichtparkplätze, Attika-Regeln, u. a.).
+- **Szenario-Vergleich** (Tab "Varianten"): mehrere Bebauungsvarianten parallel rechnen (`analysis_scenarios`).
+- **Hintergrund-Jobsystem** für BZR-Extraktion (`background-jobs.functions.ts` + `pg_cron`-Tick): Reglemente werden im Hintergrund verarbeitet (3 Dokumente/Minute), Live-Progress über `LuJobButton`.
+- **Regionen-Admin** (`/platform/regionen`): Kantone und Gemeinden aktiv/inaktiv schalten — inaktive Regionen erscheinen nicht in der Wissensdatenbank.
+- **Indikatives Baufeld**: auf der Analyse-Detailseite wird das Baufeld auf Basis der amtlichen Parzellengeometrie und der Grenzabstände eingezeichnet (`@turf/turf`).
+- **Bauzonen-Override** (`detected_zone` / `zone_override`): manuelle Zonen-Korrektur mit anschliessender Re-Analyse.
+- **Inline-Korrektur** für KI-extrahierte Reglemente-Werte mit Verifizierungs-Tracking (`verified`, `verified_by`, `verified_at`).
+- **Haftungshinweis** (`legal-disclaimer.tsx`) im Feasibility-Tab und Bericht.
+- **Quick-Analysis-Modal** im Dashboard inkl. Parzellen-Verifikation.
+- **Interaktive Schweizer Karte** (`/analysen/karte`): Kanton-Filter, Parzellen-Hover mit Tooltip (Parzelle, Fläche, Gemeinde, Bauzone Bund, E-GRID).
+- **Erweiterte Organisations-Stammdaten** (Adresse, Telefon, E-Mail, Ansprechperson) inkl. UI in den Einstellungen.
 
 ### Geändert
-- Kanton-Filter von unten rechts nach **unten links** verschoben; Dropdown öffnet nach oben (`side="top"`).
-- Parzellen-Info-Karte auf der Karte von `top-4` auf `top-20` verschoben, damit sie die Zoom-Buttons nicht mehr überlappt.
-- `ParcelOutline`-Typ in `src/lib/swiss-geo.ts` um `zone` und `areaM2` erweitert.
+- **Zonenermittlung DB-first**: KI-Prompt nutzt primär die in `knowledge_entries` gespeicherten kommunalen Zonen; swisstopo `ch.are.bauzonen` ist Fallback/Hinweis. Map-Tooltip heisst nun "Bauzone (Bund)".
+- **BZR-Uploads**: `Gültig ab` ist Pflichtfeld; neue Versionen archivieren ältere automatisch (`active = false`).
+- **Reglemente-Extraktion** (`regulation-extract.server.ts`): `ZoneSchema` um 11 Kennzahlen erweitert (Grenzabstände, Überbauungsziffer, Sondervorschriften, Lärmempfindlichkeitsstufe, Gewässerabstand, BMZ, Parkplatzpflicht, Attika-Regeln u. a.), striktes Error-Handling, automatischer Rebuild fehlender Wissenseinträge.
+- **Topbar**: zeigt Vor-/Nachname aus `profiles` statt E-Mail; Feedback-Link im User-Dropdown.
+- **Dashboard**: persönliche Begrüssung, prominenter Schnellanalyse-Hero mit Immobilien-Hintergrund und transparentem Suchfeld; Suchvorschläge `z-[9999]`.
+- **Feedback**: Fehler werden im Modal angezeigt (nicht als Toast); Screenshots via Drag & Drop / Paste; Autor-Name sichtbar (RLS-Policy "Platform admins can view all profiles").
+- **Karten-Hover**: Kantons-Fill blendet zwischen Zoom 11–14 aus, damit beim Heranzoomen nur die Parzelle hervorgehoben wird.
+- **Sidebar**: Logo skaliert korrekt im kollabierten Zustand.
 
 ### Technisch
-- Neue Helfer: `getParcelOutlineAt(lng, lat)` (ESRI LV95 → GeoJSON WGS84).
-- Hover-State mit `AbortController` + Standort-Cache (`lastHoverKey`) zur Vermeidung doppelter Requests.
+- Neue Tabellen: `analysis_easements`, `analysis_floors` (mit generated `volume_m3`), `analysis_units`, `analysis_scenarios`; erweiterter Enum `analysis_document_kind`.
+- Neue Server-Funktionen: `easement-extract.functions.ts`, `oereb.functions.ts`, `analyze-scenario.functions.ts`, `background-jobs.functions.ts`.
+- `getParcelOutlineAt()` persistiert `parcel_geometry`; harmonisierte Bauzonen-Kategorie über swisstopo extrahiert.
+
+
 
 ## [0.1.0] — Grundstruktur
 
