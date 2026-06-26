@@ -241,7 +241,7 @@ function AnalysisDetailPage() {
           />
 
           <div className="grid gap-4 md:grid-cols-4">
-            <KpiCard icon={Building2} label="Zone" value={analysis.zone ?? "—"} />
+            <KpiCard icon={Building2} label="Zone" value={analysis.zone ?? "—"} tooltip="Ermittelt aus dem hinterlegten BZR der Gemeinde. Vor Baueingabe amtlich beim Zonenplan der Gemeinde verifizieren." />
             <KpiCard label="Ausnützungsziffer" value={analysis.utilization_ratio?.toString() ?? "—"} />
             <KpiCard label="Max. Geschosse" value={analysis.max_floors?.toString() ?? "—"} />
             <KpiCard label="Max. Höhe" value={analysis.max_height ? `${analysis.max_height} m` : "—"} />
@@ -503,10 +503,10 @@ function OEREBTabContent({
 
 
 function KpiCard({
-  icon: Icon, label, value,
-}: { icon?: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+  icon: Icon, label, value, tooltip,
+}: { icon?: React.ComponentType<{ className?: string }>; label: string; value: string; tooltip?: string }) {
   return (
-    <Card>
+    <Card title={tooltip}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
         {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}

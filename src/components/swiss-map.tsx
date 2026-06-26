@@ -576,7 +576,7 @@ export function SwissMap({
               )}
               {hoverParcel.zone && (
                 <div className="flex justify-between gap-3">
-                  <dt>Bauzone</dt>
+                  <dt title="Aus dem harmonisierten Bundes-Bauzonen-Layer (ch.are.bauzonen). Die gemeindespezifische Zone laut BZR kann abweichen.">Bauzone (Bund)</dt>
                   <dd className="truncate text-foreground" title={hoverParcel.zone}>
                     {hoverParcel.zone}
                   </dd>

@@ -281,12 +281,31 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
 
       const cantonCode = (muni.canton as unknown as { code?: string } | null)?.code;
 
-      const zoneHint = analysis.zone_override?.trim() || analysis.detected_zone?.trim() || null;
-      const zoneSource = analysis.zone_override?.trim()
-        ? "manuell vom Benutzer ausgewählt"
-        : analysis.detected_zone?.trim()
-          ? "automatisch aus dem amtlichen swisstopo-Bauzonen-Layer (ch.are.bauzonen) ermittelt"
-          : null;
+      // Zone aus der Wissensdatenbank priorisieren (präziser als swisstopo-Bundes-Layer).
+      const zoneEntries = (entries ?? []).filter((e) => e.category === "Zone");
+      const dbZones = zoneEntries.map((e) => ({
+        code: e.key,
+        label: e.value ?? e.key,
+        article: e.source_article,
+      }));
+
+      const manualZone = analysis.zone_override?.trim() || null;
+      const swisstopoZone = analysis.detected_zone?.trim() || null;
+
+      const zoneHintLine = manualZone
+        ? `- Bauzone (manuell vom Benutzer ausgewählt): "${manualZone}" — verbindlich. Verwende exakt diesen Code im 'zone'-Feld.`
+        : dbZones.length > 0
+          ? `- Bauzone: ordne das Grundstück einer der unten aufgeführten bekannten Bauzonen der Gemeinde zu (DB-first). Der swisstopo-Bundes-Layer ist zu grob und nur als Hinweis zu verwenden${swisstopoZone ? ` (Layer-Hinweis: "${swisstopoZone}")` : ""}.`
+          : swisstopoZone
+            ? `- Bauzone (Hinweis aus swisstopo-Bundes-Layer): "${swisstopoZone}" — die Wissensdatenbank enthält keine Zonen-Liste für diese Gemeinde, verwende den Hinweis nur als Orientierung.`
+            : "- Bauzone: nicht eindeutig erkannt — wähle die plausibelste dokumentierte Wohn-/Mischzone und vermerke die Unsicherheit.";
+
+      const zoneHint =
+        dbZones.length > 0
+          ? `\nBekannte Bauzonen dieser Gemeinde laut BZR (${muni.name}):\n${dbZones
+              .map((z) => `- ${z.code}: ${z.label}${z.article ? ` (Art. ${z.article})` : ""}`)
+              .join("\n")}\n\nBitte ordne das Grundstück (Adresse: ${analysis.address ?? "—"}, PLZ: ${analysis.postal_code ?? "—"}) einer dieser Zonen zu. Wähle die plausibelste Zone basierend auf Adresse, Lage und dem Nutzungscharakter der Umgebung (z.B. Wohnstrasse → Wohnzone, Industriegebiet → Arbeitszone). Verwende IMMER einen der oben aufgeführten Zonen-Codes als 'zone'-Wert. Vermerke die Unsicherheit im 'feasibility'-Text, falls keine eindeutige Zuordnung möglich ist.`
+          : "";
 
       const prompt = [
         "Du bist Experte für Schweizer Bau- und Zonenrecht und erstellst eine strukturierte Machbarkeitsanalyse AUSSCHLIESSLICH auf Basis der hinterlegten Wissensdatenbank.",
@@ -299,19 +318,18 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         `- Kanton: ${cantonCode ?? analysis.canton ?? "—"}`,
         `- Parzelle: ${analysis.parcel_number ?? "—"}`,
         `- Fläche: ${analysis.area_size ? `${analysis.area_size} m²` : "unbekannt"}`,
-        zoneHint
-          ? `- Bauzone (${zoneSource}): "${zoneHint}" — diese Zone ist verbindlich. Suche in der Wissensdatenbank den passenden Zonen-Eintrag (z.B. anhand des Zonen-Codes oder einer ähnlichen Bezeichnung wie W2/W3/WG3) und verwende dessen AZ/Geschosse/Höhe.`
-          : "- Bauzone: nicht eindeutig erkannt — wähle die plausibelste dokumentierte Wohn-/Mischzone und vermerke die Unsicherheit.",
+        zoneHintLine,
         "",
         "Wissensdatenbank — Knowledge Entries:",
         entryBlock || "(keine Einträge)",
+        zoneHint,
         "",
         "Wissensdatenbank — Regelungen:",
         ruleBlock || "(keine Regeln)",
         "",
         "Beantworte:",
         "1) Was darf gebaut werden? (feasibility, allowed_use in usage_types).",
-        "2) Bestimme die Bauzone für dieses Grundstück. Wenn oben eine Bauzone vorgegeben ist, MUSST du diese verwenden (Code 1:1 ins 'zone'-Feld übernehmen) und die zugehörigen Werte aus der Wissensdatenbank heraussuchen. Sonst wähle die für die Lage plausibelste Wohn- oder Mischzone aus den dokumentierten Zonen. Gib für diese Zone die konkreten Werte aus der Wissensdatenbank an: 'zone', 'utilization_ratio' (AZ), 'max_floors' (Vollgeschosse), 'max_height_m'. Lass diese Felder NIEMALS auf 0 / leer wenn die Wissensdatenbank entsprechende Zonenwerte enthält — wähle dann den plausibelsten Wert und erwähne die Unsicherheit im 'feasibility'-Text.",
+        `2) Ordne das Grundstück einer der oben aufgeführten bekannten Bauzonen zu (falls verfügbar). Verwende zwingend den exakten Zonen-Code aus der Liste (z.B. "W-B", "WO3", "ZP1"). Liefere für diese Zone die konkreten Werte aus der Wissensdatenbank: 'zone' (Code), 'utilization_ratio' (AZ oder ÜZ), 'max_floors' (Vollgeschosse), 'max_height_m'. Lass diese Felder NIEMALS auf 0 / leer wenn die Wissensdatenbank entsprechende Zonenwerte enthält.`,
         "3) Berechne das Wohnungspotenzial konkret:",
         "   - floor_area_m2 = Grundstücksfläche × utilization_ratio (falls beide Werte verfügbar)",
         "   - living_area_m2 = floor_area_m2 × 0.8 (Nettowohnfläche-Faktor)",

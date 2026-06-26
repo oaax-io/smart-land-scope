@@ -603,6 +603,10 @@ function NewVersionForm({
       toast.error("Titel und Datei sind Pflicht.");
       return;
     }
+    if (!validFrom) {
+      toast.error("Bitte 'Gültig ab'-Datum angeben — neue Version wird zur aktuellen.");
+      return;
+    }
     setBusy(true);
     const tid = toast.loading("Lade hoch und analysiere…");
     try {
@@ -630,6 +634,15 @@ function NewVersionForm({
         .select("id")
         .single();
       if (insErr) throw insErr;
+
+      // Ältere Versionen für diese Gemeinde archivieren (active = false),
+      // damit die KI-Analyse nur das neueste BZR verwendet.
+      await supabase
+        .from("regulation_documents")
+        .update({ active: false })
+        .eq("municipality_id", municipalityId)
+        .neq("id", inserted.id)
+        .eq("active", true);
 
       try {
         await extractFn({ data: { documentId: inserted.id } });
@@ -666,8 +679,8 @@ function NewVersionForm({
           <Input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="z. B. 2024-1" />
         </div>
         <div>
-          <Label>Gültig ab</Label>
-          <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+          <Label>Gültig ab *</Label>
+          <Input type="date" required value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
         </div>
         <div className="col-span-2">
           <Label>Notizen (optional)</Label>
