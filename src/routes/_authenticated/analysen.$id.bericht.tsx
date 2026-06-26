@@ -73,6 +73,29 @@ function ReportPage() {
     queryFn: async () => loadOereb({ data: { analysisId: id } }),
   });
 
+  const { data: easements = [] } = useQuery({
+    queryKey: ["easements", id, "report"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_easements")
+        .select("*")
+        .eq("analysis_id", id)
+        .order("easement_type", { ascending: true });
+      return (data ?? []) as Array<{
+        easement_type: string;
+        reg_nr: string | null;
+        title: string;
+        description: string | null;
+        beneficiary: string | null;
+        amount_chf: number | null;
+        rank: number | null;
+        source: string;
+      }>;
+    },
+  });
+
+
+
   const { data: zoneData } = useQuery({
     queryKey: ["zone-extraction", a?.zone, a?.municipality],
     enabled: !!a?.zone && !!a?.municipality,
