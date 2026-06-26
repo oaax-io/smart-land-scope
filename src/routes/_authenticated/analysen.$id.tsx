@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, notFound, useLocation } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -88,6 +88,7 @@ type Risk = {
 
 function AnalysisDetailPage() {
   const { id } = Route.useParams();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const analyzeFn = useServerFn(runKnowledgeAnalysis);
 
@@ -124,6 +125,10 @@ function AnalysisDetailPage() {
   const usageTypes: string[] = Array.isArray(analysis.usage_type) ? (analysis.usage_type as string[]) : [];
   const locationLine = [analysis.postal_code, analysis.municipality, analysis.canton ? `(${analysis.canton})` : null]
     .filter(Boolean).join(" ");
+
+  if (location.pathname.endsWith(`/analysen/${id}/bericht`)) {
+    return <Outlet />;
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
