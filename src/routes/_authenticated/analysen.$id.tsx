@@ -380,6 +380,39 @@ function AnalysisDetailPage() {
           />
         </TabsContent>
 
+        {/* Projekt */}
+        <TabsContent value="projekt" className="space-y-4">
+          <ProjectDataCard
+            analysis={{
+              id: analysis.id as string,
+              organization_id: analysis.organization_id as string,
+              project_number: (analysis.project_number as string | null) ?? null,
+              client_name: (analysis.client_name as string | null) ?? null,
+              project_manager: (analysis.project_manager as string | null) ?? null,
+              floor_area: (analysis.floor_area as number | null) ?? null,
+              living_area: (analysis.living_area as number | null) ?? null,
+              unit_count: (analysis.unit_count as number | null) ?? null,
+            }}
+          />
+          <FloorCalculatorCard
+            analysis={{
+              id: analysis.id as string,
+              organization_id: analysis.organization_id as string,
+              project_number: null,
+              client_name: null,
+              project_manager: null,
+              floor_area: (analysis.floor_area as number | null) ?? null,
+              living_area: (analysis.living_area as number | null) ?? null,
+              unit_count: (analysis.unit_count as number | null) ?? null,
+            }}
+          />
+          <DocumentUploadsCard
+            analysisId={analysis.id as string}
+            organizationId={analysis.organization_id as string}
+          />
+        </TabsContent>
+
+
         {/* Bericht */}
         <TabsContent value="report">
           <Card>
