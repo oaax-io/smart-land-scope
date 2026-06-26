@@ -161,12 +161,13 @@ function ReportPage() {
   const toc: Array<[string, string]> = [
     ["1", "Rechtliche Grundlagen"],
     ["2", "ÖREB-Auszug"],
-    ["3", "Lage / Situation"],
-    ["4", "Wohnungsanalyse"],
-    ["5", "Gebäudevolumen"],
-    ["6", "Baurechtliche Analyse"],
-    ["7", "Entwicklungspotenzial"],
-    ["8", "Risiken"],
+    ["3", "Dienstbarkeiten & Lasten"],
+    ["4", "Lage / Situation"],
+    ["5", "Wohnungsanalyse"],
+    ["6", "Gebäudevolumen"],
+    ["7", "Baurechtliche Analyse"],
+    ["8", "Entwicklungspotenzial"],
+    ["9", "Risiken"],
   ];
   if (hasSituation) toc.push(["A1", "Situation (Beilagen)"]);
   if (hasGrundriss) toc.push(["A2", "Grundrisse (Beilagen)"]);
