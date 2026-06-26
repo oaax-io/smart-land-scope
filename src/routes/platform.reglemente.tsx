@@ -325,11 +325,28 @@ function DocumentsList() {
     queryKey: ["all-regdocs"],
     refetchInterval: 5000,
     queryFn: async () => {
-      const [munisRes, docsRes] = await Promise.all([
-        supabase
-          .from("municipalities")
-          .select("id, name, canton:cantons(code, name)")
-          .order("name"),
+      const fetchAllMunis = async () => {
+        const PAGE = 1000;
+        const all: { id: string; name: string; canton: { code: string; name: string } | null }[] = [];
+        let from = 0;
+        // PostgREST caps responses at 1000 rows — paginate to load every municipality.
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { data, error } = await supabase
+            .from("municipalities")
+            .select("id, name, canton:cantons(code, name)")
+            .order("name")
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          const rows = (data ?? []) as typeof all;
+          all.push(...rows);
+          if (rows.length < PAGE) break;
+          from += PAGE;
+        }
+        return all;
+      };
+      const [munis, docsRes] = await Promise.all([
+        fetchAllMunis(),
         supabase
           .from("regulation_documents")
           .select(
@@ -337,11 +354,10 @@ function DocumentsList() {
           )
           .order("created_at", { ascending: false }),
       ]);
-      if (munisRes.error) throw munisRes.error;
       if (docsRes.error) throw docsRes.error;
       const docs = docsRes.data ?? [];
-      const munis = munisRes.data ?? [];
       const ids = docs.map((d) => d.id);
+
       // Only fetch entries for municipalities that actually have documents.
       // Sending an IN-list with all 2000+ municipality UUIDs blows past the
       // URL length limit and silently truncates, producing 0 counts.
