@@ -561,7 +561,7 @@ function UploadSlot({
           organization_id: organizationId,
           kind: slot.kind as never,
           file_name: file.name,
-          file_size: file.size,
+          size_bytes: file.size,
           mime_type: file.type || null,
           storage_path: path,
         });
