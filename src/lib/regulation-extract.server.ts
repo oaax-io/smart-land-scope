@@ -23,6 +23,17 @@ const ZoneSchema = z.object({
   setback_small_m: z.number().nullable().optional(),
   setback_large_m: z.number().nullable().optional(),
   noise_sensitivity: z.string().nullable().optional(),
+  max_height_valley_m: z.number().nullable().optional(),
+  building_mass_ratio: z.number().nullable().optional(),
+  open_space_ratio: z.number().nullable().optional(),
+  max_building_length_m: z.number().nullable().optional(),
+  max_facade_length_m: z.number().nullable().optional(),
+  height_bonus_m: z.number().nullable().optional(),
+  attic_floor_counted: z.boolean().nullable().optional(),
+  basement_counted: z.boolean().nullable().optional(),
+  transit_quality: z.string().nullable().optional(),
+  play_area_m2_per_apt: z.number().nullable().optional(),
+  parking_rate: z.string().nullable().optional(),
   article_reference: z.string().nullable().optional(),
 });
 
