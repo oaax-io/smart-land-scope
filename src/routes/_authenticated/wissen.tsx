@@ -46,13 +46,25 @@ function useMunicipalities() {
         .eq("cantons.active", true)
         .order("name");
       if (error) throw error;
-      const { data: counts } = await supabase
-        .from("knowledge_entries")
-        .select("municipality_id");
       const map = new Map<string, number>();
-      (counts ?? []).forEach((r) => {
-        map.set(r.municipality_id, (map.get(r.municipality_id) ?? 0) + 1);
-      });
+      const PAGE = 1000;
+      let from = 0;
+      // PostgREST caps each response at 1000 rows — paginate to get true counts.
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data: page, error: pageErr } = await supabase
+          .from("knowledge_entries")
+          .select("municipality_id")
+          .range(from, from + PAGE - 1);
+        if (pageErr) throw pageErr;
+        const rows = page ?? [];
+        rows.forEach((r) => {
+          map.set(r.municipality_id, (map.get(r.municipality_id) ?? 0) + 1);
+        });
+        if (rows.length < PAGE) break;
+        from += PAGE;
+      }
+
       return (munis ?? []).map((m) => ({
         id: m.id,
         name: m.name,
