@@ -1,11 +1,16 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Download, FileText, Printer, Sparkles } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowLeft, Download, Printer, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { computeDevelopmentScore, SCORE_CATEGORY } from "@/lib/scoring";
 import { LegalDisclaimer } from "@/components/legal-disclaimer";
+import { RechtlicheGrundlagenTable } from "@/components/rechtliche-grundlagen-table";
+import { OEREBTopicsTable } from "@/components/oereb-topics-table";
+import { SwissMap } from "@/components/swiss-map";
+import { loadOEREBData } from "@/lib/oereb.functions";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id/bericht")({
   head: ({ params }) => ({ meta: [{ title: `Bericht ${params.id.slice(0, 8)} — SmarTerra` }] }),
@@ -16,6 +21,8 @@ type Risk = { category?: string; title: string; description: string; severity?: 
 
 function ReportPage() {
   const { id } = Route.useParams();
+  const loadOereb = useServerFn(loadOEREBData);
+
   const { data: a, isLoading } = useQuery({
     queryKey: ["analysis", id, "report"],
     queryFn: async () => {
@@ -47,6 +54,77 @@ function ReportPage() {
       return data ?? [];
     },
   });
+  const { data: archDocuments = [] } = useQuery({
+    queryKey: ["analysis-documents", id, "report"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_documents")
+        .select("*")
+        .eq("analysis_id", id)
+        .order("created_at", { ascending: true });
+      return data ?? [];
+    },
+  });
+
+  const { data: oerebData } = useQuery({
+    queryKey: ["oereb", id, "report"],
+    staleTime: 1000 * 60 * 30,
+    enabled: !!a?.lat && !!a?.lng,
+    queryFn: async () => loadOereb({ data: { analysisId: id } }),
+  });
+
+  const { data: zoneData } = useQuery({
+    queryKey: ["zone-extraction", a?.zone, a?.municipality],
+    enabled: !!a?.zone && !!a?.municipality,
+    queryFn: async () => {
+      const { data: muni } = await supabase
+        .from("municipalities")
+        .select("id")
+        .ilike("name", a?.municipality ?? "")
+        .limit(1)
+        .maybeSingle();
+      if (!muni) return null;
+      const { data: docs } = await supabase
+        .from("regulation_documents")
+        .select("id")
+        .eq("municipality_id", muni.id)
+        .eq("active", true)
+        .limit(1);
+      if (!docs?.length) return null;
+      const { data: extr } = await supabase
+        .from("regulation_extractions")
+        .select("zones")
+        .eq("document_id", docs[0].id)
+        .maybeSingle();
+      if (!extr?.zones) return null;
+      const zones = extr.zones as Array<{ code?: string; name?: string; [key: string]: unknown }>;
+      const zKey = (a?.zone ?? "").toLowerCase();
+      const match = zones.find(
+        (z) =>
+          z.code?.toLowerCase() === zKey ||
+          z.name?.toLowerCase().includes(zKey),
+      );
+      return match ?? zones[0] ?? null;
+    },
+  });
+
+  // Signed URLs for architect documents (private bucket)
+  const { data: docUrls = {} } = useQuery({
+    queryKey: ["analysis-document-urls", id, archDocuments.map((d) => d.id).join(",")],
+    enabled: archDocuments.length > 0,
+    queryFn: async () => {
+      const out: Record<string, string> = {};
+      await Promise.all(
+        archDocuments.map(async (d) => {
+          const { data } = await supabase.storage
+            .from("analysis-documents")
+            .createSignedUrl(d.storage_path, 60 * 60);
+          if (data?.signedUrl) out[d.id] = data.signedUrl;
+        }),
+      );
+      return out;
+    },
+  });
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Lade Bericht …</div>;
   if (!a) return null;
@@ -76,14 +154,33 @@ function ReportPage() {
     `Vollgeschossen erreicht das Objekt einen Entwicklungs-Score von ${score.score}/100 (${score.categoryLabel}). ` +
     `${score.recommendation}`;
 
+  const hasSituation = archDocuments.some((d) => d.kind === "situation");
+  const hasGrundriss = archDocuments.some((d) => d.kind === "grundriss");
+  const hasSchnitt = archDocuments.some((d) => d.kind === "schnitt");
+
+  const toc: Array<[string, string]> = [
+    ["1", "Rechtliche Grundlagen"],
+    ["2", "ÖREB-Auszug"],
+    ["3", "Lage / Situation"],
+    ["4", "Wohnungsanalyse"],
+    ["5", "Gebäudevolumen"],
+    ["6", "Baurechtliche Analyse"],
+    ["7", "Entwicklungspotenzial"],
+    ["8", "Risiken"],
+  ];
+  if (hasSituation) toc.push(["A1", "Situation (Beilagen)"]);
+  if (hasGrundriss) toc.push(["A2", "Grundrisse (Beilagen)"]);
+  if (hasSchnitt) toc.push(["A3", "Schnitte (Beilagen)"]);
+
   const exportWord = () => {
     const html = document.getElementById("report-body")?.outerHTML ?? "";
-    const doc = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Analysebericht</title><style>body{font-family:Calibri,Arial,sans-serif;color:#111;}h1{font-size:22pt;margin-bottom:4pt}h2{font-size:14pt;border-bottom:1px solid #888;padding-bottom:2pt;margin-top:18pt}table{border-collapse:collapse;width:100%;margin:6pt 0}td,th{border:1px solid #bbb;padding:6pt;text-align:left;font-size:10pt}.muted{color:#666}.kpi{font-size:18pt;font-weight:bold}</style></head><body>${html}</body></html>`;
+    const doc = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Machbarkeitsstudie</title><style>body{font-family:Calibri,Arial,sans-serif;color:#111;}h1{font-size:22pt;margin-bottom:4pt}h2{font-size:14pt;border-bottom:1px solid #888;padding-bottom:2pt;margin-top:18pt}table{border-collapse:collapse;width:100%;margin:6pt 0}td,th{border:1px solid #bbb;padding:6pt;text-align:left;font-size:10pt}.muted{color:#666}.kpi{font-size:18pt;font-weight:bold}</style></head><body>${html}</body></html>`;
     const blob = new Blob(["\ufeff", doc], { type: "application/msword" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
+    const projectRef = (a.project_number as string | null) ?? id.slice(0, 8).toUpperCase();
     link.href = url;
-    link.download = `Analysebericht-${(a.address ?? "Grundstueck").replace(/\s+/g, "-")}.doc`;
+    link.download = `Machbarkeitsstudie-${projectRef}-${(a.address ?? "Grundstueck").replace(/\s+/g, "-")}.doc`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -111,76 +208,121 @@ function ReportPage() {
         id="report-body"
         className="rounded-xl border bg-card p-8 text-card-foreground shadow-sm print:border-0 print:shadow-none print:p-0"
       >
-        {/* Header */}
-        <header className="mb-8 flex items-start justify-between border-b pb-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-              Machbarkeitsanalyse
-            </p>
-            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight">
-              Due-Diligence Bericht
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Erstellt am {new Date().toLocaleDateString("de-CH", { day: "2-digit", month: "long", year: "numeric" })}
-              {" · "}Referenz {id.slice(0, 8).toUpperCase()}
-              {a.project_number ? ` · Projekt-Nr. ${a.project_number}` : ""}
-            </p>
-            {(a.client_name || a.project_manager) && (
+        {/* Titelblatt — eigene Seite */}
+        <section className="break-after-page mb-10 flex min-h-[260mm] flex-col justify-between">
+          <header className="flex items-start justify-between border-b pb-6">
+            <div>
+              <p className="font-display text-2xl font-bold">SmarTerra</p>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Property Intelligence</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold uppercase tracking-widest text-primary">Machbarkeitsstudie</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {a.client_name ? `Auftraggeber: ${a.client_name}` : ""}
-                {a.client_name && a.project_manager ? " · " : ""}
-                {a.project_manager ? `Projektleiter: ${a.project_manager}` : ""}
+                {new Date().toLocaleDateString("de-CH", { day: "2-digit", month: "long", year: "numeric" })}
               </p>
-            )}
+            </div>
+          </header>
+
+          <div className="my-12">
+            <p className="text-sm uppercase tracking-widest text-muted-foreground">
+              Projekt {(a.project_number as string | null) ?? "—"}
+            </p>
+            <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-tight">
+              {a.address ?? "Grundstücksanalyse"}
+            </h1>
+            <p className="mt-2 text-base text-muted-foreground">Vorstudie · Stufe Machbarkeit</p>
           </div>
-          <div className="text-right">
-            <p className="font-display text-xl font-bold">SmarTerra</p>
-            <p className="text-xs text-muted-foreground">Property Intelligence</p>
+
+          <div className="grid grid-cols-2 gap-x-10 gap-y-3 border-t pt-6 text-sm">
+            <DefRow label="Parzelle" value={a.parcel_number ?? "—"} />
+            <DefRow label="Grundstücksfläche" value={a.area_size ? `${a.area_size} m²` : "—"} />
+            <DefRow label="Adresse" value={a.address ?? "—"} />
+            <DefRow
+              label="Gemeinde"
+              value={[a.postal_code, a.municipality, a.canton ? `(${a.canton})` : null].filter(Boolean).join(" ")}
+            />
+            <DefRow label="E-GRID" value={(a.egrid as string | null) ?? "—"} />
+            <DefRow label="Auftraggeber" value={(a.client_name as string | null) ?? "—"} />
+            <DefRow label="Verantwortlich" value={(a.project_manager as string | null) ?? "—"} />
+            <DefRow
+              label="Erstellt am"
+              value={new Date().toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" })}
+            />
           </div>
-        </header>
+        </section>
+
+        {/* Inhaltsverzeichnis */}
+        <section className="break-after-page mb-10">
+          <h2 className="mb-4 font-display text-lg font-semibold">Inhaltsverzeichnis</h2>
+          <ol className="space-y-1.5 text-sm">
+            {toc.map(([nr, label]) => (
+              <li key={nr} className="flex items-baseline gap-3 border-b border-dotted py-1">
+                <span className="w-8 font-mono text-xs text-muted-foreground">{nr}</span>
+                <span className="flex-1">{label}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
 
         {/* Executive Summary */}
         <Section title="Executive Summary" icon={<Sparkles className="h-4 w-4 text-secondary" />}>
           <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">{summary}</p>
         </Section>
 
-        {/* 1 Grundstück */}
-        <Section title="1. Grundstück">
-          <DataGrid
-            rows={[
-              ["Adresse", a.address ?? "—"],
-              ["Gemeinde", `${a.postal_code ?? ""} ${a.municipality ?? "—"}`.trim()],
-              ["Kanton", a.canton ?? "—"],
-              ["Grundstücksfläche", a.area_size ? `${a.area_size} m²` : "—"],
-              ["Parzellennummer", a.parcel_number ?? "—"],
-            ]}
-          />
-        </Section>
-
-        {/* 2 Baurechtliche Analyse */}
-        <Section title="2. Baurechtliche Analyse">
-          <DataGrid
-            rows={[
-              ["Zone", a.zone ?? "—"],
-              ["Zulässige Nutzungen", usages.length ? usages.join(", ") : "—"],
-              ["Max. Geschossigkeit", a.max_floors ? `${a.max_floors} Vollgeschosse` : "—"],
-              ["Max. Gebäudehöhe", a.max_height ? `${a.max_height} m` : "—"],
-              ["Ausnützungsziffer", a.utilization_ratio?.toString() ?? "—"],
-              ["Überbauungsziffer", a.building_coverage_ratio?.toString() ?? "—"],
-            ]}
-          />
-          {restrictions.length > 0 && (
-            <div className="mt-4">
-              <p className="mb-2 text-sm font-semibold">Relevante Vorschriften</p>
-              <ul className="list-disc space-y-1 pl-5 text-sm text-foreground/80">
-                {restrictions.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            </div>
+        {/* 1 Rechtliche Grundlagen */}
+        <Section title="1. Rechtliche Grundlagen">
+          {zoneData ? (
+            <RechtlicheGrundlagenTable
+              zone={zoneData}
+              municipalityName={a.municipality}
+              cantonCode={a.canton}
+              grundstueckflaeche={a.area_size as number | null}
+            />
+          ) : (
+            <DataGrid
+              rows={[
+                ["Zone", a.zone ?? "—"],
+                ["Zulässige Nutzungen", usages.length ? usages.join(", ") : "—"],
+                ["Max. Geschossigkeit", a.max_floors ? `${a.max_floors} Vollgeschosse` : "—"],
+                ["Max. Gebäudehöhe", a.max_height ? `${a.max_height} m` : "—"],
+                ["Ausnützungsziffer", a.utilization_ratio?.toString() ?? "—"],
+                ["Überbauungsziffer", a.building_coverage_ratio?.toString() ?? "—"],
+              ]}
+            />
           )}
         </Section>
 
-        {/* 3 Wohnungsanalyse */}
-        <Section title="3. Wohnungsanalyse">
+        {/* 2 ÖREB */}
+        <Section title="2. ÖREB-Auszug">
+          <OEREBTopicsTable
+            topics={oerebData?.topics ?? []}
+            note={oerebData?.note ?? "ÖREB-Daten werden geladen oder konnten nicht ermittelt werden."}
+          />
+        </Section>
+
+        {/* 3 Lage / Situation */}
+        <Section title="3. Lage / Situation">
+          {a.lat != null && a.lng != null ? (
+            <div className="overflow-hidden rounded-lg border">
+              <SwissMap
+                mode="readonly"
+                lat={Number(a.lat)}
+                lng={Number(a.lng)}
+                heightClassName="h-[420px]"
+                allowExpand={false}
+                parcelGeometry={a.parcel_geometry as never}
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Keine Koordinaten — Karte nicht verfügbar.</p>
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">
+            Kartengrundlage: © swisstopo (amtliche Vermessung)
+          </p>
+        </Section>
+
+        {/* 4 Wohnungsanalyse */}
+        <Section title="4. Wohnungsanalyse">
           <div className="grid grid-cols-3 gap-4">
             <Kpi label="Max. Geschossfläche" value={a.floor_area ? `${Math.round(Number(a.floor_area))} m²` : "—"} />
             <Kpi label="Geschätzte Wohnfläche" value={a.living_area ? `${Math.round(Number(a.living_area))} m²` : "—"} />
@@ -189,11 +331,43 @@ function ReportPage() {
           <p className="mt-3 text-xs text-muted-foreground">
             Berechnung auf Basis Grundstücksfläche × Ausnützungsziffer; Wohnfläche ≈ 80 % der Geschossfläche.
           </p>
+
+          {units.length > 0 && (
+            <div className="mt-6">
+              <h3 className="mb-2 text-sm font-semibold">Wohnungsindex</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="py-2 pr-3">Geschoss</th>
+                    <th className="py-2 pr-3">Bezeichnung</th>
+                    <th className="py-2 pr-3">Typ</th>
+                    <th className="py-2 text-right">Fläche (m²)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {units.map((u) => (
+                    <tr key={u.id} className="border-b last:border-0">
+                      <td className="py-2 pr-3">{u.floor_index}</td>
+                      <td className="py-2 pr-3">{u.unit_label}</td>
+                      <td className="py-2 pr-3">{u.unit_type}</td>
+                      <td className="py-2 text-right tabular-nums">{u.area_m2}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-muted/30 font-medium">
+                    <td colSpan={3} className="py-2 pr-3">Total ({units.length} WE)</td>
+                    <td className="py-2 text-right tabular-nums">
+                      {Math.round(units.reduce((s, u) => s + (Number(u.area_m2) || 0), 0))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </Section>
 
-        {/* 3b Geschoss- & Volumenrechner */}
-        {floors.length > 0 && (
-          <Section title="3a. Geschoss- &amp; Volumenrechner">
+        {/* 5 Gebäudevolumen */}
+        <Section title="5. Gebäudevolumen">
+          {floors.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -220,7 +394,7 @@ function ReportPage() {
                 <tr className="bg-muted/30 font-medium">
                   <td colSpan={2} className="py-2 pr-3">Total</td>
                   <td className="py-2 pr-3 text-right tabular-nums">
-                    {Math.round(floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0))}
+                    {Math.round(floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0))} m²
                   </td>
                   <td></td>
                   <td className="py-2 text-right tabular-nums">
@@ -229,52 +403,45 @@ function ReportPage() {
                         (s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0),
                         0,
                       ),
-                    )}
+                    )}{" "}m³
                   </td>
                 </tr>
               </tbody>
             </table>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Indikative Volumenberechnung – kein Ersatz für ein CAD-Programm.
+          ) : (
+            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+              Noch keine Geschossdaten erfasst. Im Tab „Projekt" kann der Geschossrechner befüllt werden.
             </p>
-          </Section>
-        )}
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">
+            Indikative Volumenberechnung – kein Ersatz für ein CAD-Programm.
+          </p>
+        </Section>
 
-        {/* 3c Wohnungsindex */}
-        {units.length > 0 && (
-          <Section title="3b. Wohnungsindex">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="py-2 pr-3">Geschoss</th>
-                  <th className="py-2 pr-3">Bezeichnung</th>
-                  <th className="py-2 pr-3">Typ</th>
-                  <th className="py-2 text-right">Fläche (m²)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {units.map((u) => (
-                  <tr key={u.id} className="border-b last:border-0">
-                    <td className="py-2 pr-3">{u.floor_index}</td>
-                    <td className="py-2 pr-3">{u.unit_label}</td>
-                    <td className="py-2 pr-3">{u.unit_type}</td>
-                    <td className="py-2 text-right tabular-nums">{u.area_m2}</td>
-                  </tr>
-                ))}
-                <tr className="bg-muted/30 font-medium">
-                  <td colSpan={3} className="py-2 pr-3">Total ({units.length} WE)</td>
-                  <td className="py-2 text-right tabular-nums">
-                    {Math.round(units.reduce((s, u) => s + (Number(u.area_m2) || 0), 0))}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </Section>
-        )}
+        {/* 6 Baurechtliche Analyse */}
+        <Section title="6. Baurechtliche Analyse">
+          <DataGrid
+            rows={[
+              ["Zone", a.zone ?? "—"],
+              ["Zulässige Nutzungen", usages.length ? usages.join(", ") : "—"],
+              ["Max. Geschossigkeit", a.max_floors ? `${a.max_floors} Vollgeschosse` : "—"],
+              ["Max. Gebäudehöhe", a.max_height ? `${a.max_height} m` : "—"],
+              ["Ausnützungsziffer", a.utilization_ratio?.toString() ?? "—"],
+              ["Überbauungsziffer", a.building_coverage_ratio?.toString() ?? "—"],
+            ]}
+          />
+          {restrictions.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-sm font-semibold">Relevante Vorschriften</p>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-foreground/80">
+                {restrictions.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          )}
+        </Section>
 
-
-        {/* 4 Entwicklungspotenzial */}
-        <Section title="4. Entwicklungspotenzial">
+        {/* 7 Entwicklungspotenzial */}
+        <Section title="7. Entwicklungspotenzial">
           <div className="flex flex-wrap items-center gap-6">
             <div className="flex items-baseline gap-2">
               <span className="font-display text-5xl font-bold text-primary">{score.score}</span>
@@ -300,8 +467,8 @@ function ReportPage() {
           </div>
         </Section>
 
-        {/* 5 Risiken */}
-        <Section title="5. Risiken">
+        {/* 8 Risiken */}
+        <Section title="8. Risiken">
           {risks.length === 0 ? (
             <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
               Keine spezifischen Risiken erfasst.
@@ -330,13 +497,49 @@ function ReportPage() {
           )}
         </Section>
 
-        {/* 6 KI Empfehlung */}
-        <Section title="6. KI-Empfehlung" icon={<Sparkles className="h-4 w-4 text-secondary" />}>
+        {/* KI Empfehlung */}
+        <Section title="KI-Empfehlung" icon={<Sparkles className="h-4 w-4 text-secondary" />}>
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-5">
             <p className="text-sm font-semibold text-primary">Empfehlung</p>
             <p className="mt-2 text-sm leading-relaxed text-foreground/90">{score.recommendation}</p>
           </div>
         </Section>
+
+        {/* Beilagen */}
+        {archDocuments.length > 0 && (
+          <Section title="Beilagen — Architekten-Dokumente">
+            <div className="space-y-6">
+              {archDocuments.map((doc) => {
+                const url = docUrls[doc.id];
+                const isImage = doc.mime_type?.startsWith("image/");
+                return (
+                  <div key={doc.id} className="break-inside-avoid rounded-lg border p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-sm font-semibold">{doc.file_name}</p>
+                      <Badge variant="outline" className="uppercase">{doc.kind}</Badge>
+                    </div>
+                    {isImage && url ? (
+                      <img
+                        src={url}
+                        alt={doc.file_name}
+                        className="w-full rounded border bg-muted/20 object-contain"
+                      />
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        PDF-Beilage — im Word-Export als Link eingebunden.{" "}
+                        {url && (
+                          <a href={url} target="_blank" rel="noreferrer" className="text-primary underline">
+                            Öffnen ↗
+                          </a>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
 
         <LegalDisclaimer variant="prominent" className="mt-8" />
 
@@ -350,9 +553,14 @@ function ReportPage() {
 
       <style>{`
         @media print {
-          @page { size: A4; margin: 18mm; }
-          body { background: white !important; }
+          @page { size: A4 portrait; margin: 18mm 15mm; }
+          body { background: white !important; font-size: 10pt; }
           aside, nav, header[data-app-topbar], [data-sidebar] { display: none !important; }
+          .break-after-page { break-after: page; }
+          .break-inside-avoid { break-inside: avoid; }
+          table { break-inside: avoid; }
+          section { break-inside: avoid; }
+          img { max-height: 180mm; width: 100%; object-fit: contain; }
         }
       `}</style>
     </div>
@@ -392,6 +600,15 @@ function Kpi({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border bg-muted/20 p-4">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-1 font-display text-2xl font-bold">{value}</p>
+    </div>
+  );
+}
+
+function DefRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="mt-0.5 font-medium">{value || "—"}</span>
     </div>
   );
 }
