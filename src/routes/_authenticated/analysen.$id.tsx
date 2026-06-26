@@ -183,28 +183,25 @@ function AnalysisDetailPage() {
         </Alert>
       )}
 
-      <Tabs defaultValue="feasibility" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-9">
-          <TabsTrigger value="feasibility"><CheckCircle2 className="mr-2 h-4 w-4" />Machbarkeit</TabsTrigger>
-          <TabsTrigger value="units"><Home className="mr-2 h-4 w-4" />Wohnungspotenzial</TabsTrigger>
-          <TabsTrigger value="potential"><TrendingUp className="mr-2 h-4 w-4" />Entwicklung</TabsTrigger>
-          <TabsTrigger value="risks"><AlertTriangle className="mr-2 h-4 w-4" />Risiken</TabsTrigger>
-          <TabsTrigger value="scenarios"><Sparkles className="mr-2 h-4 w-4" />Varianten</TabsTrigger>
-          <TabsTrigger value="oereb"><ShieldCheck className="mr-2 h-4 w-4" />ÖREB</TabsTrigger>
+      <Tabs defaultValue="uebersicht" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-5">
+          <TabsTrigger value="uebersicht"><CheckCircle2 className="mr-2 h-4 w-4" />Übersicht</TabsTrigger>
+          <TabsTrigger value="recht"><ShieldCheck className="mr-2 h-4 w-4" />Rechtsrahmen</TabsTrigger>
+          <TabsTrigger value="potenzial"><TrendingUp className="mr-2 h-4 w-4" />Potenzial</TabsTrigger>
           <TabsTrigger value="projekt"><Building2 className="mr-2 h-4 w-4" />Projekt</TabsTrigger>
-          <TabsTrigger value="dienstbarkeiten"><ScrollText className="mr-2 h-4 w-4" />Dienstbarkeiten</TabsTrigger>
           <TabsTrigger value="report"><FileText className="mr-2 h-4 w-4" />Bericht</TabsTrigger>
         </TabsList>
 
-        {/* Machbarkeit */}
-        <TabsContent value="feasibility" className="space-y-4">
+        {/* 1) ÜBERSICHT — Lage, Kennzahlen, KI-Empfehlung, Risiken */}
+        <TabsContent value="uebersicht" className="space-y-4">
           {analysis.lat != null && analysis.lng != null && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-display text-lg">
                   <MapPin className="h-4 w-4 text-secondary" />
-                  Lage
+                  Lage & Parzelle
                 </CardTitle>
+                <CardDescription>Grundstück, Geometrie und indikatives Baufeld.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 <SwissMap
@@ -228,6 +225,14 @@ function AnalysisDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          <div className="grid gap-4 md:grid-cols-4">
+            <KpiCard icon={Building2} label="Zone" value={analysis.zone ?? "—"} tooltip="Ermittelt aus dem hinterlegten BZR der Gemeinde. Vor Baueingabe amtlich beim Zonenplan der Gemeinde verifizieren." />
+            <KpiCard label="Ausnützungsziffer" value={analysis.utilization_ratio?.toString() ?? "—"} />
+            <KpiCard label="Max. Geschosse" value={analysis.max_floors?.toString() ?? "—"} />
+            <KpiCard label="Max. Höhe" value={analysis.max_height ? `${analysis.max_height} m` : "—"} />
+          </div>
+
           <DevelopmentScoreCard
             input={{
               zone: analysis.zone,
@@ -243,17 +248,7 @@ function AnalysisDetailPage() {
             }}
           />
 
-          <div className="grid gap-4 md:grid-cols-4">
-            <KpiCard icon={Building2} label="Zone" value={analysis.zone ?? "—"} tooltip="Ermittelt aus dem hinterlegten BZR der Gemeinde. Vor Baueingabe amtlich beim Zonenplan der Gemeinde verifizieren." />
-            <KpiCard label="Ausnützungsziffer" value={analysis.utilization_ratio?.toString() ?? "—"} />
-            <KpiCard label="Max. Geschosse" value={analysis.max_floors?.toString() ?? "—"} />
-            <KpiCard label="Max. Höhe" value={analysis.max_height ? `${analysis.max_height} m` : "—"} />
-          </div>
-
           <AiAnswerCard answer={analysis.ai_answer as AiAnswer | null} />
-
-
-
 
           <Card>
             <CardHeader>
@@ -291,54 +286,12 @@ function AnalysisDetailPage() {
               )}
             </CardContent>
           </Card>
-          <LegalDisclaimer variant="subtle" className="mt-4" />
-        </TabsContent>
 
-        {/* Wohnungspotenzial */}
-        <TabsContent value="units" className="space-y-4">
-          <ZoneOverrideCard
-            analysisId={id}
-            municipalityName={analysis.municipality}
-            cantonCode={analysis.canton}
-            detectedZone={analysis.detected_zone}
-            zoneOverride={analysis.zone_override}
-            currentZone={analysis.zone}
-            utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
-            onReanalyzed={() => queryClient.invalidateQueries({ queryKey: ["analysis", id] })}
-          />
-          <UnitsPotential
-            areaSize={Number(analysis.area_size ?? 0) || 0}
-            utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
-            maxFloors={Number(analysis.max_floors ?? 0) || 0}
-            floorArea={Number(analysis.floor_area ?? 0) || 0}
-            livingArea={Number(analysis.living_area ?? 0) || 0}
-            unitCount={Number(analysis.unit_count ?? 0) || 0}
-          />
-        </TabsContent>
-
-
-        {/* Entwicklungspotenzial */}
-        <TabsContent value="potential" className="space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="font-display text-lg">Entwicklungspotenzial</CardTitle></CardHeader>
-            <CardContent>
-              {potential ? (
-                <div className={`inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium ${potential.tone}`}>
-                  <TrendingUp className="mr-2 h-4 w-4" />{potential.label}
-                </div>
-              ) : <Placeholder text="Wird nach Abschluss der Analyse angezeigt." />}
-              {analysis.ai_summary && (
-                <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{analysis.ai_summary}</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Risiken */}
-        <TabsContent value="risks">
           <Card>
             <CardHeader>
-              <CardTitle className="font-display text-lg">Risiken &amp; Einschränkungen</CardTitle>
+              <CardTitle className="flex items-center gap-2 font-display text-lg">
+                <AlertTriangle className="h-4 w-4 text-destructive" />Risiken &amp; Einschränkungen
+              </CardTitle>
               <CardDescription>Baurechtliche Einschränkungen, Sondervorschriften, Denkmalschutz, Abstände, Lärm, Gewässer.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -364,26 +317,111 @@ function AnalysisDetailPage() {
               })}
             </CardContent>
           </Card>
+
+          <LegalDisclaimer variant="subtle" className="mt-4" />
         </TabsContent>
 
-        {/* Varianten */}
-        <TabsContent value="scenarios" className="space-y-4">
-          <ScenarioComparison
-            analysisId={analysis.id as string}
-            organizationId={analysis.organization_id as string}
-          />
+        {/* 2) RECHTSRAHMEN — ÖREB + Dienstbarkeiten */}
+        <TabsContent value="recht" className="space-y-6">
+          <section className="space-y-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-secondary" />Öffentlich-rechtliche Eigentumsbeschränkungen (ÖREB)
+              </h2>
+              <p className="text-sm text-muted-foreground">Themen aus dem amtlichen ÖREB-Kataster für die Parzelle.</p>
+            </div>
+            <OEREBTabContent
+              analysisId={analysis.id as string}
+              lat={(analysis.lat as number | null) ?? null}
+              lng={(analysis.lng as number | null) ?? null}
+            />
+          </section>
+
+          <Separator />
+
+          <section className="space-y-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+                <ScrollText className="h-4 w-4 text-secondary" />Dienstbarkeiten, Grundlasten & Pfandrechte
+              </h2>
+              <p className="text-sm text-muted-foreground">Manuelle Erfassung oder KI-Extraktion aus dem Grundbuchauszug.</p>
+            </div>
+            <EasementsPanel
+              analysisId={analysis.id as string}
+              organizationId={analysis.organization_id as string}
+            />
+          </section>
         </TabsContent>
 
-        {/* ÖREB */}
-        <TabsContent value="oereb" className="space-y-4">
-          <OEREBTabContent
-            analysisId={analysis.id as string}
-            lat={(analysis.lat as number | null) ?? null}
-            lng={(analysis.lng as number | null) ?? null}
-          />
+        {/* 3) POTENZIAL — Zone-Override, Wohnungspotenzial, Entwicklungs-Score, Varianten */}
+        <TabsContent value="potenzial" className="space-y-6">
+          <section className="space-y-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+                <Home className="h-4 w-4 text-secondary" />Wohnungspotenzial
+              </h2>
+              <p className="text-sm text-muted-foreground">Geschossfläche, Wohnfläche und Wohnungsanzahl auf Basis von Zone und Ausnützung.</p>
+            </div>
+            <ZoneOverrideCard
+              analysisId={id}
+              municipalityName={analysis.municipality}
+              cantonCode={analysis.canton}
+              detectedZone={analysis.detected_zone}
+              zoneOverride={analysis.zone_override}
+              currentZone={analysis.zone}
+              utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
+              onReanalyzed={() => queryClient.invalidateQueries({ queryKey: ["analysis", id] })}
+            />
+            <UnitsPotential
+              areaSize={Number(analysis.area_size ?? 0) || 0}
+              utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
+              maxFloors={Number(analysis.max_floors ?? 0) || 0}
+              floorArea={Number(analysis.floor_area ?? 0) || 0}
+              livingArea={Number(analysis.living_area ?? 0) || 0}
+              unitCount={Number(analysis.unit_count ?? 0) || 0}
+            />
+          </section>
+
+          <Separator />
+
+          <section className="space-y-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-secondary" />Entwicklungspotenzial
+              </h2>
+              <p className="text-sm text-muted-foreground">Qualitative Einschätzung des Standorts.</p>
+            </div>
+            <Card>
+              <CardContent className="pt-6">
+                {potential ? (
+                  <div className={`inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium ${potential.tone}`}>
+                    <TrendingUp className="mr-2 h-4 w-4" />{potential.label}
+                  </div>
+                ) : <Placeholder text="Wird nach Abschluss der Analyse angezeigt." />}
+                {analysis.ai_summary && (
+                  <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{analysis.ai_summary}</p>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
+          <Separator />
+
+          <section className="space-y-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-secondary" />Varianten-Vergleich
+              </h2>
+              <p className="text-sm text-muted-foreground">Mehrere Bebauungsoptionen nebeneinander rechnen.</p>
+            </div>
+            <ScenarioComparison
+              analysisId={analysis.id as string}
+              organizationId={analysis.organization_id as string}
+            />
+          </section>
         </TabsContent>
 
-        {/* Projekt */}
+        {/* 4) PROJEKT — Projektdaten, Geschosse/Volumen, Pläne */}
         <TabsContent value="projekt" className="space-y-4">
           <ProjectDataCard
             analysis={{
@@ -415,18 +453,7 @@ function AnalysisDetailPage() {
           />
         </TabsContent>
 
-        {/* Dienstbarkeiten */}
-        <TabsContent value="dienstbarkeiten" className="space-y-4">
-          <EasementsPanel
-            analysisId={analysis.id as string}
-            organizationId={analysis.organization_id as string}
-          />
-        </TabsContent>
-
-
-
-
-        {/* Bericht */}
+        {/* 5) BERICHT */}
         <TabsContent value="report">
           <Card>
             <CardHeader>
@@ -455,6 +482,7 @@ function AnalysisDetailPage() {
     </div>
   );
 }
+
 
 function OEREBTabContent({
   analysisId,
