@@ -75,6 +75,19 @@ Zonen-Kategorien (usage_category):
 - "landwirtschaft" für Landwirtschaftszonen
 - "sonstige" für Schutz-, Tourismus-, Sonderzonen
 
+Neue Felder in Kürze:
+- max_height_valley_m: talseitige (talwärts gewandte) Fassadenhöhe in Metern, oft gleich max_height_m, manchmal abweichend
+- building_mass_ratio: Baumassenziffer (BMZ), Verhältnis Gebäudevolumen zu Grundstücksfläche (typisch 0.4–2.5)
+- open_space_ratio: Freiflächenziffer, Anteil unbebauter/begrünter Fläche (typisch 0.3–0.6)
+- max_building_length_m: maximale Gebäudelänge in Metern
+- max_facade_length_m: maximale Fassadenlänge in Metern
+- height_bonus_m: Mehrhöhenzuschlag in Metern (falls BZR Zuschläge kennt)
+- attic_floor_counted: true wenn Dachgeschoss als anrechenbares Vollgeschoss gilt, false wenn nicht, null wenn nicht definiert
+- basement_counted: true wenn Untergeschoss als anrechenbares Geschoss gilt
+- transit_quality: Erschliessungsqualität des öffentlichen Verkehrs (z. B. "Klasse A", "Klasse B", "Gebiet B"), falls im BZR erwähnt
+- play_area_m2_per_apt: Spiel- und Ruhefläche in m², oft angegeben als "15 m² pro 3.5-Zi-Whg" → dann diesen Wert nehmen; null wenn nicht definiert
+- parking_rate: Parkierungsvorschrift als Freitext exakt wie im BZR (z. B. "1 PP / 100 m² HNF oder min. 1 PP / Wohnung")
+
 Antworte ausschliesslich im vorgegebenen JSON-Format.`;
 
 async function loadDocumentAsBase64(filePath: string, fileName?: string | null) {
