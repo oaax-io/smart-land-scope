@@ -397,7 +397,7 @@ function ReportPage() {
         </Section>
 
         {/* 4 Wohnungsanalyse */}
-        <Section title="4. Wohnungsanalyse">
+        <Section title="5. Wohnungsanalyse">
           <div className="grid grid-cols-3 gap-4">
             <Kpi label="Max. Geschossfläche" value={a.floor_area ? `${Math.round(Number(a.floor_area))} m²` : "—"} />
             <Kpi label="Geschätzte Wohnfläche" value={a.living_area ? `${Math.round(Number(a.living_area))} m²` : "—"} />
@@ -441,7 +441,7 @@ function ReportPage() {
         </Section>
 
         {/* 5 Gebäudevolumen */}
-        <Section title="5. Gebäudevolumen">
+        <Section title="6. Gebäudevolumen">
           {floors.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
@@ -494,7 +494,7 @@ function ReportPage() {
         </Section>
 
         {/* 6 Baurechtliche Analyse */}
-        <Section title="6. Baurechtliche Analyse">
+        <Section title="7. Baurechtliche Analyse">
           <DataGrid
             rows={[
               ["Zone", a.zone ?? "—"],
@@ -516,7 +516,7 @@ function ReportPage() {
         </Section>
 
         {/* 7 Entwicklungspotenzial */}
-        <Section title="7. Entwicklungspotenzial">
+        <Section title="8. Entwicklungspotenzial">
           <div className="flex flex-wrap items-center gap-6">
             <div className="flex items-baseline gap-2">
               <span className="font-display text-5xl font-bold text-primary">{score.score}</span>
@@ -543,7 +543,7 @@ function ReportPage() {
         </Section>
 
         {/* 8 Risiken */}
-        <Section title="8. Risiken">
+        <Section title="9. Risiken">
           {risks.length === 0 ? (
             <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
               Keine spezifischen Risiken erfasst.
