@@ -347,6 +347,17 @@ function parseExtractionJson(raw: string): Extraction | null {
     setback_small_m: typeof z.setback_small_m === "number" ? z.setback_small_m : null,
     setback_large_m: typeof z.setback_large_m === "number" ? z.setback_large_m : null,
     noise_sensitivity: typeof z.noise_sensitivity === "string" ? z.noise_sensitivity : null,
+    max_height_valley_m: typeof z.max_height_valley_m === "number" ? z.max_height_valley_m : null,
+    building_mass_ratio: typeof z.building_mass_ratio === "number" ? z.building_mass_ratio : null,
+    open_space_ratio: typeof z.open_space_ratio === "number" ? z.open_space_ratio : null,
+    max_building_length_m: typeof z.max_building_length_m === "number" ? z.max_building_length_m : null,
+    max_facade_length_m: typeof z.max_facade_length_m === "number" ? z.max_facade_length_m : null,
+    height_bonus_m: typeof z.height_bonus_m === "number" ? z.height_bonus_m : null,
+    attic_floor_counted: typeof z.attic_floor_counted === "boolean" ? z.attic_floor_counted : null,
+    basement_counted: typeof z.basement_counted === "boolean" ? z.basement_counted : null,
+    transit_quality: typeof z.transit_quality === "string" ? z.transit_quality : null,
+    play_area_m2_per_apt: typeof z.play_area_m2_per_apt === "number" ? z.play_area_m2_per_apt : null,
+    parking_rate: typeof z.parking_rate === "string" ? z.parking_rate : null,
     article_reference: typeof z.article_reference === "string" ? z.article_reference : null,
   }));
   return {
