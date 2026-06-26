@@ -1286,6 +1286,7 @@ export type Database = {
         | "situation"
         | "umgebung"
         | "fassade"
+        | "grundbuchauszug"
       analysis_status:
         | "pending"
         | "processing"
@@ -1456,6 +1457,7 @@ export const Constants = {
         "situation",
         "umgebung",
         "fassade",
+        "grundbuchauszug",
       ],
       analysis_status: [
         "pending",
