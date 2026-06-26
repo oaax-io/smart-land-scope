@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/dokumentation")({
   component: DocsPage,
 });
 
-const APP_VERSION = "0.9.0";
+const APP_VERSION = "1.3.0";
 const APP_STAGE = "Beta";
 
 type Change = {
@@ -38,6 +38,53 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: "1.3.0",
+    date: "2026-06-26",
+    title: "Dienstbarkeiten & Grundbuchauszug",
+    changes: [
+      { type: "Neu", text: "Dienstbarkeiten-Modul: manuelle Erfassung von Dienstbarkeiten, Grundlasten und Pfandrechten pro Analyse" },
+      { type: "Neu", text: "KI-Extraktion aus hochgeladenem Grundbuchauszug (PDF/Scan) mit Vertrauenswert pro Eintrag" },
+      { type: "Neu", text: "Neues Kapitel 3 'Dienstbarkeiten & Lasten' im Bericht; folgende Kapitel umnummeriert" },
+    ],
+  },
+  {
+    version: "1.2.0",
+    date: "2026-06-25",
+    title: "Professioneller Bericht im Conea-Format",
+    changes: [
+      { type: "Neu", text: "Druckbare Machbarkeitsstudie mit Titelseite, Inhaltsverzeichnis und Kapiteln 1–9" },
+      { type: "Neu", text: "Word-Export inkl. Projektnummer im Dateinamen, A4-Pagination und Seitenumbrüche" },
+      { type: "Neu", text: "ÖREB-Kataster-Integration: alle Themen automatisch per EGRID, eigener Tab und Bericht-Kapitel" },
+      { type: "Neu", text: "Rechtliche-Grundlagen-Tabelle gruppiert nach Lage, Dichte, Masse, Abstände, Freiräume, Verkehr" },
+      { type: "Verbessert", text: "BZR-Extraktion um 11 Kennzahlen erweitert (BMZ, Parkplatzpflicht, Attika-Regeln, Lärmempfindlichkeit, Gewässerabstand u. a.)" },
+    ],
+  },
+  {
+    version: "1.1.0",
+    date: "2026-06-23",
+    title: "Projekt-Workflow & Varianten",
+    changes: [
+      { type: "Neu", text: "Projektdaten pro Analyse: Projektnummer, Auftraggeber, Projektleiter" },
+      { type: "Neu", text: "Parametrischer Geschoss- und Volumenrechner mit automatischer Gesamtfläche und Volumen" },
+      { type: "Neu", text: "Wohnungs-Mix-Tabelle und Upload-Slots für Architekten-Zeichnungen (Situation, Grundriss, Schnitt, Fassade)" },
+      { type: "Neu", text: "Szenario-Vergleich (Tab 'Varianten') für mehrere Bebauungsoptionen nebeneinander" },
+      { type: "Neu", text: "Indikatives Baufeld auf der Analyse-Karte aus amtlicher Parzellengeometrie und Grenzabständen" },
+    ],
+  },
+  {
+    version: "1.0.0",
+    date: "2026-06-21",
+    title: "Wissensbasis-Skalierung & Regionen",
+    changes: [
+      { type: "Neu", text: "Hintergrund-Jobsystem für BZR-Extraktion (3 Dokumente/Minute) mit Live-Progress" },
+      { type: "Neu", text: "Regionen-Admin: Kantone und Gemeinden aktiv/inaktiv schalten" },
+      { type: "Neu", text: "Inline-Korrektur KI-extrahierter Reglemente-Werte mit Verifizierungs-Tracking" },
+      { type: "Verbessert", text: "Zonenermittlung DB-first: kommunale Zonen schlagen Bundes-Layer; Map-Tooltip 'Bauzone (Bund)'" },
+      { type: "Verbessert", text: "BZR-Uploads erfordern 'Gültig ab' und archivieren ältere Versionen automatisch" },
+      { type: "Verbessert", text: "Bauzonen-Override pro Analyse mit anschliessender Re-Analyse" },
+    ],
+  },
+  {
     version: "0.9.0",
     date: "2026-06-19",
     title: "Feedback-System, Profil & Dokumentation",
@@ -49,6 +96,7 @@ const RELEASES: Release[] = [
       { type: "Verbessert", text: "Fehler in Dialogen werden direkt im Modal angezeigt" },
     ],
   },
+
   {
     version: "0.8.0",
     date: "2026-06-18",
