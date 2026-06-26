@@ -23,6 +23,7 @@ export type Database = {
           area_size: number | null
           building_coverage_ratio: number | null
           canton: string | null
+          client_name: string | null
           created_at: string
           created_by: string | null
           design_plan_required: boolean | null
@@ -50,6 +51,8 @@ export type Database = {
           postal_code: string | null
           potential_level: Database["public"]["Enums"]["potential_level"] | null
           project_id: string | null
+          project_manager: string | null
+          project_number: string | null
           restrictions: Json | null
           risks: Json | null
           setbacks: Json | null
@@ -71,6 +74,7 @@ export type Database = {
           area_size?: number | null
           building_coverage_ratio?: number | null
           canton?: string | null
+          client_name?: string | null
           created_at?: string
           created_by?: string | null
           design_plan_required?: boolean | null
@@ -100,6 +104,8 @@ export type Database = {
             | Database["public"]["Enums"]["potential_level"]
             | null
           project_id?: string | null
+          project_manager?: string | null
+          project_number?: string | null
           restrictions?: Json | null
           risks?: Json | null
           setbacks?: Json | null
@@ -121,6 +127,7 @@ export type Database = {
           area_size?: number | null
           building_coverage_ratio?: number | null
           canton?: string | null
+          client_name?: string | null
           created_at?: string
           created_by?: string | null
           design_plan_required?: boolean | null
@@ -150,6 +157,8 @@ export type Database = {
             | Database["public"]["Enums"]["potential_level"]
             | null
           project_id?: string | null
+          project_manager?: string | null
+          project_number?: string | null
           restrictions?: Json | null
           risks?: Json | null
           setbacks?: Json | null
@@ -227,6 +236,57 @@ export type Database = {
           },
           {
             foreignKeyName: "analysis_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analysis_floors: {
+        Row: {
+          analysis_id: string
+          created_at: string
+          floor_height_m: number
+          floor_index: number
+          floor_label: string
+          gross_area_m2: number | null
+          id: string
+          organization_id: string
+          volume_m3: number | null
+        }
+        Insert: {
+          analysis_id: string
+          created_at?: string
+          floor_height_m?: number
+          floor_index: number
+          floor_label: string
+          gross_area_m2?: number | null
+          id?: string
+          organization_id: string
+          volume_m3?: number | null
+        }
+        Update: {
+          analysis_id?: string
+          created_at?: string
+          floor_height_m?: number
+          floor_index?: number
+          floor_label?: string
+          gross_area_m2?: number | null
+          id?: string
+          organization_id?: string
+          volume_m3?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_floors_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_floors_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -408,6 +468,54 @@ export type Database = {
           },
           {
             foreignKeyName: "analysis_scenarios_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analysis_units: {
+        Row: {
+          analysis_id: string
+          area_m2: number
+          created_at: string
+          floor_index: number
+          id: string
+          organization_id: string
+          unit_label: string
+          unit_type: string
+        }
+        Insert: {
+          analysis_id: string
+          area_m2: number
+          created_at?: string
+          floor_index: number
+          id?: string
+          organization_id: string
+          unit_label: string
+          unit_type: string
+        }
+        Update: {
+          analysis_id?: string
+          area_m2?: number
+          created_at?: string
+          floor_index?: number
+          id?: string
+          organization_id?: string
+          unit_label?: string
+          unit_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_units_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_units_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1168,7 +1276,16 @@ export type Database = {
       tick_lu_fill_job: { Args: never; Returns: undefined }
     }
     Enums: {
-      analysis_document_kind: "bzr" | "bzo" | "zonenplan" | "other"
+      analysis_document_kind:
+        | "bzr"
+        | "bzo"
+        | "zonenplan"
+        | "other"
+        | "grundriss"
+        | "schnitt"
+        | "situation"
+        | "umgebung"
+        | "fassade"
       analysis_status:
         | "pending"
         | "processing"
@@ -1329,7 +1446,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      analysis_document_kind: ["bzr", "bzo", "zonenplan", "other"],
+      analysis_document_kind: [
+        "bzr",
+        "bzo",
+        "zonenplan",
+        "other",
+        "grundriss",
+        "schnitt",
+        "situation",
+        "umgebung",
+        "fassade",
+      ],
       analysis_status: [
         "pending",
         "processing",

@@ -32,6 +32,7 @@ import { SwissMap } from "@/components/swiss-map";
 import { LegalDisclaimer } from "@/components/legal-disclaimer";
 import { OEREBTopicsTable } from "@/components/oereb-topics-table";
 import { loadOEREBData } from "@/lib/oereb.functions";
+import { ProjectDataCard, FloorCalculatorCard, DocumentUploadsCard } from "@/components/analysis-project-tab";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
   head: ({ params }) => ({ meta: [{ title: `Analyse ${params.id.slice(0, 8)} — SmarTerra` }] }),
@@ -181,13 +182,14 @@ function AnalysisDetailPage() {
       )}
 
       <Tabs defaultValue="feasibility" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-7">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-8">
           <TabsTrigger value="feasibility"><CheckCircle2 className="mr-2 h-4 w-4" />Machbarkeit</TabsTrigger>
           <TabsTrigger value="units"><Home className="mr-2 h-4 w-4" />Wohnungspotenzial</TabsTrigger>
           <TabsTrigger value="potential"><TrendingUp className="mr-2 h-4 w-4" />Entwicklung</TabsTrigger>
           <TabsTrigger value="risks"><AlertTriangle className="mr-2 h-4 w-4" />Risiken</TabsTrigger>
           <TabsTrigger value="scenarios"><Sparkles className="mr-2 h-4 w-4" />Varianten</TabsTrigger>
           <TabsTrigger value="oereb"><ShieldCheck className="mr-2 h-4 w-4" />ÖREB</TabsTrigger>
+          <TabsTrigger value="projekt"><Building2 className="mr-2 h-4 w-4" />Projekt</TabsTrigger>
           <TabsTrigger value="report"><FileText className="mr-2 h-4 w-4" />Bericht</TabsTrigger>
         </TabsList>
 
@@ -377,6 +379,39 @@ function AnalysisDetailPage() {
             lng={(analysis.lng as number | null) ?? null}
           />
         </TabsContent>
+
+        {/* Projekt */}
+        <TabsContent value="projekt" className="space-y-4">
+          <ProjectDataCard
+            analysis={{
+              id: analysis.id as string,
+              organization_id: analysis.organization_id as string,
+              project_number: (analysis.project_number as string | null) ?? null,
+              client_name: (analysis.client_name as string | null) ?? null,
+              project_manager: (analysis.project_manager as string | null) ?? null,
+              floor_area: (analysis.floor_area as number | null) ?? null,
+              living_area: (analysis.living_area as number | null) ?? null,
+              unit_count: (analysis.unit_count as number | null) ?? null,
+            }}
+          />
+          <FloorCalculatorCard
+            analysis={{
+              id: analysis.id as string,
+              organization_id: analysis.organization_id as string,
+              project_number: null,
+              client_name: null,
+              project_manager: null,
+              floor_area: (analysis.floor_area as number | null) ?? null,
+              living_area: (analysis.living_area as number | null) ?? null,
+              unit_count: (analysis.unit_count as number | null) ?? null,
+            }}
+          />
+          <DocumentUploadsCard
+            analysisId={analysis.id as string}
+            organizationId={analysis.organization_id as string}
+          />
+        </TabsContent>
+
 
         {/* Bericht */}
         <TabsContent value="report">

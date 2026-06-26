@@ -25,6 +25,28 @@ function ReportPage() {
       return data;
     },
   });
+  const { data: floors = [] } = useQuery({
+    queryKey: ["analysis-floors", id, "report"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_floors")
+        .select("*")
+        .eq("analysis_id", id)
+        .order("floor_index", { ascending: true });
+      return data ?? [];
+    },
+  });
+  const { data: units = [] } = useQuery({
+    queryKey: ["analysis-units", id, "report"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_units")
+        .select("*")
+        .eq("analysis_id", id)
+        .order("floor_index", { ascending: true });
+      return data ?? [];
+    },
+  });
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Lade Bericht …</div>;
   if (!a) return null;
@@ -101,7 +123,15 @@ function ReportPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Erstellt am {new Date().toLocaleDateString("de-CH", { day: "2-digit", month: "long", year: "numeric" })}
               {" · "}Referenz {id.slice(0, 8).toUpperCase()}
+              {a.project_number ? ` · Projekt-Nr. ${a.project_number}` : ""}
             </p>
+            {(a.client_name || a.project_manager) && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {a.client_name ? `Auftraggeber: ${a.client_name}` : ""}
+                {a.client_name && a.project_manager ? " · " : ""}
+                {a.project_manager ? `Projektleiter: ${a.project_manager}` : ""}
+              </p>
+            )}
           </div>
           <div className="text-right">
             <p className="font-display text-xl font-bold">SmarTerra</p>
@@ -160,6 +190,88 @@ function ReportPage() {
             Berechnung auf Basis Grundstücksfläche × Ausnützungsziffer; Wohnfläche ≈ 80 % der Geschossfläche.
           </p>
         </Section>
+
+        {/* 3b Geschoss- & Volumenrechner */}
+        {floors.length > 0 && (
+          <Section title="3a. Geschoss- &amp; Volumenrechner">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="py-2 pr-3">Geschoss</th>
+                  <th className="py-2 pr-3">Bezeichnung</th>
+                  <th className="py-2 pr-3 text-right">BGF (m²)</th>
+                  <th className="py-2 pr-3 text-right">Höhe (m)</th>
+                  <th className="py-2 text-right">Volumen (m³)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {floors.map((f) => {
+                  const vol = (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0);
+                  return (
+                    <tr key={f.id} className="border-b last:border-0">
+                      <td className="py-2 pr-3">{f.floor_index}</td>
+                      <td className="py-2 pr-3">{f.floor_label}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{f.gross_area_m2 ?? "—"}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{f.floor_height_m}</td>
+                      <td className="py-2 text-right tabular-nums">{vol ? Math.round(vol) : "—"}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="bg-muted/30 font-medium">
+                  <td colSpan={2} className="py-2 pr-3">Total</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">
+                    {Math.round(floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0))}
+                  </td>
+                  <td></td>
+                  <td className="py-2 text-right tabular-nums">
+                    {Math.round(
+                      floors.reduce(
+                        (s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0),
+                        0,
+                      ),
+                    )}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Indikative Volumenberechnung – kein Ersatz für ein CAD-Programm.
+            </p>
+          </Section>
+        )}
+
+        {/* 3c Wohnungsindex */}
+        {units.length > 0 && (
+          <Section title="3b. Wohnungsindex">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="py-2 pr-3">Geschoss</th>
+                  <th className="py-2 pr-3">Bezeichnung</th>
+                  <th className="py-2 pr-3">Typ</th>
+                  <th className="py-2 text-right">Fläche (m²)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {units.map((u) => (
+                  <tr key={u.id} className="border-b last:border-0">
+                    <td className="py-2 pr-3">{u.floor_index}</td>
+                    <td className="py-2 pr-3">{u.unit_label}</td>
+                    <td className="py-2 pr-3">{u.unit_type}</td>
+                    <td className="py-2 text-right tabular-nums">{u.area_m2}</td>
+                  </tr>
+                ))}
+                <tr className="bg-muted/30 font-medium">
+                  <td colSpan={3} className="py-2 pr-3">Total ({units.length} WE)</td>
+                  <td className="py-2 text-right tabular-nums">
+                    {Math.round(units.reduce((s, u) => s + (Number(u.area_m2) || 0), 0))}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </Section>
+        )}
+
 
         {/* 4 Entwicklungspotenzial */}
         <Section title="4. Entwicklungspotenzial">
