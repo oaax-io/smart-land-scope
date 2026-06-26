@@ -1,0 +1,1 @@
+CREATE POLICY "Platform admins can view all profiles" ON public.profiles FOR SELECT USING (public.is_platform_admin(auth.uid()));
