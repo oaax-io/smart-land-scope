@@ -603,6 +603,10 @@ function NewVersionForm({
       toast.error("Titel und Datei sind Pflicht.");
       return;
     }
+    if (!validFrom) {
+      toast.error("Bitte 'Gültig ab'-Datum angeben — neue Version wird zur aktuellen.");
+      return;
+    }
     setBusy(true);
     const tid = toast.loading("Lade hoch und analysiere…");
     try {
@@ -630,6 +634,15 @@ function NewVersionForm({
         .select("id")
         .single();
       if (insErr) throw insErr;
+
+      // Ältere Versionen für diese Gemeinde archivieren (active = false),
+      // damit die KI-Analyse nur das neueste BZR verwendet.
+      await supabase
+        .from("regulation_documents")
+        .update({ active: false })
+        .eq("municipality_id", municipalityId)
+        .neq("id", inserted.id)
+        .eq("active", true);
 
       try {
         await extractFn({ data: { documentId: inserted.id } });
