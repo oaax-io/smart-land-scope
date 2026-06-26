@@ -408,6 +408,65 @@ function AnalysisDetailPage() {
   );
 }
 
+function OEREBTabContent({
+  analysisId,
+  lat,
+  lng,
+}: {
+  analysisId: string;
+  lat: number | null;
+  lng: number | null;
+}) {
+  const loadFn = useServerFn(loadOEREBData);
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ["oereb", analysisId],
+    enabled: lat != null && lng != null,
+    staleTime: 1000 * 60 * 30,
+    queryFn: () => loadFn({ data: { analysisId } }),
+  });
+
+  if (lat == null || lng == null) {
+    return (
+      <Card>
+        <CardContent className="py-6 text-sm text-muted-foreground">
+          Keine Koordinaten vorhanden. Bitte Grundstück über die Kartenansicht auswählen.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+        <div>
+          <CardTitle className="flex items-center gap-2 font-display text-lg">
+            <ShieldCheck className="h-4 w-4 text-secondary" />
+            Öffentlichrechtliche Eigentumsbeschränkungen
+          </CardTitle>
+          <CardDescription>
+            Automatisch abgerufen vom schweizerischen ÖREB-Kataster (swisstopo).
+          </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          {isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+          Aktualisieren
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {isLoading && <p className="text-sm text-muted-foreground">ÖREB-Daten werden geladen …</p>}
+        {error && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>Fehler beim Laden: {(error as Error).message}</AlertDescription>
+          </Alert>
+        )}
+        {data && <OEREBTopicsTable topics={data.topics} note={data.note} />}
+      </CardContent>
+    </Card>
+  );
+}
+
+
 function KpiCard({
   icon: Icon, label, value,
 }: { icon?: React.ComponentType<{ className?: string }>; label: string; value: string }) {
