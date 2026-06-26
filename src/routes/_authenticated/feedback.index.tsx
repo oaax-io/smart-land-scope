@@ -57,6 +57,7 @@ type FeedbackRow = {
   screenshot_path: string | null;
   created_at: string;
   updated_at: string;
+  author_name?: string | null;
 };
 
 function FeedbackListPage() {
