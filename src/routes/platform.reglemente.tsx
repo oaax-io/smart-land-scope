@@ -347,22 +347,41 @@ function DocumentsList() {
       // URL length limit and silently truncates, producing 0 counts.
       const muniIdsWithDocs = Array.from(new Set(docs.map((d) => d.municipality_id)));
 
-      const [extr, entries] = await Promise.all([
+      const fetchAllEntries = async (muniIds: string[]) => {
+        if (!muniIds.length) return [] as { municipality_id: string }[];
+        const PAGE = 1000;
+        const all: { municipality_id: string }[] = [];
+        let from = 0;
+        // Loop until a page returns fewer than PAGE rows.
+        // PostgREST caps responses at 1000 rows by default, so we MUST paginate
+        // — otherwise municipalities past the cap appear to have 0 entries.
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { data, error } = await supabase
+            .from("knowledge_entries")
+            .select("municipality_id")
+            .in("municipality_id", muniIds)
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          const rows = data ?? [];
+          all.push(...rows);
+          if (rows.length < PAGE) break;
+          from += PAGE;
+        }
+        return all;
+      };
+
+      const [extr, entriesData] = await Promise.all([
         ids.length
           ? supabase
               .from("regulation_extractions")
               .select("document_id, status")
               .in("document_id", ids)
-          : Promise.resolve({ data: [], error: null }),
-        muniIdsWithDocs.length
-          ? supabase
-              .from("knowledge_entries")
-              .select("municipality_id")
-              .in("municipality_id", muniIdsWithDocs)
-          : Promise.resolve({ data: [], error: null }),
+          : Promise.resolve({ data: [], error: null as null }),
+        fetchAllEntries(muniIdsWithDocs),
       ]);
       if (extr.error) throw extr.error;
-      if (entries.error) throw entries.error;
+
 
 
       const extrMap = new Map((extr.data ?? []).map((e) => [e.document_id, e.status as string]));
