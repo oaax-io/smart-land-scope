@@ -386,9 +386,10 @@ function DocumentsList() {
 
       const extrMap = new Map((extr.data ?? []).map((e) => [e.document_id, e.status as string]));
       const entryCount = new Map<string, number>();
-      (entries.data ?? []).forEach((e) => {
+      entriesData.forEach((e) => {
         entryCount.set(e.municipality_id, (entryCount.get(e.municipality_id) ?? 0) + 1);
       });
+
 
       const groups = new Map<string, MuniGroup>();
       for (const m of munis) {
