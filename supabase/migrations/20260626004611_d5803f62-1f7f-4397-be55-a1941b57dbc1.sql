@@ -1,0 +1,1 @@
+ALTER TYPE public.analysis_document_kind ADD VALUE IF NOT EXISTS 'grundbuchauszug';

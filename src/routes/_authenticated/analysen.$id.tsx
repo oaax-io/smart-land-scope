@@ -12,6 +12,7 @@ import {
   Loader2,
   MapPin,
   RefreshCcw,
+  ScrollText,
   Sparkles,
   ShieldCheck,
   TrendingUp,
@@ -33,6 +34,7 @@ import { LegalDisclaimer } from "@/components/legal-disclaimer";
 import { OEREBTopicsTable } from "@/components/oereb-topics-table";
 import { loadOEREBData } from "@/lib/oereb.functions";
 import { ProjectDataCard, FloorCalculatorCard, DocumentUploadsCard } from "@/components/analysis-project-tab";
+import { EasementsPanel } from "@/components/easements-panel";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
   head: ({ params }) => ({ meta: [{ title: `Analyse ${params.id.slice(0, 8)} — SmarTerra` }] }),
@@ -182,7 +184,7 @@ function AnalysisDetailPage() {
       )}
 
       <Tabs defaultValue="feasibility" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-8">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-9">
           <TabsTrigger value="feasibility"><CheckCircle2 className="mr-2 h-4 w-4" />Machbarkeit</TabsTrigger>
           <TabsTrigger value="units"><Home className="mr-2 h-4 w-4" />Wohnungspotenzial</TabsTrigger>
           <TabsTrigger value="potential"><TrendingUp className="mr-2 h-4 w-4" />Entwicklung</TabsTrigger>
@@ -190,6 +192,7 @@ function AnalysisDetailPage() {
           <TabsTrigger value="scenarios"><Sparkles className="mr-2 h-4 w-4" />Varianten</TabsTrigger>
           <TabsTrigger value="oereb"><ShieldCheck className="mr-2 h-4 w-4" />ÖREB</TabsTrigger>
           <TabsTrigger value="projekt"><Building2 className="mr-2 h-4 w-4" />Projekt</TabsTrigger>
+          <TabsTrigger value="dienstbarkeiten"><ScrollText className="mr-2 h-4 w-4" />Dienstbarkeiten</TabsTrigger>
           <TabsTrigger value="report"><FileText className="mr-2 h-4 w-4" />Bericht</TabsTrigger>
         </TabsList>
 
@@ -411,6 +414,16 @@ function AnalysisDetailPage() {
             organizationId={analysis.organization_id as string}
           />
         </TabsContent>
+
+        {/* Dienstbarkeiten */}
+        <TabsContent value="dienstbarkeiten" className="space-y-4">
+          <EasementsPanel
+            analysisId={analysis.id as string}
+            organizationId={analysis.organization_id as string}
+          />
+        </TabsContent>
+
+
 
 
         {/* Bericht */}

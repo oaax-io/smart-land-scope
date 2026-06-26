@@ -73,6 +73,29 @@ function ReportPage() {
     queryFn: async () => loadOereb({ data: { analysisId: id } }),
   });
 
+  const { data: easements = [] } = useQuery({
+    queryKey: ["easements", id, "report"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_easements")
+        .select("*")
+        .eq("analysis_id", id)
+        .order("easement_type", { ascending: true });
+      return (data ?? []) as Array<{
+        easement_type: string;
+        reg_nr: string | null;
+        title: string;
+        description: string | null;
+        beneficiary: string | null;
+        amount_chf: number | null;
+        rank: number | null;
+        source: string;
+      }>;
+    },
+  });
+
+
+
   const { data: zoneData } = useQuery({
     queryKey: ["zone-extraction", a?.zone, a?.municipality],
     enabled: !!a?.zone && !!a?.municipality,
@@ -161,12 +184,13 @@ function ReportPage() {
   const toc: Array<[string, string]> = [
     ["1", "Rechtliche Grundlagen"],
     ["2", "ÖREB-Auszug"],
-    ["3", "Lage / Situation"],
-    ["4", "Wohnungsanalyse"],
-    ["5", "Gebäudevolumen"],
-    ["6", "Baurechtliche Analyse"],
-    ["7", "Entwicklungspotenzial"],
-    ["8", "Risiken"],
+    ["3", "Dienstbarkeiten & Lasten"],
+    ["4", "Lage / Situation"],
+    ["5", "Wohnungsanalyse"],
+    ["6", "Gebäudevolumen"],
+    ["7", "Baurechtliche Analyse"],
+    ["8", "Entwicklungspotenzial"],
+    ["9", "Risiken"],
   ];
   if (hasSituation) toc.push(["A1", "Situation (Beilagen)"]);
   if (hasGrundriss) toc.push(["A2", "Grundrisse (Beilagen)"]);
@@ -300,8 +324,59 @@ function ReportPage() {
           />
         </Section>
 
-        {/* 3 Lage / Situation */}
-        <Section title="3. Lage / Situation">
+        {/* 3 Dienstbarkeiten */}
+        <Section title="3. Dienstbarkeiten & Lasten">
+          {easements.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Keine Dienstbarkeiten erfasst. Vor Projektierung Grundbuchauszug prüfen.
+            </p>
+          ) : (
+            <div className="overflow-hidden rounded-lg border">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50">
+                  <tr className="text-left">
+                    <th className="p-2 font-medium">Typ</th>
+                    <th className="p-2 font-medium">Stichwort</th>
+                    <th className="p-2 font-medium">Beschreibung</th>
+                    <th className="p-2 font-medium">Betr. / Beleg</th>
+                    <th className="p-2 font-medium">Betrag</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {easements.map((e, i) => (
+                    <tr key={i} className="border-t align-top">
+                      <td className="p-2 capitalize">{e.easement_type}</td>
+                      <td className="p-2 font-medium">
+                        {e.title}
+                        {e.reg_nr ? (
+                          <span className="ml-1 font-mono text-muted-foreground">({e.reg_nr})</span>
+                        ) : null}
+                      </td>
+                      <td className="p-2 text-muted-foreground">{e.description ?? "—"}</td>
+                      <td className="p-2 text-muted-foreground">{e.beneficiary ?? "—"}</td>
+                      <td className="p-2">
+                        {e.amount_chf != null
+                          ? `CHF ${e.amount_chf.toLocaleString("de-CH")} (Pst. ${e.rank ?? "?"})`
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Quelle:{" "}
+            {easements.some((e) => e.source === "ai")
+              ? "KI-Extraktion aus Grundbuchauszug + manuelle Ergänzungen"
+              : "Manuelle Erfassung"}
+            . Vollständige Rechtsverbindlichkeit nur aus dem originalen Grundbuchauszug.
+          </p>
+        </Section>
+
+        {/* 4 Lage / Situation */}
+        <Section title="4. Lage / Situation">
+
           {a.lat != null && a.lng != null ? (
             <div className="overflow-hidden rounded-lg border">
               <SwissMap
@@ -322,7 +397,7 @@ function ReportPage() {
         </Section>
 
         {/* 4 Wohnungsanalyse */}
-        <Section title="4. Wohnungsanalyse">
+        <Section title="5. Wohnungsanalyse">
           <div className="grid grid-cols-3 gap-4">
             <Kpi label="Max. Geschossfläche" value={a.floor_area ? `${Math.round(Number(a.floor_area))} m²` : "—"} />
             <Kpi label="Geschätzte Wohnfläche" value={a.living_area ? `${Math.round(Number(a.living_area))} m²` : "—"} />
@@ -366,7 +441,7 @@ function ReportPage() {
         </Section>
 
         {/* 5 Gebäudevolumen */}
-        <Section title="5. Gebäudevolumen">
+        <Section title="6. Gebäudevolumen">
           {floors.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
@@ -419,7 +494,7 @@ function ReportPage() {
         </Section>
 
         {/* 6 Baurechtliche Analyse */}
-        <Section title="6. Baurechtliche Analyse">
+        <Section title="7. Baurechtliche Analyse">
           <DataGrid
             rows={[
               ["Zone", a.zone ?? "—"],
@@ -441,7 +516,7 @@ function ReportPage() {
         </Section>
 
         {/* 7 Entwicklungspotenzial */}
-        <Section title="7. Entwicklungspotenzial">
+        <Section title="8. Entwicklungspotenzial">
           <div className="flex flex-wrap items-center gap-6">
             <div className="flex items-baseline gap-2">
               <span className="font-display text-5xl font-bold text-primary">{score.score}</span>
@@ -468,7 +543,7 @@ function ReportPage() {
         </Section>
 
         {/* 8 Risiken */}
-        <Section title="8. Risiken">
+        <Section title="9. Risiken">
           {risks.length === 0 ? (
             <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
               Keine spezifischen Risiken erfasst.

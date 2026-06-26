@@ -243,6 +243,97 @@ export type Database = {
           },
         ]
       }
+      analysis_easements: {
+        Row: {
+          ai_confidence: string | null
+          amount_chf: number | null
+          analysis_id: string
+          beneficiary: string | null
+          burdened_parcel: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          easement_type: string
+          established_date: string | null
+          id: string
+          legal_basis: string | null
+          notes: string | null
+          organization_id: string
+          rank: number | null
+          reg_nr: string | null
+          source: string
+          source_document_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence?: string | null
+          amount_chf?: number | null
+          analysis_id: string
+          beneficiary?: string | null
+          burdened_parcel?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          easement_type?: string
+          established_date?: string | null
+          id?: string
+          legal_basis?: string | null
+          notes?: string | null
+          organization_id: string
+          rank?: number | null
+          reg_nr?: string | null
+          source?: string
+          source_document_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence?: string | null
+          amount_chf?: number | null
+          analysis_id?: string
+          beneficiary?: string | null
+          burdened_parcel?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          easement_type?: string
+          established_date?: string | null
+          id?: string
+          legal_basis?: string | null
+          notes?: string | null
+          organization_id?: string
+          rank?: number | null
+          reg_nr?: string | null
+          source?: string
+          source_document_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_easements_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_easements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_easements_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analysis_floors: {
         Row: {
           analysis_id: string
@@ -1286,6 +1377,7 @@ export type Database = {
         | "situation"
         | "umgebung"
         | "fassade"
+        | "grundbuchauszug"
       analysis_status:
         | "pending"
         | "processing"
@@ -1456,6 +1548,7 @@ export const Constants = {
         "situation",
         "umgebung",
         "fassade",
+        "grundbuchauszug",
       ],
       analysis_status: [
         "pending",
