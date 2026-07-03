@@ -151,9 +151,12 @@ export function SwissMap({
   showCantons = false,
   parcelGeometry = null,
   setbacks = null,
+  luZonesAvailable = false,
 }: SwissMapProps) {
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
+  const [showLuZones, setShowLuZones] = useState(false);
+
   const mapRef = useRef<MapRef | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SwissGeoSearchResult[]>([]);
