@@ -46,12 +46,7 @@ import {
 } from "@/lib/swiss-cantons";
 
 // swisstopo WMTS — Kartenstile
-function buildMapStyle(
-  base: "cadastral" | "aerial",
-  showLuZones = false,
-  showLuBaulinien = false,
-  showLuGefahren = false,
-) {
+function buildMapStyle(base: "cadastral" | "aerial", showLuZones = false) {
   const baseTiles =
     base === "aerial"
       ? "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg"
