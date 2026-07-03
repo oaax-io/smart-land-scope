@@ -170,6 +170,23 @@ function LuAutoImportPanel() {
     onError: (e: Error) => toast.error("Fehler", { description: e.message }),
   });
 
+  const check = useMutation({
+    mutationFn: () => checkFn(),
+    onSuccess: (r) => {
+      if (r.updated.length > 0) {
+        toast.success(`${r.updated.length} BZR aktualisiert`, {
+          description: r.updated.join(", "),
+        });
+      } else {
+        toast.info(`${r.checked} BZR geprüft — keine Änderungen`);
+      }
+      qc.invalidateQueries({ queryKey: ["lu-import-stats"] });
+    },
+    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+  });
+
+
+
   const s = stats.data;
   return (
     <Card className="border-primary/30">
