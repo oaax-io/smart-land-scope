@@ -301,3 +301,154 @@ export async function processNextLuImportBatch(batchSize = 3): Promise<{ process
   return { processed, errors };
 }
 
+/**
+ * Prüft per HTTP HEAD ob sich ein BZR-PDF auf geoshop.lu.ch geändert hat.
+ * Vergleicht Content-Length und ETag mit dem gespeicherten Wert.
+ * Falls geändert: altes Dokument deaktivieren, neues importieren.
+ * Wird wöchentlich per Cron aufgerufen. Idempotent.
+ */
+export async function checkAndUpdateBzr(maxItems = 10): Promise<{
+  checked: number;
+  updated: string[];
+  errors: string[];
+}> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: batch } = await supabaseAdmin
+    .from("lu_bzr_import_log")
+    .select("*")
+    .in("status", ["downloaded", "extracted"])
+    .order("last_checked", { ascending: true, nullsFirst: true })
+    .limit(maxItems);
+
+  if (!batch?.length) return { checked: 0, updated: [], errors: [] };
+
+  const updated: string[] = [];
+  const errors: string[] = [];
+
+  for (const item of batch as Array<{
+    gemeinde: string;
+    bfs_nr: number;
+    url: string;
+    document_id: string | null;
+    content_length: number | null;
+    etag: string | null;
+  }>) {
+    try {
+      const res = await fetch(item.url, {
+        method: "HEAD",
+        headers: { "User-Agent": "SmarTerra-BZR-Checker/1.0" },
+      });
+
+      const clHeader = res.headers.get("content-length");
+      const newContentLength = clHeader ? parseInt(clHeader, 10) : null;
+      const newEtag = res.headers.get("etag") ?? null;
+
+      await supabaseAdmin
+        .from("lu_bzr_import_log")
+        .update({ last_checked: new Date().toISOString() } as never)
+        .eq("bfs_nr", item.bfs_nr);
+
+      if (!res.ok) continue;
+
+      // Baseline setzen falls noch nicht vorhanden — noch kein Re-Import
+      if (item.content_length == null && newContentLength != null) {
+        await supabaseAdmin
+          .from("lu_bzr_import_log")
+          .update({ content_length: newContentLength, etag: newEtag } as never)
+          .eq("bfs_nr", item.bfs_nr);
+        continue;
+      }
+
+      const contentLengthChanged =
+        newContentLength != null &&
+        item.content_length != null &&
+        newContentLength !== item.content_length;
+      const etagChanged =
+        newEtag != null && item.etag != null && newEtag !== item.etag;
+
+      if (!contentLengthChanged && !etagChanged) continue;
+
+      console.log(
+        `[bzr-check] ${item.gemeinde}: BZR geändert (${item.content_length} → ${newContentLength}), Re-Import...`,
+      );
+
+      if (item.document_id) {
+        await supabaseAdmin
+          .from("regulation_documents")
+          .update({ active: false } as never)
+          .eq("id", item.document_id);
+      }
+
+      const pdfRes = await fetch(item.url, {
+        headers: { "User-Agent": "SmarTerra-BZR-Checker/1.0" },
+      });
+      if (!pdfRes.ok) throw new Error(`HTTP ${pdfRes.status}`);
+      const buf = Buffer.from(await pdfRes.arrayBuffer());
+      if (buf.length < 2000 || buf.subarray(0, 5).toString() !== "%PDF-") {
+        throw new Error("Kein gültiges PDF");
+      }
+
+      const { data: canton } = await supabaseAdmin
+        .from("cantons")
+        .select("id")
+        .eq("code", "LU")
+        .single();
+      if (!canton) throw new Error("Kanton LU nicht gefunden");
+      const { data: muni } = await supabaseAdmin
+        .from("municipalities")
+        .select("id")
+        .ilike("name", item.gemeinde)
+        .eq("canton_id", canton.id)
+        .maybeSingle();
+      if (!muni) throw new Error("Gemeinde nicht in DB");
+
+      const timestamp = new Date().toISOString().split("T")[0];
+      const storagePath = `LU/${item.gemeinde}/BZR_${timestamp}.pdf`;
+      const { error: upErr } = await supabaseAdmin.storage
+        .from("regulation-documents")
+        .upload(storagePath, buf, { contentType: "application/pdf", upsert: true });
+      if (upErr) throw new Error(upErr.message);
+
+      const { data: newDoc, error: insErr } = await supabaseAdmin
+        .from("regulation_documents")
+        .insert({
+          municipality_id: muni.id,
+          doc_type: "BZR",
+          title: `Bau- und Zonenreglement ${item.gemeinde} (${timestamp})`,
+          file_path: storagePath,
+          file_name: `BZR_${timestamp}.pdf`,
+          file_size: buf.length,
+          mime_type: "application/pdf",
+          notes: `Automatisch aktualisiert von ${item.url} — Content-Length: ${newContentLength}`,
+          active: true,
+        } as never)
+        .select("id")
+        .single();
+      if (insErr || !newDoc) throw new Error(insErr?.message ?? "Insert fehlgeschlagen");
+
+      await supabaseAdmin
+        .from("lu_bzr_import_log")
+        .update({
+          status: "downloaded",
+          document_id: (newDoc as { id: string }).id,
+          content_length: newContentLength,
+          etag: newEtag,
+          error_message: null,
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq("bfs_nr", item.bfs_nr);
+
+      updated.push(`${item.gemeinde} (${item.content_length} → ${newContentLength} bytes)`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`${item.gemeinde}: ${msg}`);
+    }
+
+    await new Promise((r) => setTimeout(r, 200));
+  }
+
+  return { checked: batch.length, updated, errors };
+}
+
+
