@@ -44,10 +44,10 @@ const RELEASES: Release[] = [
     changes: [
       { type: "Neu", text: "Integration des offiziellen Luzerner Zonenplan-Dienstes (ESRI MapServer): Zone, AZ, ÜZ, Gebäude- und Gesamthöhe sowie Geschosszahl direkt aus der Parzellengeometrie" },
       { type: "Neu", text: "Dashboard-Schnellsuche zeigt bei LU-Parzellen sofort eine Live-Zonenvorschau im Analyse-Wizard" },
-      { type: "Neu", text: "Analyse-Detail: Button „Zonenplan aktualisieren" lädt LU-Geodaten neu und triggert Re-Analyse" },
+      { type: "Neu", text: "Analyse-Detail: Button 'Zonenplan aktualisieren' lädt LU-Geodaten neu und triggert Re-Analyse" },
       { type: "Neu", text: "BZR-Versionsvergleich: altes vs. neues Reglement wird in Analyse-Detail und Bericht als Vergleichskarte dargestellt" },
       { type: "Neu", text: "Community-Grenzabstände: Nutzer erfassen Grenzabstände und Parkplatzwerte pro Zone; verifizierte Werte fliessen in die KI-Analyse" },
-      { type: "Neu", text: "Platform-Admin: Coverage-Kachel „LU Zonenplan" und Moderations-Tabelle für Community-Beiträge" },
+      { type: "Neu", text: "Platform-Admin: Coverage-Kachel 'LU Zonenplan' und Moderations-Tabelle für Community-Beiträge" },
       { type: "Verbessert", text: "Karte blendet den WMS-Zonenplan-Overlay kanton-abhängig ein (aktuell Luzern)" },
       { type: "Verbessert", text: "KI-Prompt (analyze-knowledge) nutzt LU-Geodaten und verifizierte Community-Werte als zusätzliche Quelle" },
     ],
