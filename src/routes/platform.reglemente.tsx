@@ -115,12 +115,106 @@ function ReglementePage() {
         </div>
       </div>
 
+      <LuAutoImportPanel />
       <KnowledgeBaseDashboard />
       <PendingZoneRegulations />
       <DocumentsList />
 
       <AddRegulationDialog open={open} onOpenChange={setOpen} />
     </div>
+  );
+}
+
+// =====================================================================
+// LU Auto-Import Panel (BZR-PDFs aus geoshop.lu.ch, statusbasiert)
+// =====================================================================
+
+function LuAutoImportPanel() {
+  const qc = useQueryClient();
+  // Dynamic imports to avoid circular server-fn issues at module load
+  const initFn = useServerFn(
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    (require("@/lib/platform-admin.functions") as typeof import("@/lib/platform-admin.functions")).initLuImportLog,
+  );
+  const batchFn = useServerFn(
+    (require("@/lib/platform-admin.functions") as typeof import("@/lib/platform-admin.functions")).processNextLuBatch,
+  );
+  const statsFn = useServerFn(
+    (require("@/lib/platform-admin.functions") as typeof import("@/lib/platform-admin.functions")).getLuImportStats,
+  );
+
+  const stats = useQuery({
+    queryKey: ["lu-import-stats"],
+    queryFn: () => statsFn(),
+    refetchInterval: 5000,
+  });
+
+  const init = useMutation({
+    mutationFn: () => initFn(),
+    onSuccess: (r) => {
+      toast.success(`Log vorbereitet (${r.total} Gemeinden)`);
+      qc.invalidateQueries({ queryKey: ["lu-import-stats"] });
+    },
+    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+  });
+
+  const batch = useMutation({
+    mutationFn: () => batchFn(),
+    onSuccess: (r) => {
+      toast.success(`Batch verarbeitet`, {
+        description: `${r.processed} Dokumente · ${r.errors.length} Fehler`,
+      });
+      qc.invalidateQueries({ queryKey: ["lu-import-stats"] });
+    },
+    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+  });
+
+  const s = stats.data;
+  return (
+    <Card className="border-primary/30">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-display text-lg">
+          <DatabaseZap className="h-4 w-4 text-primary" />
+          Luzern — Automatischer BZR-Import
+        </CardTitle>
+        <CardDescription>
+          Importiert BZR-PDFs für alle 79 Luzerner Gemeinden von geoshop.lu.ch (kostenlos, amtlich).
+          Nach dem Download werden BZR anschliessend per KI extrahiert (Grenzabstände, Parkierung,
+          Sondervorschriften).
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {s && (
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Badge variant="outline">Gesamt: {s.total}</Badge>
+            <Badge variant="secondary">Pending: {s.pending}</Badge>
+            <Badge className="bg-primary/15 text-primary">Downloaded: {s.downloaded}</Badge>
+            <Badge className="bg-emerald-100 text-emerald-800">Extracted: {s.extracted}</Badge>
+            <Badge variant="outline">Unavailable: {s.unavailable}</Badge>
+            <Badge variant="destructive">Failed: {s.failed}</Badge>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => init.mutate()}
+            disabled={init.isPending}
+          >
+            {init.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Vorbereiten (Log initialisieren)
+          </Button>
+          <Button size="sm" onClick={() => batch.mutate()} disabled={batch.isPending}>
+            {batch.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Nächste 5 verarbeiten
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Tipp: Mehrfach klicken bis alle „downloaded". KI-Extraktion startet danach über den
+          Bulk-KI-Button unten.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
