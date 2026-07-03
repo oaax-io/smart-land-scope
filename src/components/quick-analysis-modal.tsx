@@ -103,14 +103,30 @@ export function QuickAnalysisModal({
     canton: "", parcel_number: "", area_size: "",
     lat: null, lng: null, egrid: null, zone: null, geometry: null,
   });
+  const [luZonePreview, setLuZonePreview] = useState<LuZonePlanResult | null>(null);
 
   // Re-seed form when a new selection opens the modal
   useEffect(() => {
     if (open && initial) {
       setForm(initial);
       setStep(1);
+      setLuZonePreview(null);
+      if (initial.canton === "LU" && initial.lat != null && initial.lng != null) {
+        const lat = initial.lat;
+        const lng = initial.lng;
+        (async () => {
+          try {
+            const { queryLuZonePlan } = await import("@/lib/swiss-geo");
+            const z = await queryLuZonePlan(lat, lng);
+            setLuZonePreview(z);
+          } catch {
+            setLuZonePreview(null);
+          }
+        })();
+      }
     }
   }, [open, initial]);
+
 
   const set = (k: keyof QuickAnalysisInitial, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
