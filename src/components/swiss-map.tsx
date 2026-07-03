@@ -323,10 +323,21 @@ export function SwissMap({
   useEffect(() => {
     if (!showCantons) return;
     let cancelled = false;
+    // Session-Cache: nach erstem Laden sofort verfügbar
+    try {
+      const cached = sessionStorage.getItem("ch_cantons_geojson_v1");
+      if (cached) {
+        setCantonsData(JSON.parse(cached) as CantonFC);
+      }
+    } catch {}
     fetch(CANTONS_GEOJSON_URL)
       .then((r) => r.json())
       .then((d: CantonFC) => {
-        if (!cancelled) setCantonsData(d);
+        if (cancelled) return;
+        setCantonsData(d);
+        try {
+          sessionStorage.setItem("ch_cantons_geojson_v1", JSON.stringify(d));
+        } catch {}
       })
       .catch((e) => console.error("Kantone konnten nicht geladen werden", e));
     return () => {
