@@ -839,7 +839,10 @@ export function SwissMap({
                   showCantons={showCantons}
                   parcelGeometry={parcelGeometry}
                   setbacks={setbacks}
+                  luZonesAvailable={luZonesAvailable}
+                  canton={canton}
                 />
+
               </DialogContent>
             </Dialog>
             {marker && (
