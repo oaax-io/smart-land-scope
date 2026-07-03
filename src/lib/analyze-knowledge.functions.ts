@@ -199,10 +199,11 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
     const { data: analysis, error: fetchErr } = await supabase
       .from("analyses")
       .select(
-        "id, address, postal_code, municipality, canton, parcel_number, area_size, detected_zone, zone_override",
+        "id, address, postal_code, municipality, canton, parcel_number, area_size, detected_zone, zone_override, lat, lng",
       )
       .eq("id", data.analysisId)
       .maybeSingle();
+
     if (fetchErr) throw new Error(fetchErr.message);
     if (!analysis) throw new Error("Analyse nicht gefunden");
 
