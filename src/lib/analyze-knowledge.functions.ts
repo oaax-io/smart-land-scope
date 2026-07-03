@@ -262,7 +262,49 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         return { ok: false as const, reason: "no_knowledge" as const, message: msg };
       }
 
+      // 2b) LU-spezifisch: rechtsverbindliche Zonenplandaten vom Kanton Luzern laden
+      let luZoneInfo: string | null = null;
+      if (analysis.canton === "LU" && analysis.lat != null && analysis.lng != null) {
+        try {
+          const { queryLuZonePlan } = await import("@/lib/swiss-geo");
+          const zone = await queryLuZonePlan(analysis.lat as number, analysis.lng as number);
+          if (zone) {
+            luZoneInfo = [
+              `RECHTSVERBINDLICHE ZONENPLANDATEN (Kanton Luzern, ZPGNDNTZ, Quelle: public.geo.lu.ch):`,
+              `Zone: ${[zone.zoneCode, zone.zoneLabel].filter(Boolean).join(" — ")}`,
+              zone.az != null ? `Ausnützungsziffer (AZ): ${zone.az}` : null,
+              zone.uezMax != null ? `Überbauungsziffer (ÜZ) max.: ${zone.uezMax}` : null,
+              zone.floors != null ? `Geschosszahl: ${zone.floors}` : null,
+              zone.heightMax != null ? `Gesamthöhe max.: ${zone.heightMax} m` : null,
+              zone.facadeHeightMax != null ? `Fassadenhöhe max.: ${zone.facadeHeightMax} m` : null,
+              zone.buildingLength != null ? `Gebäudelänge max.: ${zone.buildingLength} m` : null,
+              zone.greenAreaRatio != null ? `Grünflächenziffer: ${zone.greenAreaRatio}` : null,
+              zone.noiseClass ? `Lärmempfindlichkeitsstufe: ${zone.noiseClass}` : null,
+              zone.buildingType ? `Bauweise: ${zone.buildingType}` : null,
+              zone.residentialShareMax != null ? `Wohnanteil max.: ${Math.round(zone.residentialShareMax * 100)}%` : null,
+              zone.commercialShareMax != null ? `Gewerbeanteil max.: ${Math.round(zone.commercialShareMax * 100)}%` : null,
+              zone.bzrArticle ? `BZR-Artikel: Art. ${zone.bzrArticle}` : null,
+            ].filter(Boolean).join("\n");
+
+            await supabase
+              .from("analyses")
+              .update({
+                zone: zone.zoneCode ?? zone.zoneLabel,
+                utilization_ratio: zone.az,
+                building_coverage_ratio: zone.uezMax,
+                max_floors: zone.floors,
+                max_height: zone.heightMax,
+                noise_zone: zone.noiseClass,
+              })
+              .eq("id", analysis.id);
+          }
+        } catch {
+          luZoneInfo = null;
+        }
+      }
+
       // 3) Build prompt
+
       const docMap = new Map((docs ?? []).map((d) => [d.id, d]));
       const docLabel = (id: string | null | undefined) =>
         id ? docMap.get(id)?.title ?? "Reglement" : "—";
