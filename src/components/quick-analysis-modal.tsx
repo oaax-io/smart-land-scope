@@ -218,6 +218,43 @@ export function QuickAnalysisModal({
               Schritt 1 — Grundstücksdaten bestätigen
             </div>
 
+            {luZonePreview && (
+              <div className="rounded-lg border border-secondary/40 bg-secondary/5 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <CheckCircle2 className="h-4 w-4 text-secondary" />
+                  Zone erkannt (Zonenplan Kanton LU)
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <span className="text-muted-foreground">Zone</span>
+                  <span className="font-medium">
+                    {luZonePreview.zoneCode ?? "—"} — {luZonePreview.zoneLabel ?? "—"}
+                  </span>
+                  {luZonePreview.az != null && (
+                    <>
+                      <span className="text-muted-foreground">Ausnützungsziffer</span>
+                      <span className="font-medium">{luZonePreview.az}</span>
+                    </>
+                  )}
+                  {luZonePreview.floors != null && (
+                    <>
+                      <span className="text-muted-foreground">Geschosse</span>
+                      <span className="font-medium">{luZonePreview.floors}</span>
+                    </>
+                  )}
+                  {luZonePreview.heightMax != null && (
+                    <>
+                      <span className="text-muted-foreground">Höhe max.</span>
+                      <span className="font-medium">{luZonePreview.heightMax} m</span>
+                    </>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Quelle: Geodatensatz ZPGNDNTZ, Kanton Luzern (rechtsverbindlich)
+                </p>
+              </div>
+            )}
+
+
             <div className="space-y-1.5">
               <Label htmlFor="qa-address">Adresse *</Label>
               <Input id="qa-address" value={form.address}
