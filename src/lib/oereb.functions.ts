@@ -55,5 +55,7 @@ export const loadOEREBData = createServerFn({ method: "POST" })
       });
     }
 
-    return { topics, note: null };
+    const hasPlanungszone = topics.some((t) => t.theme.toLowerCase().includes("planungszon"));
+    return { topics, note: null, hasPlanungszone };
+
   });
