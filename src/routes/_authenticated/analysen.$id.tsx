@@ -115,7 +115,24 @@ function AnalysisDetailPage() {
     onError: (e: Error) => toast.error("Fehler", { description: e.message }),
   });
 
+  const loadLuZoneFn = useServerFn(loadLuZonePlanForAnalysis);
+  const { data: zoneResult, isFetching: zoneLoading } = useQuery({
+    queryKey: ["lu-zone", id, analysis?.lat, analysis?.lng],
+    enabled:
+      !!analysis?.id &&
+      analysis?.canton === "LU" &&
+      analysis?.lat != null &&
+      analysis?.lng != null,
+    staleTime: 1000 * 60 * 60 * 24,
+    queryFn: async () => {
+      const res = await loadLuZoneFn({ data: { analysisId: id } });
+      queryClient.invalidateQueries({ queryKey: ["analysis", id] });
+      return res;
+    },
+  });
+
   if (isLoading) {
+
     return <div className="mx-auto max-w-7xl p-6 text-sm text-muted-foreground">Lade Analyse …</div>;
   }
   if (!analysis) return null;
