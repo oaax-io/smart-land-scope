@@ -28,6 +28,8 @@ export type Database = {
           created_by: string | null
           design_plan_required: boolean | null
           detected_zone: string | null
+          detected_zone_precise: string | null
+          detected_zone_source: string | null
           development_potential: Json | null
           document_name: string | null
           document_path: string | null
@@ -53,6 +55,8 @@ export type Database = {
           project_id: string | null
           project_manager: string | null
           project_number: string | null
+          regulation_basis: string
+          regulation_comparison: Json | null
           restrictions: Json | null
           risks: Json | null
           setbacks: Json | null
@@ -79,6 +83,8 @@ export type Database = {
           created_by?: string | null
           design_plan_required?: boolean | null
           detected_zone?: string | null
+          detected_zone_precise?: string | null
+          detected_zone_source?: string | null
           development_potential?: Json | null
           document_name?: string | null
           document_path?: string | null
@@ -106,6 +112,8 @@ export type Database = {
           project_id?: string | null
           project_manager?: string | null
           project_number?: string | null
+          regulation_basis?: string
+          regulation_comparison?: Json | null
           restrictions?: Json | null
           risks?: Json | null
           setbacks?: Json | null
@@ -132,6 +140,8 @@ export type Database = {
           created_by?: string | null
           design_plan_required?: boolean | null
           detected_zone?: string | null
+          detected_zone_precise?: string | null
+          detected_zone_source?: string | null
           development_potential?: Json | null
           document_name?: string | null
           document_path?: string | null
@@ -159,6 +169,8 @@ export type Database = {
           project_id?: string | null
           project_manager?: string | null
           project_number?: string | null
+          regulation_basis?: string
+          regulation_comparison?: Json | null
           restrictions?: Json | null
           risks?: Json | null
           setbacks?: Json | null
@@ -400,6 +412,7 @@ export type Database = {
           potential_category: string | null
           potential_score: number | null
           recommendation: string | null
+          regulation_comparison: Json | null
           risks: Json
           summary: string | null
           unit_calculation: Json | null
@@ -420,6 +433,7 @@ export type Database = {
           potential_category?: string | null
           potential_score?: number | null
           recommendation?: string | null
+          regulation_comparison?: Json | null
           risks?: Json
           summary?: string | null
           unit_calculation?: Json | null
@@ -440,6 +454,7 @@ export type Database = {
           potential_category?: string | null
           potential_score?: number | null
           recommendation?: string | null
+          regulation_comparison?: Json | null
           risks?: Json
           summary?: string | null
           unit_calculation?: Json | null
@@ -1237,6 +1252,53 @@ export type Database = {
           },
         ]
       }
+      regulation_snapshots: {
+        Row: {
+          archived_at: string
+          document_id: string | null
+          document_title: string | null
+          document_valid_from: string | null
+          document_version: string | null
+          id: string
+          knowledge_entries: Json
+          municipality_id: string
+          reason: string
+          regulation_rules: Json
+        }
+        Insert: {
+          archived_at?: string
+          document_id?: string | null
+          document_title?: string | null
+          document_valid_from?: string | null
+          document_version?: string | null
+          id?: string
+          knowledge_entries?: Json
+          municipality_id: string
+          reason?: string
+          regulation_rules?: Json
+        }
+        Update: {
+          archived_at?: string
+          document_id?: string | null
+          document_title?: string | null
+          document_valid_from?: string | null
+          document_version?: string | null
+          id?: string
+          knowledge_entries?: Json
+          municipality_id?: string
+          reason?: string
+          regulation_rules?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regulation_snapshots_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           analysis_id: string
@@ -1364,6 +1426,10 @@ export type Database = {
         Returns: boolean
       }
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
+      snapshot_regulation_document: {
+        Args: { p_doc_id: string; p_reason: string }
+        Returns: undefined
+      }
       tick_lu_fill_job: { Args: never; Returns: undefined }
     }
     Enums: {
