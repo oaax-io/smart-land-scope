@@ -46,7 +46,25 @@ import {
 } from "@/lib/swiss-cantons";
 
 // swisstopo WMTS — Kartenstile
-function buildMapStyle(base: "cadastral" | "aerial", showLuZones = false) {
+const LU_WMS_BASE =
+  "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer";
+
+function luWmsTileUrl(layerName: string) {
+  return `${LU_WMS_BASE}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=512&HEIGHT=512&LAYERS=${layerName}&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE`;
+}
+
+const LU_OVERLAYS = {
+  zones: { layer: "ZPGNDNTZ_V1_PY", opacity: 0.45 },
+  baulinien: { layer: "ZPBAULIN_V1_LI", opacity: 0.85 },
+  gefahren: { layer: "ZPNATGEF_V1_PY", opacity: 0.55 },
+} as const;
+
+type LuOverlayKey = keyof typeof LU_OVERLAYS;
+
+function buildMapStyle(
+  base: "cadastral" | "aerial",
+  luOverlays: Record<LuOverlayKey, boolean> = { zones: false, baulinien: false, gefahren: false },
+) {
   const baseTiles =
     base === "aerial"
       ? "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg"
@@ -76,24 +94,23 @@ function buildMapStyle(base: "cadastral" | "aerial", showLuZones = false) {
     { id: "cadastral-layer", type: "raster" as const, source: "swisstopo-cadastral" },
   ];
 
-  if (showLuZones) {
-    sources["lu-zones"] = {
+  (Object.keys(LU_OVERLAYS) as LuOverlayKey[]).forEach((key) => {
+    if (!luOverlays[key]) return;
+    const cfg = LU_OVERLAYS[key];
+    const sourceId = `lu-${key}`;
+    sources[sourceId] = {
       type: "raster" as const,
-      tiles: [
-        "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=ZPGNDNTZ_V1_PY&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE",
-      ],
-      tileSize: 256,
+      tiles: [luWmsTileUrl(cfg.layer)],
+      tileSize: 512,
       attribution: "© Raumdatenpool Kanton Luzern (Open-By)",
     };
     layers.push({
-      id: "lu-zones-layer",
+      id: `${sourceId}-layer`,
       type: "raster" as const,
-      source: "lu-zones",
-      paint: { "raster-opacity": 0.45 },
+      source: sourceId,
+      paint: { "raster-opacity": cfg.opacity },
     });
-  }
-
-
+  });
 
   return { version: 8 as const, sources, layers };
 }
