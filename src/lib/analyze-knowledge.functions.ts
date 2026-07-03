@@ -199,10 +199,11 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
     const { data: analysis, error: fetchErr } = await supabase
       .from("analyses")
       .select(
-        "id, address, postal_code, municipality, canton, parcel_number, area_size, detected_zone, zone_override",
+        "id, address, postal_code, municipality, canton, parcel_number, area_size, detected_zone, zone_override, lat, lng",
       )
       .eq("id", data.analysisId)
       .maybeSingle();
+
     if (fetchErr) throw new Error(fetchErr.message);
     if (!analysis) throw new Error("Analyse nicht gefunden");
 
@@ -261,7 +262,49 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         return { ok: false as const, reason: "no_knowledge" as const, message: msg };
       }
 
+      // 2b) LU-spezifisch: rechtsverbindliche Zonenplandaten vom Kanton Luzern laden
+      let luZoneInfo: string | null = null;
+      if (analysis.canton === "LU" && analysis.lat != null && analysis.lng != null) {
+        try {
+          const { queryLuZonePlan } = await import("@/lib/swiss-geo");
+          const zone = await queryLuZonePlan(analysis.lat as number, analysis.lng as number);
+          if (zone) {
+            luZoneInfo = [
+              `RECHTSVERBINDLICHE ZONENPLANDATEN (Kanton Luzern, ZPGNDNTZ, Quelle: public.geo.lu.ch):`,
+              `Zone: ${[zone.zoneCode, zone.zoneLabel].filter(Boolean).join(" — ")}`,
+              zone.az != null ? `Ausnützungsziffer (AZ): ${zone.az}` : null,
+              zone.uezMax != null ? `Überbauungsziffer (ÜZ) max.: ${zone.uezMax}` : null,
+              zone.floors != null ? `Geschosszahl: ${zone.floors}` : null,
+              zone.heightMax != null ? `Gesamthöhe max.: ${zone.heightMax} m` : null,
+              zone.facadeHeightMax != null ? `Fassadenhöhe max.: ${zone.facadeHeightMax} m` : null,
+              zone.buildingLength != null ? `Gebäudelänge max.: ${zone.buildingLength} m` : null,
+              zone.greenAreaRatio != null ? `Grünflächenziffer: ${zone.greenAreaRatio}` : null,
+              zone.noiseClass ? `Lärmempfindlichkeitsstufe: ${zone.noiseClass}` : null,
+              zone.buildingType ? `Bauweise: ${zone.buildingType}` : null,
+              zone.residentialShareMax != null ? `Wohnanteil max.: ${Math.round(zone.residentialShareMax * 100)}%` : null,
+              zone.commercialShareMax != null ? `Gewerbeanteil max.: ${Math.round(zone.commercialShareMax * 100)}%` : null,
+              zone.bzrArticle ? `BZR-Artikel: Art. ${zone.bzrArticle}` : null,
+            ].filter(Boolean).join("\n");
+
+            await supabase
+              .from("analyses")
+              .update({
+                zone: zone.zoneCode ?? zone.zoneLabel,
+                utilization_ratio: zone.az,
+                building_coverage_ratio: zone.uezMax,
+                max_floors: zone.floors,
+                max_height: zone.heightMax,
+                noise_zone: zone.noiseClass,
+              })
+              .eq("id", analysis.id);
+          }
+        } catch {
+          luZoneInfo = null;
+        }
+      }
+
       // 3) Build prompt
+
       const docMap = new Map((docs ?? []).map((d) => [d.id, d]));
       const docLabel = (id: string | null | undefined) =>
         id ? docMap.get(id)?.title ?? "Reglement" : "—";
@@ -320,6 +363,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         `- Fläche: ${analysis.area_size ? `${analysis.area_size} m²` : "unbekannt"}`,
         zoneHintLine,
         "",
+        ...(luZoneInfo ? [luZoneInfo, ""] : []),
         "Wissensdatenbank — Knowledge Entries:",
         entryBlock || "(keine Einträge)",
         zoneHint,
@@ -329,7 +373,10 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         "",
         "Beantworte:",
         "1) Was darf gebaut werden? (feasibility, allowed_use in usage_types).",
-        `2) Ordne das Grundstück einer der oben aufgeführten bekannten Bauzonen zu (falls verfügbar). Verwende zwingend den exakten Zonen-Code aus der Liste (z.B. "W-B", "WO3", "ZP1"). Liefere für diese Zone die konkreten Werte aus der Wissensdatenbank: 'zone' (Code), 'utilization_ratio' (AZ oder ÜZ), 'max_floors' (Vollgeschosse), 'max_height_m'. Lass diese Felder NIEMALS auf 0 / leer wenn die Wissensdatenbank entsprechende Zonenwerte enthält.`,
+        luZoneInfo
+          ? `2) Die Zone und Kennzahlen sind bereits aus dem rechtsverbindlichen Zonenplan LU ermittelt (siehe oben). Verwende EXAKT diese Werte für 'zone' (ZONTYP_ABK), 'utilization_ratio' (AZ), 'max_floors' (Geschosszahl) und 'max_height_m' (Gesamthöhe max.). Erstelle die Machbarkeitsbeurteilung auf Basis dieser verbindlichen Werte.`
+          : `2) Ordne das Grundstück einer der oben aufgeführten bekannten Bauzonen zu (falls verfügbar). Verwende zwingend den exakten Zonen-Code aus der Liste (z.B. "W-B", "WO3", "ZP1"). Liefere für diese Zone die konkreten Werte aus der Wissensdatenbank: 'zone' (Code), 'utilization_ratio' (AZ oder ÜZ), 'max_floors' (Vollgeschosse), 'max_height_m'. Lass diese Felder NIEMALS auf 0 / leer wenn die Wissensdatenbank entsprechende Zonenwerte enthält.`,
+
         "3) Berechne das Wohnungspotenzial konkret:",
         "   - floor_area_m2 = Grundstücksfläche × utilization_ratio (falls beide Werte verfügbar)",
         "   - living_area_m2 = floor_area_m2 × 0.8 (Nettowohnfläche-Faktor)",

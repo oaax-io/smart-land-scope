@@ -444,3 +444,150 @@ export async function fetchOEREBTopics(lat: number, lng: number): Promise<OEREBT
   return topics;
 }
 
+// ============================================================================
+// Kanton Luzern — offizieller Zonenplan (ZPGNDNTZ_V1_PY)
+// Quelle: Raumdatenpool Kanton Luzern, Open-By-Lizenz, täglich aktualisiert.
+// ============================================================================
+
+const LU_ZONTYP_KT: Record<number, string> = {
+  1100: "Wohnzone", 1200: "Wohnzone", 1300: "Wohnzone", 1400: "Wohnzone",
+  1500: "Wohnzone", 1600: "Wohnzone", 1900: "Wohnzone",
+  2100: "Kern-/Dorfzone", 2150: "Kern-/Dorfzone", 2200: "Kern-/Dorfzone",
+  2250: "Kern-/Dorfzone", 2300: "Kern-/Dorfzone", 2350: "Kern-/Dorfzone", 2400: "Kern-/Dorfzone",
+  2500: "Zentrumszone", 2550: "Zentrumszone", 2600: "Zentrumszone",
+  2650: "Zentrumszone", 2700: "Zentrumszone", 2750: "Zentrumszone", 2800: "Zentrumszone",
+  3100: "Mischzone", 3200: "Mischzone", 3300: "Mischzone",
+  3400: "Mischzone", 3500: "Mischzone", 3600: "Mischzone", 3900: "Mischzone",
+  4100: "Arbeitszone", 4150: "Arbeitszone", 4200: "Arbeitszone",
+  4250: "Arbeitszone", 4300: "Arbeitszone", 4350: "Arbeitszone",
+  4400: "Arbeitszone", 4500: "Arbeitszone", 4550: "Arbeitszone",
+  4600: "Arbeitszone", 4650: "Arbeitszone", 4700: "Arbeitszone", 4750: "Arbeitszone", 4800: "Arbeitszone",
+  5100: "Zone für öffentliche Zwecke", 5200: "Sport-/Freizeitzone",
+  5300: "Grünzone", 5400: "Sonderbauzone", 6000: "Landwirtschaftszone",
+  6100: "Freihaltezone", 6200: "Reservezone", 6850: "Wald",
+  6900: "Naturschutzzone",
+};
+
+const LU_LAERMEMPF: Record<number, string> = {
+  1: "ES I", 2: "ES II", 3: "ES III", 4: "ES IV", 97: "nicht definiert",
+};
+
+const LU_BAUWEISE: Record<number, string> = {
+  1: "offen", 2: "geschlossen", 3: "keine Bebauung", 99: "unbekannt",
+};
+
+export type LuZonePlanResult = {
+  zoneCode: string | null;
+  zoneLabel: string | null;
+  zoneCategory: string | null;
+  az: number | null;
+  uezMax: number | null;
+  uezMin: number | null;
+  floors: number | null;
+  heightMax: number | null;
+  heightMin: number | null;
+  facadeHeightMax: number | null;
+  buildingLength: number | null;
+  buildingWidth: number | null;
+  greenAreaRatio: number | null;
+  noiseClass: string | null;
+  residentialShareMax: number | null;
+  commercialShareMax: number | null;
+  buildingType: string | null;
+  bzrArticle: string | null;
+  bzrFurther: string | null;
+  validFrom: string | null;
+  geometry: { type: "Polygon"; coordinates: number[][][] } | null;
+  source: "lu_wfs";
+};
+
+/**
+ * Fragt den offiziellen Luzerner Zonenplan (ZPGNDNTZ_V1_PY) per WGS84-Koordinate ab.
+ * Nur für Kanton LU sinnvoll. Für andere Standorte kann null zurückkommen.
+ */
+export async function queryLuZonePlan(lat: number, lng: number): Promise<LuZonePlanResult | null> {
+  const url = new URL(
+    "https://public.geo.lu.ch/ogd/rest/services/managed/ZONPLANX_COL_V3_MP/MapServer/identify",
+  );
+  url.searchParams.set("f", "json");
+  url.searchParams.set("geometry", `${lng},${lat}`);
+  url.searchParams.set("geometryType", "esriGeometryPoint");
+  url.searchParams.set("sr", "4326");
+  url.searchParams.set("layers", "all");
+  url.searchParams.set("tolerance", "1");
+  url.searchParams.set("mapExtent", `${lng - 0.005},${lat - 0.005},${lng + 0.005},${lat + 0.005}`);
+  url.searchParams.set("imageDisplay", "500,500,96");
+  url.searchParams.set("returnGeometry", "true");
+
+  let res: Response;
+  try {
+    res = await fetch(url.toString());
+    if (!res.ok) return null;
+  } catch {
+    return null;
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json?.results?.length) return null;
+
+  const feature =
+    (json.results as any[]).find(
+      (r: any) =>
+        r.layerName?.toLowerCase?.().includes("grundnutzung") ||
+        r.layerName?.includes?.("ZPGNDNTZ"),
+    ) ?? json.results[0];
+  if (!feature) return null;
+
+  const a = feature.attributes ?? {};
+  if (a.RECHTSTAT != null && Number(a.RECHTSTAT) !== 4) return null;
+
+  let geometry: LuZonePlanResult["geometry"] = null;
+  if (feature.geometry?.rings) {
+    const rings: number[][][] = feature.geometry.rings;
+    const firstCoord = rings[0]?.[0];
+    if (firstCoord) {
+      geometry =
+        Math.abs(firstCoord[0]) < 180
+          ? { type: "Polygon", coordinates: rings }
+          : { type: "Polygon", coordinates: esriRingsToGeoJsonCoordinates(rings) };
+    }
+  }
+
+  const numOrNull = (v: unknown): number | null => {
+    if (v == null || v === "") return null;
+    const n = Number(v);
+    return !isNaN(n) && n !== 0 ? n : null;
+  };
+  const strOrNull = (v: unknown): string | null => {
+    if (v == null) return null;
+    const s = String(v).trim();
+    return s && s !== "0" && s.toLowerCase() !== "null" ? s : null;
+  };
+
+  return {
+    zoneCode: strOrNull(a.ZONTYP_ABK),
+    zoneLabel: strOrNull(a.ZONTYP_BEZ),
+    zoneCategory: LU_ZONTYP_KT[Number(a.ZONTYP_KT)] ?? null,
+    az: numOrNull(a.AZ),
+    uezMax: numOrNull(a.UEZ1_MAX),
+    uezMin: numOrNull(a.UEZ1_MIN),
+    floors: numOrNull(a.GESCHOSSZAHL),
+    heightMax: numOrNull(a.GESHOE_MAX),
+    heightMin: numOrNull(a.GESHOE_MIN),
+    facadeHeightMax: numOrNull(a.FAHOE_MAX),
+    buildingLength: numOrNull(a.GEBLAENGE),
+    buildingWidth: numOrNull(a.GEBBREITE),
+    greenAreaRatio: numOrNull(a.GRUENFLZI),
+    noiseClass: LU_LAERMEMPF[Number(a.LAERMEMPF)] ?? null,
+    residentialShareMax: numOrNull(a.WOHANT_MAX),
+    commercialShareMax: numOrNull(a.ARBANT_MAX),
+    buildingType: LU_BAUWEISE[Number(a.BAUWEISE)] ?? null,
+    bzrArticle: strOrNull(a.BZR_ARTIKEL),
+    bzrFurther: strOrNull(a.BZR_WEITERE),
+    validFrom: strOrNull(a.DATEOFVALID),
+    geometry,
+    source: "lu_wfs",
+  };
+}
+
+

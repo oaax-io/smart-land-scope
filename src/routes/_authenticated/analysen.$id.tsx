@@ -36,6 +36,8 @@ import { loadOEREBData } from "@/lib/oereb.functions";
 import { ProjectDataCard, FloorCalculatorCard, DocumentUploadsCard } from "@/components/analysis-project-tab";
 import { EasementsPanel } from "@/components/easements-panel";
 import { RegulationComparisonCard } from "@/components/regulation-comparison-card";
+import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
+
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
   head: ({ params }) => ({ meta: [{ title: `Analyse ${params.id.slice(0, 8)} — SmarTerra` }] }),
@@ -113,7 +115,24 @@ function AnalysisDetailPage() {
     onError: (e: Error) => toast.error("Fehler", { description: e.message }),
   });
 
+  const loadLuZoneFn = useServerFn(loadLuZonePlanForAnalysis);
+  const { data: zoneResult, isFetching: zoneLoading } = useQuery({
+    queryKey: ["lu-zone", id, analysis?.lat, analysis?.lng],
+    enabled:
+      !!analysis?.id &&
+      analysis?.canton === "LU" &&
+      analysis?.lat != null &&
+      analysis?.lng != null,
+    staleTime: 1000 * 60 * 60 * 24,
+    queryFn: async () => {
+      const res = await loadLuZoneFn({ data: { analysisId: id } });
+      queryClient.invalidateQueries({ queryKey: ["analysis", id] });
+      return res;
+    },
+  });
+
   if (isLoading) {
+
     return <div className="mx-auto max-w-7xl p-6 text-sm text-muted-foreground">Lade Analyse …</div>;
   }
   if (!analysis) return null;
@@ -217,7 +236,9 @@ function AnalysisDetailPage() {
                   heightClassName="h-72"
                   parcelGeometry={analysis.parcel_geometry as { type: "Polygon"; coordinates: number[][][] } | null}
                   setbacks={analysis.setbacks as { nord?: number | null; ost?: number | null; sued?: number | null; west?: number | null } | null}
+                  luZonesAvailable={analysis.canton === "LU"}
                 />
+
                 {analysis.egrid && (
                   <p className="text-xs text-muted-foreground">E-GRID: {analysis.egrid as string}</p>
                 )}
@@ -238,6 +259,12 @@ function AnalysisDetailPage() {
             <KpiCard label="Max. Geschosse" value={analysis.max_floors?.toString() ?? "—"} />
             <KpiCard label="Max. Höhe" value={analysis.max_height ? `${analysis.max_height} m` : "—"} />
           </div>
+
+          {analysis.canton === "LU" && (
+            <LuZonePlanCard zoneResult={zoneResult} loading={zoneLoading} />
+          )}
+
+
 
           <DevelopmentScoreCard
             input={{
@@ -838,6 +865,92 @@ function InfoLine({ label, value }: { label: string; value: string }) {
       <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="truncate text-sm" title={value}>{value}</div>
     </div>
+  );
+}
+
+type LuZoneResult = Awaited<ReturnType<typeof loadLuZonePlanForAnalysis>>;
+
+function LuZonePlanCard({
+  zoneResult,
+  loading,
+}: {
+  zoneResult: LuZoneResult | undefined;
+  loading: boolean;
+}) {
+  const z = zoneResult && zoneResult.ok === true ? zoneResult.zone : null;
+  const rows: [string, string][] = z
+    ? ([
+        ["Zone", [z.zoneCode, z.zoneLabel].filter(Boolean).join(" — ") || "—"],
+        ["Kategorie", z.zoneCategory ?? "—"],
+        ["Ausnützungsziffer (AZ)", z.az?.toString() ?? "—"],
+        ["Überbauungsziffer (ÜZ) max.", z.uezMax?.toString() ?? "—"],
+        ["Überbauungsziffer (ÜZ) min.", z.uezMin?.toString() ?? "—"],
+        ["Geschosszahl", z.floors ? `${z.floors} Vollgeschosse` : "—"],
+        ["Gesamthöhe max.", z.heightMax ? `${z.heightMax} m` : "—"],
+        ["Fassadenhöhe max.", z.facadeHeightMax ? `${z.facadeHeightMax} m` : "—"],
+        ["Gebäudelänge max.", z.buildingLength ? `${z.buildingLength} m` : "—"],
+        ["Grünflächenziffer", z.greenAreaRatio?.toString() ?? "—"],
+        ["Lärmempfindlichkeit", z.noiseClass ?? "—"],
+        ["Bauweise", z.buildingType ?? "—"],
+        [
+          "Wohnanteil max.",
+          z.residentialShareMax != null ? `${Math.round(z.residentialShareMax * 100)} %` : "—",
+        ],
+        [
+          "Gewerbeanteil max.",
+          z.commercialShareMax != null ? `${Math.round(z.commercialShareMax * 100)} %` : "—",
+        ],
+        ["BZR-Artikel", z.bzrArticle ?? "—"],
+        [
+          "Inkraftsetzung",
+          z.validFrom ? new Date(z.validFrom).toLocaleDateString("de-CH") : "—",
+        ],
+      ].filter(([, v]) => v !== "—") as [string, string][])
+    : [];
+
+  return (
+    <Card className="border-primary/30">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-display text-lg">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          Zonenplan Kanton Luzern
+          {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+          <Badge variant="outline" className="ml-1 text-[10px]">rechtsverbindlich</Badge>
+        </CardTitle>
+        <CardDescription>
+          Rechtsverbindliche Daten aus dem kantonalen Geodatensatz (ZPGNDNTZ, täglich aktualisiert,
+          Quelle: Raumdatenpool Kanton Luzern).
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {zoneResult?.ok === false && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              {zoneResult.reason === "no_coordinates" &&
+                "Keine Koordinaten — Grundstück auf der Karte auswählen."}
+              {zoneResult.reason === "no_zone_found" &&
+                "Für diesen Standort wurde keine Bauzone im Luzerner Zonenplan gefunden."}
+              {zoneResult.reason === "wrong_canton" &&
+                "Zonenplan-Abfrage nur für Grundstücke im Kanton Luzern verfügbar."}
+            </AlertDescription>
+          </Alert>
+        )}
+        {z && (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {rows.map(([k, v], i) => (
+              <div key={i} className="flex items-baseline justify-between gap-3 rounded-md border bg-background/50 px-3 py-2">
+                <span className="text-xs text-muted-foreground">{k}</span>
+                <span className="text-sm font-medium">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {!zoneResult && loading && (
+          <p className="text-sm text-muted-foreground">Lade Zonenplan-Daten …</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
