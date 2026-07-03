@@ -57,20 +57,27 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
       zone.zoneCategory ??
       null;
 
-    const { error: updateErr } = await supabase
-      .from("analyses")
-      .update({
-        zone: zoneName,
-        utilization_ratio: zone.az,
-        building_coverage_ratio: zone.uezMax,
-        max_floors: zone.floors,
-        max_height: zone.heightMax,
-        noise_zone: zone.noiseClass,
-        special_provisions: specialProvisions,
-        parcel_geometry: (zone.geometry as unknown as Json | null) ?? undefined,
-      })
-      .eq("id", data.analysisId);
-    if (updateErr) throw new Error(updateErr.message);
+    // Nur nicht-null Werte überschreiben, damit KI-Resultate nicht durch
+    // leere Zonenplan-Felder überschrieben werden.
+    const patch: Record<string, unknown> = {};
+    if (zoneName != null) patch.zone = zoneName;
+    if (zone.az != null) patch.utilization_ratio = zone.az;
+    if (zone.uezMax != null) patch.building_coverage_ratio = zone.uezMax;
+    if (zone.floors != null) patch.max_floors = zone.floors;
+    if (zone.heightMax != null) patch.max_height = zone.heightMax;
+    if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
+    if (specialProvisions != null) patch.special_provisions = specialProvisions;
+    if (zone.geometry != null) patch.parcel_geometry = zone.geometry as unknown as Json;
+
+    if (Object.keys(patch).length > 0) {
+      const { error: updateErr } = await supabase
+        .from("analyses")
+        .update(patch as never)
+        .eq("id", data.analysisId);
+      if (updateErr) throw new Error(updateErr.message);
+
+    }
+
 
     return { ok: true as const, zone };
   });
