@@ -44,14 +44,25 @@ src/
 
   lib/
     swiss-cantons.ts                26 Kantone (Name, Kürzel, BBox, Farbe)
-    swiss-geo.ts                    swisstopo Identify, Parzellengeometrie
+    swiss-geo.ts                    swisstopo Identify, Parzellengeometrie, queryLuZonePlan
+    lu-zoneplan.functions.ts        Luzerner Zonenplan → Analyse persistieren
     oereb.functions.ts              ÖREB-Kataster-Abfrage per EGRID
     easement-extract.functions.ts   KI-Extraktion Grundbuchauszug
-    analyze-knowledge.functions.ts  KI-Analyse (DB-first Zone)
+    analyze-knowledge.functions.ts  KI-Analyse (DB-first Zone, LU-Geodaten, Community-Werte)
     analyze-scenario.functions.ts   Szenario-Berechnung
     regulation-extract.server.ts    BZR-Extraktion (erweitertes ZoneSchema)
     background-jobs.functions.ts    Hintergrund-Job-Queue (pg_cron Tick)
 ```
+
+## Kanton-Geodaten
+
+- **Luzern (GEO-1/GEO-2)**: Der offizielle Zonenplan-Dienst (ESRI MapServer Identify + WMS `ZPGNDNTZ_V1_PY`) liefert Zonenname, AZ, ÜZ, Gebäude-/Gesamthöhe und Geschosszahl direkt aus der Parzellengeometrie.
+  - `loadLuZonePlanForAnalysis` persistiert Werte auf der Analyse und speist den KI-Prompt.
+  - Dashboard-Quick-Analysis zeigt eine Live-Zonenvorschau, sobald eine LU-Parzelle gewählt wird.
+  - Analyse-Detailseite hat einen Button **„Zonenplan aktualisieren"** für erzwungenes Re-Load + Re-Analyse.
+  - Karte blendet den WMS-Overlay ausschliesslich im Kanton LU ein (über `canton`-Prop).
+- **BZR-Versionsvergleich**: `regulation_snapshots` speichert alte/neue Fassungen; `RegulationComparisonCard` zeigt Änderungen im Detail und Bericht.
+- **Community-Grenzabstände** (`zone_regulations`): Nutzer erfassen Grenzabstände/Parkplatzwerte pro Zone. Verifizierte Einträge (Moderations-Tabelle in `/platform/reglemente`) fliessen in den KI-Prompt.
 
 ## Analyse-Module
 
