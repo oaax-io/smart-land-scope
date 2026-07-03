@@ -157,11 +157,9 @@ export function SwissMap({
   luZonesAvailable = false,
   canton,
 }: SwissMapProps) {
-  const luZonesEnabled =
-    luZonesAvailable ||
-    canton === "LU" ||
-    (canton === undefined && (arguments as unknown as { length: number }).length > 0 && false);
-  // simple derivation: show toggle when LU is relevant or when caller passes no canton on interactive maps.
+  // LU-Zonenplan-Toggle sichtbar wenn explizit erlaubt, wenn Auswahl im Kanton LU liegt,
+  // oder wenn die Karte interaktiv ist und noch kein Kanton bekannt ist.
+
 
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
