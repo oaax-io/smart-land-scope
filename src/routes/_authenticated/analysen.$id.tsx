@@ -183,6 +183,30 @@ function AnalysisDetailPage() {
               {reanalyze.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
               Neu analysieren
             </Button>
+            {analysis.canton === "LU" && analysis.lat != null && analysis.lng != null && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const r = await loadLuZoneFn({ data: { analysisId: id } });
+                  if ("ok" in r && r.ok) {
+                    toast.success("Zonenplandaten aktualisiert", {
+                      description: `Zone: ${r.zone.zoneCode ?? "—"} — ${r.zone.zoneLabel ?? "—"}`,
+                    });
+                    queryClient.invalidateQueries({ queryKey: ["analysis", id] });
+                    queryClient.invalidateQueries({ queryKey: ["lu-zone", id] });
+                  } else {
+                    toast.error("Keine Zone gefunden", {
+                      description: `Grund: ${"reason" in r ? r.reason : "unbekannt"}`,
+                    });
+                  }
+                }}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Zonenplan aktualisieren
+              </Button>
+            )}
+
             <Button variant="outline" size="sm" asChild>
               <Link to="/analysen/$id/bericht" params={{ id }}>
                 <Download className="mr-2 h-4 w-4" />Bericht exportieren
