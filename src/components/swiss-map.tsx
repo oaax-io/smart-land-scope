@@ -526,12 +526,7 @@ export function SwissMap({
           onClick={handleMapClick}
           onMouseMove={handleMapMouseMove}
           onMouseOut={handleMapMouseLeave}
-          mapStyle={buildMapStyle(
-            baseLayer,
-            luToggleVisible && showLuZones,
-            canton === "LU" && showLuBaulinien,
-            canton === "LU" && showLuGefahren,
-          ) as any}
+          mapStyle={mapStyle as any}
           cursor={mode === "interactive" ? (hoverParcel ? "pointer" : "crosshair") : "default"}
           attributionControl={{ compact: true }}
           style={{ width: "100%", height: "100%" }}
