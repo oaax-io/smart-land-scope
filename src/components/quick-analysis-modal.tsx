@@ -41,6 +41,8 @@ import {
   runKnowledgeAnalysis,
 } from "@/lib/analyze-knowledge.functions";
 import type { Json } from "@/integrations/supabase/types";
+import type { LuZonePlanResult } from "@/lib/swiss-geo";
+
 
 const KANTONE = [
   ["AG","Aargau"],["AI","Appenzell Innerrhoden"],["AR","Appenzell Ausserrhoden"],
