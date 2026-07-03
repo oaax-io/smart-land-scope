@@ -89,3 +89,38 @@ export const getPlatformStats = createServerFn({ method: "GET" })
       feedback: fb.count ?? 0,
     };
   });
+
+// ─────────────────────────────────────────────────────────────
+// LU BZR Auto-Import (nutzt lu-bzr-import.server.ts)
+// ─────────────────────────────────────────────────────────────
+
+export const initLuImportLog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertPlatformAdmin(context.userId);
+    const { initLuImportLog: fn } = await import("./lu-bzr-import.server");
+    return fn();
+  });
+
+export const processNextLuBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertPlatformAdmin(context.userId);
+    const { processNextLuImportBatch } = await import("./lu-bzr-import.server");
+    return processNextLuImportBatch(5);
+  });
+
+export const getLuImportStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const admin = await assertPlatformAdmin(context.userId);
+    const { data } = await admin
+      .from("lu_bzr_import_log")
+      .select("status");
+    const rows = (data ?? []) as Array<{ status: string }>;
+    const stats: Record<string, number> = {
+      pending: 0, downloaded: 0, extracted: 0, unavailable: 0, failed: 0,
+    };
+    for (const r of rows) stats[r.status] = (stats[r.status] ?? 0) + 1;
+    return { total: rows.length, ...stats };
+  });
