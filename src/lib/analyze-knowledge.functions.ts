@@ -409,6 +409,8 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         zoneHintLine,
         "",
         ...(luZoneInfo ? [luZoneInfo, ""] : []),
+        ...(communityZoneInfo ? [communityZoneInfo, ""] : []),
+
         "Wissensdatenbank — Knowledge Entries:",
         entryBlock || "(keine Einträge)",
         zoneHint,
