@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/dokumentation")({
   component: DocsPage,
 });
 
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.6.0";
 const APP_STAGE = "Beta";
 
 type Change = {
