@@ -274,7 +274,11 @@ function normalizePostalCode(value: unknown): string | null {
   return raw?.match(/\b\d{4}\b/)?.[0] ?? null;
 }
 
-export async function identifyParcelAt(lng: number, lat: number): Promise<SwissParcelInfo | null> {
+export async function identifyParcelAt(
+  lng: number,
+  lat: number,
+  overrides?: { address?: string | null; postalCode?: string | null; municipality?: string | null },
+): Promise<SwissParcelInfo | null> {
   // 1) Parzelle aus Cadastralwebmap — Geometrie gleich mitholen, damit wir die
   //    Fläche auch dann ableiten können, wenn das Attribut `area` nicht geliefert wird.
   const parcelResults = await identifyAt("all:ch.kantone.cadastralwebmap-farbe", lng, lat, 2, {
