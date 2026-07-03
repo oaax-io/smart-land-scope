@@ -36,7 +36,9 @@ import {
   initLuImportLog as initLuImportLogFn,
   processNextLuBatch as processNextLuBatchFn,
   getLuImportStats as getLuImportStatsFn,
+  checkBzrUpdates as checkBzrUpdatesFn,
 } from "@/lib/platform-admin.functions";
+
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
