@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/dokumentation")({
   component: DocsPage,
 });
 
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.6.0";
 const APP_STAGE = "Beta";
 
 type Change = {
@@ -37,6 +37,25 @@ type Release = {
 };
 
 const RELEASES: Release[] = [
+  {
+    version: "1.6.0",
+    date: "2026-07-03",
+    title: "Automatisierung, Datenqualität & Karten-Legende",
+    changes: [
+      { type: "Neu", text: "Wöchentlicher Cron-Job erkennt via ETag/Content-Length, wenn geoshop.lu.ch ein BZR-PDF aktualisiert, und stösst Re-Import und Re-Extraktion automatisch an (Mo 03:00, `/api/public/hooks/bzr-check`)" },
+      { type: "Neu", text: "Planungszonen-Warnbanner auf der Analyseseite (Übersicht + Rechtliches), wenn ÖREB eine aktive Ortsplanungsrevision meldet" },
+      { type: "Neu", text: "KPI-Kachel Zone zeigt kategoriegerechte Farbe (Wohn, Zentrum, Kern/Dorf, Arbeit, Grün, ...)" },
+      { type: "Neu", text: "Ausnützungsziffer (AZ) und Überbauungsziffer (ÜZ) werden immer nebeneinander angezeigt — mit Tooltip, wenn die Zone eine Kennzahl nicht kennt" },
+      { type: "Neu", text: "Zonen-Overlay Luzern ist bei LU-Analysen automatisch aktiv; ausklappbare Legende (Zonen, Baulinien, Naturgefahren) unter der Karte mit nativen Farb-Swatches" },
+      { type: "Neu", text: "Mehrfachauswahl mit Bulk-Löschen und Bestätigungsdialog in der Analysenübersicht" },
+      { type: "Verbessert", text: "Vergrösserte Kartenansicht übernimmt Kanton und alle LU-Layer-Toggles" },
+      { type: "Verbessert", text: "Kartenperformance: Session-Cache für Kantons-GeoJSON, optimierte MapLibre-Props (fadeDuration, maxTileCacheSize, reuseMaps); Layer-Toggles unten links über dem Kanton-Filter" },
+      { type: "Verbessert", text: "Adress-Suche parst swisstopo-Labels exakt und reduziert GWR-Toleranz auf 5px — richtige Parzelle statt Nachbargebäude" },
+      { type: "Verbessert", text: "LU-Zonenplan liest lokalisierte Attribute (Alt-PBG vs. Neu-PBG) korrekt aus" },
+      { type: "Behoben", text: "Analyseergebnisse (Zone, AZ, ÜZ, Geschosse, Höhe) verschwanden nach wenigen Sekunden, weil der LU-Zonenplan-Loader KI-Werte mit `null` überschrieb — Patch-Logik füllt jetzt nur tatsächlich vorhandene Werte" },
+      { type: "Behoben", text: "AZ vs. ÜZ waren vertauscht für Neu-PBG-Zonen ohne AZ (z. B. Zentrumszone Rüsstal)" },
+    ],
+  },
   {
     version: "1.5.0",
     date: "2026-07-03",

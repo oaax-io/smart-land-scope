@@ -5,6 +5,28 @@ Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0
 
 ## [Unreleased]
 
+## [1.6.0] – 2026-07-03 — Automatisierung, Datenqualität & Karten-Legende
+
+### Hinzugefügt
+- **Wöchentlicher BZR-Update-Check**: `checkAndUpdateBzr` in `src/lib/lu-bzr-import.server.ts` erkennt PDF-Änderungen auf geoshop.lu.ch via ETag / Content-Length und triggert Re-Import + Re-Extraktion. Öffentlicher Endpunkt `src/routes/api/public/hooks/bzr-check.ts`, per pg_cron als `bzr-check-weekly` (Mo 03:00) eingeplant. Manueller Trigger-Button in `/platform/reglemente`.
+- **Planungszonen-Warnhinweis**: `hasPlanungszone` in `src/lib/oereb.functions.ts`; Warnbanner in `src/routes/_authenticated/analysen.$id.tsx` auf den Tabs Übersicht und Rechtliches, wenn ÖREB eine aktive Ortsplanungsrevision meldet.
+- **Kartenlegende Luzern**: aufklappbares Dropdown unter der Karte mit nativ nachgebauten Farb-Swatches für Zonenplan, Baulinien und Naturgefahren — nebeneinander in Spalten.
+- **Zonen-Kachel mit Farbe**: `zoneCategoryColor` + `ZoneKpiCard` in `analysen.$id.tsx` färben die Zone-Kachel nach Kategorie (Wohn, Zentrum, Kern/Dorf, Arbeit, Grün, ...).
+- **Bulk-Löschen von Analysen**: Mehrfachauswahl mit Checkboxen, `AlertDialog`-Bestätigung und Supabase-Bulk-Delete in `src/routes/_authenticated/analysen.index.tsx`.
+
+### Geändert
+- **AZ und ÜZ werden immer nebeneinander angezeigt** (5-Spalten-KPI-Grid); Tooltip erklärt, wenn eine Kennzahl in der Zone nicht existiert (typisch Alt- vs. Neu-PBG).
+- **Zonen-Overlay automatisch aktiv** bei LU-Analysen; die vergrösserte Kartenansicht übernimmt Kanton und alle Layer-Toggles.
+- **Kartenperformance**: `sessionStorage`-Cache für Kantons-GeoJSON, optimierte MapLibre-Props (`fadeDuration`, `maxTileCacheSize`, `reuseMaps`). Layer-Toggles unten links über dem Kanton-Filter statt hinter dem Suchfeld.
+- **Adress-Suche** in `src/lib/swiss-geo.ts` parst swisstopo-Labels für exakte Koordinaten, GWR-Toleranz von 25 → 5px, Analyse-Karte zoomt auf 18.
+- **LU-Zonenplan-Parser** liest lokalisierte deutsche Attribute (Alt-PBG vs. Neu-PBG); UI zeigt beide Ebenen separat.
+
+### Behoben
+- **Analyseergebnisse verschwanden** nach wenigen Sekunden — der LU-Zonenplan-Loader (`analyze-knowledge.functions.ts` + `lu-zoneplan.functions.ts`) überschrieb KI-Werte mit `null`. Patch-Logik füllt jetzt ausschliesslich tatsächlich vorhandene Felder.
+- **AZ vs. ÜZ** vertauscht für Neu-PBG-Zonen ohne AZ (z. B. Zentrumszone Rüsstal Lindenstrasse 29) — LU-Wert wird nun der korrekten Kennzahl zugeordnet.
+
+
+
 ## [1.5.0] – 2026-07-03 — Bereinigung, LU-Fokus & Karten-Overlays
 
 ### Hinzugefügt
