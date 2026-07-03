@@ -531,14 +531,8 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
         .eq("id", analysis.id);
       if (updErr) throw new Error(updErr.message);
 
-      // Rechtsstand-Vergleich (Alt vs. Neu) berechnen und persistieren.
-      // Fehler dürfen die Analyse nicht abbrechen — nur loggen.
-      try {
-        const { buildComparisonInline } = await import("./regulation-comparison.inline");
-        await buildComparisonInline(supabase, analysis.id);
-      } catch (compErr) {
-        console.warn("[knowledge-analysis] regulation comparison failed", compErr);
-      }
+      // (Rechtsstand-Vergleich Alt vs. Neu entfernt — durch WFS-Zonenplan-Live-Daten ersetzt.)
+
 
       return { ok: true as const, analysisId: analysis.id };
     } catch (e) {

@@ -25,11 +25,9 @@ import { Route as AuthenticatedProjekteRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedEinstellungenRouteImport } from './routes/_authenticated/einstellungen'
 import { Route as AuthenticatedDokumentationRouteImport } from './routes/_authenticated/dokumentation'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedBerichteRouteImport } from './routes/_authenticated/berichte'
 import { Route as AuthenticatedFeedbackIndexRouteImport } from './routes/_authenticated/feedback.index'
 import { Route as AuthenticatedAnalysenIndexRouteImport } from './routes/_authenticated/analysen.index'
 import { Route as AuthenticatedFeedbackIdRouteImport } from './routes/_authenticated/feedback.$id'
-import { Route as AuthenticatedAnalysenNeuRouteImport } from './routes/_authenticated/analysen.neu'
 import { Route as AuthenticatedAnalysenKarteRouteImport } from './routes/_authenticated/analysen.karte'
 import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
 import { Route as AuthenticatedAnalysenIdBerichtRouteImport } from './routes/_authenticated/analysen.$id.bericht'
@@ -115,11 +113,6 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedBerichteRoute = AuthenticatedBerichteRouteImport.update({
-  id: '/berichte',
-  path: '/berichte',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedFeedbackIndexRoute =
   AuthenticatedFeedbackIndexRouteImport.update({
     id: '/feedback/',
@@ -137,12 +130,6 @@ const AuthenticatedFeedbackIdRoute = AuthenticatedFeedbackIdRouteImport.update({
   path: '/feedback/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAnalysenNeuRoute =
-  AuthenticatedAnalysenNeuRouteImport.update({
-    id: '/analysen/neu',
-    path: '/analysen/neu',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedAnalysenKarteRoute =
   AuthenticatedAnalysenKarteRouteImport.update({
     id: '/analysen/karte',
@@ -166,7 +153,6 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/platform': typeof PlatformRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
-  '/berichte': typeof AuthenticatedBerichteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dokumentation': typeof AuthenticatedDokumentationRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
@@ -180,7 +166,6 @@ export interface FileRoutesByFullPath {
   '/platform/': typeof PlatformIndexRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
-  '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/feedback/$id': typeof AuthenticatedFeedbackIdRoute
   '/analysen/': typeof AuthenticatedAnalysenIndexRoute
   '/feedback/': typeof AuthenticatedFeedbackIndexRoute
@@ -190,7 +175,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/berichte': typeof AuthenticatedBerichteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dokumentation': typeof AuthenticatedDokumentationRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
@@ -204,7 +188,6 @@ export interface FileRoutesByTo {
   '/platform': typeof PlatformIndexRoute
   '/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
-  '/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/feedback/$id': typeof AuthenticatedFeedbackIdRoute
   '/analysen': typeof AuthenticatedAnalysenIndexRoute
   '/feedback': typeof AuthenticatedFeedbackIndexRoute
@@ -217,7 +200,6 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/platform': typeof PlatformRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
-  '/_authenticated/berichte': typeof AuthenticatedBerichteRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dokumentation': typeof AuthenticatedDokumentationRoute
   '/_authenticated/einstellungen': typeof AuthenticatedEinstellungenRoute
@@ -231,7 +213,6 @@ export interface FileRoutesById {
   '/platform/': typeof PlatformIndexRoute
   '/_authenticated/analysen/$id': typeof AuthenticatedAnalysenIdRouteWithChildren
   '/_authenticated/analysen/karte': typeof AuthenticatedAnalysenKarteRoute
-  '/_authenticated/analysen/neu': typeof AuthenticatedAnalysenNeuRoute
   '/_authenticated/feedback/$id': typeof AuthenticatedFeedbackIdRoute
   '/_authenticated/analysen/': typeof AuthenticatedAnalysenIndexRoute
   '/_authenticated/feedback/': typeof AuthenticatedFeedbackIndexRoute
@@ -244,7 +225,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/platform'
     | '/reset-password'
-    | '/berichte'
     | '/dashboard'
     | '/dokumentation'
     | '/einstellungen'
@@ -258,7 +238,6 @@ export interface FileRouteTypes {
     | '/platform/'
     | '/analysen/$id'
     | '/analysen/karte'
-    | '/analysen/neu'
     | '/feedback/$id'
     | '/analysen/'
     | '/feedback/'
@@ -268,7 +247,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
-    | '/berichte'
     | '/dashboard'
     | '/dokumentation'
     | '/einstellungen'
@@ -282,7 +260,6 @@ export interface FileRouteTypes {
     | '/platform'
     | '/analysen/$id'
     | '/analysen/karte'
-    | '/analysen/neu'
     | '/feedback/$id'
     | '/analysen'
     | '/feedback'
@@ -294,7 +271,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/platform'
     | '/reset-password'
-    | '/_authenticated/berichte'
     | '/_authenticated/dashboard'
     | '/_authenticated/dokumentation'
     | '/_authenticated/einstellungen'
@@ -308,7 +284,6 @@ export interface FileRouteTypes {
     | '/platform/'
     | '/_authenticated/analysen/$id'
     | '/_authenticated/analysen/karte'
-    | '/_authenticated/analysen/neu'
     | '/_authenticated/feedback/$id'
     | '/_authenticated/analysen/'
     | '/_authenticated/feedback/'
@@ -437,13 +412,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/berichte': {
-      id: '/_authenticated/berichte'
-      path: '/berichte'
-      fullPath: '/berichte'
-      preLoaderRoute: typeof AuthenticatedBerichteRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/feedback/': {
       id: '/_authenticated/feedback/'
       path: '/feedback'
@@ -463,13 +431,6 @@ declare module '@tanstack/react-router' {
       path: '/feedback/$id'
       fullPath: '/feedback/$id'
       preLoaderRoute: typeof AuthenticatedFeedbackIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/analysen/neu': {
-      id: '/_authenticated/analysen/neu'
-      path: '/analysen/neu'
-      fullPath: '/analysen/neu'
-      preLoaderRoute: typeof AuthenticatedAnalysenNeuRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/analysen/karte': {
@@ -511,7 +472,6 @@ const AuthenticatedAnalysenIdRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedBerichteRoute: typeof AuthenticatedBerichteRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDokumentationRoute: typeof AuthenticatedDokumentationRoute
   AuthenticatedEinstellungenRoute: typeof AuthenticatedEinstellungenRoute
@@ -520,14 +480,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedWissenRoute: typeof AuthenticatedWissenRoute
   AuthenticatedAnalysenIdRoute: typeof AuthenticatedAnalysenIdRouteWithChildren
   AuthenticatedAnalysenKarteRoute: typeof AuthenticatedAnalysenKarteRoute
-  AuthenticatedAnalysenNeuRoute: typeof AuthenticatedAnalysenNeuRoute
   AuthenticatedFeedbackIdRoute: typeof AuthenticatedFeedbackIdRoute
   AuthenticatedAnalysenIndexRoute: typeof AuthenticatedAnalysenIndexRoute
   AuthenticatedFeedbackIndexRoute: typeof AuthenticatedFeedbackIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedBerichteRoute: AuthenticatedBerichteRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDokumentationRoute: AuthenticatedDokumentationRoute,
   AuthenticatedEinstellungenRoute: AuthenticatedEinstellungenRoute,
@@ -536,7 +494,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedWissenRoute: AuthenticatedWissenRoute,
   AuthenticatedAnalysenIdRoute: AuthenticatedAnalysenIdRouteWithChildren,
   AuthenticatedAnalysenKarteRoute: AuthenticatedAnalysenKarteRoute,
-  AuthenticatedAnalysenNeuRoute: AuthenticatedAnalysenNeuRoute,
   AuthenticatedFeedbackIdRoute: AuthenticatedFeedbackIdRoute,
   AuthenticatedAnalysenIndexRoute: AuthenticatedAnalysenIndexRoute,
   AuthenticatedFeedbackIndexRoute: AuthenticatedFeedbackIndexRoute,

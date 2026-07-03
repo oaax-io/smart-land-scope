@@ -46,7 +46,12 @@ import {
 } from "@/lib/swiss-cantons";
 
 // swisstopo WMTS — Kartenstile
-function buildMapStyle(base: "cadastral" | "aerial", showLuZones = false) {
+function buildMapStyle(
+  base: "cadastral" | "aerial",
+  showLuZones = false,
+  showLuBaulinien = false,
+  showLuGefahren = false,
+) {
   const baseTiles =
     base === "aerial"
       ? "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg"
@@ -90,6 +95,40 @@ function buildMapStyle(base: "cadastral" | "aerial", showLuZones = false) {
       type: "raster" as const,
       source: "lu-zones",
       paint: { "raster-opacity": 0.45 },
+    });
+  }
+
+  if (showLuBaulinien) {
+    sources["lu-baulinien"] = {
+      type: "raster" as const,
+      tiles: [
+        "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=ZPBAULIN_V1_LI&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE",
+      ],
+      tileSize: 256,
+      attribution: "© Raumdatenpool Kanton Luzern",
+    };
+    layers.push({
+      id: "lu-baulinien-layer",
+      type: "raster" as const,
+      source: "lu-baulinien",
+      paint: { "raster-opacity": 0.8 },
+    });
+  }
+
+  if (showLuGefahren) {
+    sources["lu-gefahren"] = {
+      type: "raster" as const,
+      tiles: [
+        "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=ZPNATGEF_V1_PY&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE",
+      ],
+      tileSize: 256,
+      attribution: "© Raumdatenpool Kanton Luzern",
+    };
+    layers.push({
+      id: "lu-gefahren-layer",
+      type: "raster" as const,
+      source: "lu-gefahren",
+      paint: { "raster-opacity": 0.55 },
     });
   }
 
@@ -165,6 +204,8 @@ export function SwissMap({
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
   const [showLuZones, setShowLuZones] = useState(false);
+  const [showLuBaulinien, setShowLuBaulinien] = useState(false);
+  const [showLuGefahren, setShowLuGefahren] = useState(false);
 
   const mapRef = useRef<MapRef | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -482,7 +523,12 @@ export function SwissMap({
           onClick={handleMapClick}
           onMouseMove={handleMapMouseMove}
           onMouseOut={handleMapMouseLeave}
-          mapStyle={buildMapStyle(baseLayer, luToggleVisible && showLuZones) as any}
+          mapStyle={buildMapStyle(
+            baseLayer,
+            luToggleVisible && showLuZones,
+            canton === "LU" && showLuBaulinien,
+            canton === "LU" && showLuGefahren,
+          ) as any}
           cursor={mode === "interactive" ? (hoverParcel ? "pointer" : "crosshair") : "default"}
           attributionControl={{ compact: true }}
           style={{ width: "100%", height: "100%" }}
@@ -665,8 +711,34 @@ export function SwissMap({
               )}
               title="Zonenplan Kanton Luzern"
             >
-              Zonenplan LU
+              Zonen LU
             </button>
+          )}
+          {canton === "LU" && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowLuBaulinien((v) => !v)}
+                className={cn(
+                  "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                  showLuBaulinien ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                )}
+                title="Baulinien Kanton Luzern"
+              >
+                Baulinien
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLuGefahren((v) => !v)}
+                className={cn(
+                  "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                  showLuGefahren ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                )}
+                title="Naturgefahren Kanton Luzern"
+              >
+                Gefahren
+              </button>
+            </>
           )}
         </div>
 

@@ -37,9 +37,8 @@ import { OEREBTopicsTable } from "@/components/oereb-topics-table";
 import { loadOEREBData } from "@/lib/oereb.functions";
 import { ProjectDataCard, FloorCalculatorCard, DocumentUploadsCard } from "@/components/analysis-project-tab";
 import { EasementsPanel } from "@/components/easements-panel";
-import { RegulationComparisonCard } from "@/components/regulation-comparison-card";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
-import { ZoneRegulationsPanel } from "@/components/zone-regulations-panel";
+import { AnalysisReport } from "@/components/analysis-report";
 
 
 
@@ -237,10 +236,9 @@ function AnalysisDetailPage() {
       )}
 
       <Tabs defaultValue="uebersicht" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-4">
           <TabsTrigger value="uebersicht"><CheckCircle2 className="mr-2 h-4 w-4" />Übersicht</TabsTrigger>
-          <TabsTrigger value="recht"><ShieldCheck className="mr-2 h-4 w-4" />Rechtsrahmen</TabsTrigger>
-          <TabsTrigger value="potenzial"><TrendingUp className="mr-2 h-4 w-4" />Potenzial</TabsTrigger>
+          <TabsTrigger value="recht"><ShieldCheck className="mr-2 h-4 w-4" />Rechtliches</TabsTrigger>
           <TabsTrigger value="projekt"><Building2 className="mr-2 h-4 w-4" />Projekt</TabsTrigger>
           <TabsTrigger value="report"><FileText className="mr-2 h-4 w-4" />Bericht</TabsTrigger>
         </TabsList>
@@ -294,21 +292,6 @@ function AnalysisDetailPage() {
             <LuZonePlanCard zoneResult={zoneResult} loading={zoneLoading} />
           )}
 
-          {analysis.municipality && (zoneResult && "zone" in zoneResult ? zoneResult.zone?.zoneCode : analysis.zone) && (
-            <ZoneRegulationsPanel
-              municipalityName={analysis.municipality as string}
-              cantonCode={(analysis.canton as string | null) ?? "LU"}
-              zoneCode={
-                (zoneResult && "zone" in zoneResult ? zoneResult.zone?.zoneCode : null) ??
-                (analysis.zone as string | null) ??
-                ""
-              }
-            />
-          )}
-
-
-
-
           <DevelopmentScoreCard
             input={{
               zone: analysis.zone,
@@ -324,7 +307,6 @@ function AnalysisDetailPage() {
             }}
           />
 
-          <AiAnswerCard answer={analysis.ai_answer as AiAnswer | null} />
 
           <Card>
             <CardHeader>
@@ -394,15 +376,10 @@ function AnalysisDetailPage() {
             </CardContent>
           </Card>
 
-          <RegulationComparisonCard
-            analysisId={analysis.id as string}
-            activeZone={(analysis.zone_override ?? analysis.zone ?? analysis.detected_zone) as string | null}
-          />
-
           <LegalDisclaimer variant="subtle" className="mt-4" />
         </TabsContent>
 
-        {/* 2) RECHTSRAHMEN — ÖREB + Dienstbarkeiten */}
+        {/* 2) RECHTLICHES — ÖREB, Dienstbarkeiten, Szenario- & Variantenvergleich */}
         <TabsContent value="recht" className="space-y-6">
           <section className="space-y-3">
             <div>
@@ -432,16 +409,33 @@ function AnalysisDetailPage() {
               organizationId={analysis.organization_id as string}
             />
           </section>
-        </TabsContent>
 
-        {/* 3) POTENZIAL — Zone-Override, Wohnungspotenzial, Entwicklungs-Score, Varianten */}
-        <TabsContent value="potenzial" className="space-y-6">
+          <Separator />
+
           <section className="space-y-3">
             <div>
               <h2 className="font-display text-lg font-semibold flex items-center gap-2">
-                <Home className="h-4 w-4 text-secondary" />Wohnungspotenzial
+                <Sparkles className="h-4 w-4 text-secondary" />Szenario-Vergleich
               </h2>
-              <p className="text-sm text-muted-foreground">Geschossfläche, Wohnfläche und Wohnungsanzahl auf Basis von Zone und Ausnützung.</p>
+              <p className="text-sm text-muted-foreground">Mehrere rechtlich zulässige Nutzungsszenarien nebeneinander rechnen.</p>
+            </div>
+            <ScenarioComparison
+              analysisId={analysis.id as string}
+              organizationId={analysis.organization_id as string}
+            />
+          </section>
+
+          <Separator />
+
+          <section className="space-y-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-secondary" />Variantenvergleich (Zone-Override)
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Falls die automatisch erkannte Zone nicht stimmt, hier eine andere Zone testen — die Analyse
+                wird mit deren AZ / Höhen / Geschossen neu berechnet.
+              </p>
             </div>
             <ZoneOverrideCard
               analysisId={id}
@@ -462,45 +456,8 @@ function AnalysisDetailPage() {
               unitCount={Number(analysis.unit_count ?? 0) || 0}
             />
           </section>
-
-          <Separator />
-
-          <section className="space-y-3">
-            <div>
-              <h2 className="font-display text-lg font-semibold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-secondary" />Entwicklungspotenzial
-              </h2>
-              <p className="text-sm text-muted-foreground">Qualitative Einschätzung des Standorts.</p>
-            </div>
-            <Card>
-              <CardContent className="pt-6">
-                {potential ? (
-                  <div className={`inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium ${potential.tone}`}>
-                    <TrendingUp className="mr-2 h-4 w-4" />{potential.label}
-                  </div>
-                ) : <Placeholder text="Wird nach Abschluss der Analyse angezeigt." />}
-                {analysis.ai_summary && (
-                  <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{analysis.ai_summary}</p>
-                )}
-              </CardContent>
-            </Card>
-          </section>
-
-          <Separator />
-
-          <section className="space-y-3">
-            <div>
-              <h2 className="font-display text-lg font-semibold flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-secondary" />Varianten-Vergleich
-              </h2>
-              <p className="text-sm text-muted-foreground">Mehrere Bebauungsoptionen nebeneinander rechnen.</p>
-            </div>
-            <ScenarioComparison
-              analysisId={analysis.id as string}
-              organizationId={analysis.organization_id as string}
-            />
-          </section>
         </TabsContent>
+
 
         {/* 4) PROJEKT — Projektdaten, Geschosse/Volumen, Pläne */}
         <TabsContent value="projekt" className="space-y-4">
@@ -534,30 +491,9 @@ function AnalysisDetailPage() {
           />
         </TabsContent>
 
-        {/* 5) BERICHT */}
+        {/* 4) BERICHT — inline */}
         <TabsContent value="report">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-display text-lg">
-                <FileText className="h-4 w-4 text-secondary" />Bericht
-              </CardTitle>
-              <CardDescription>Ein PDF-Bericht kann generiert werden, sobald die Analyse abgeschlossen ist.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
-                <FileText className="h-8 w-8 text-muted-foreground" />
-                <p className="mt-3 font-medium">Professioneller Due-Diligence Bericht</p>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  Inklusive Executive Summary, Baurecht, Wohnungsanalyse, Score &amp; Risiken. Export als PDF oder Word.
-                </p>
-                <Button className="mt-4" asChild>
-                  <Link to="/analysen/$id/bericht" params={{ id }}>
-                    <FileText className="mr-2 h-4 w-4" />Bericht öffnen
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <AnalysisReport analysisId={id} showToolbar domId={`report-body-${id}`} />
         </TabsContent>
       </Tabs>
     </div>

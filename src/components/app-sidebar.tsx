@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, MapPinned, FolderKanban, FileText, Users, Settings, Layers, BookOpen, Map as MapIcon, MessageSquare, LifeBuoy } from "lucide-react";
+import { LayoutDashboard, MapPinned, FolderKanban, Users, Settings, Layers, Building2, Map as MapIcon, MessageSquare, LifeBuoy } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -16,9 +16,8 @@ const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Analysen", url: "/analysen", icon: MapPinned },
   { title: "Karte", url: "/analysen/karte", icon: MapIcon },
-  { title: "Wissensdatenbank", url: "/wissen", icon: BookOpen },
+  { title: "Gemeinden", url: "/wissen", icon: Building2 },
   { title: "Projekte", url: "/projekte", icon: FolderKanban },
-  { title: "Berichte", url: "/berichte", icon: FileText },
   { title: "Team", url: "/team", icon: Users },
   { title: "Feedback", url: "/feedback", icon: MessageSquare },
   { title: "Einstellungen", url: "/einstellungen", icon: Settings },
