@@ -867,36 +867,45 @@ export type Database = {
       lu_bzr_import_log: {
         Row: {
           bfs_nr: number
+          content_length: number | null
           created_at: string
           document_id: string | null
           error_message: string | null
+          etag: string | null
           gemeinde: string
           id: string
           last_attempt: string | null
+          last_checked: string | null
           status: string
           updated_at: string
           url: string
         }
         Insert: {
           bfs_nr: number
+          content_length?: number | null
           created_at?: string
           document_id?: string | null
           error_message?: string | null
+          etag?: string | null
           gemeinde: string
           id?: string
           last_attempt?: string | null
+          last_checked?: string | null
           status?: string
           updated_at?: string
           url: string
         }
         Update: {
           bfs_nr?: number
+          content_length?: number | null
           created_at?: string
           document_id?: string | null
           error_message?: string | null
+          etag?: string | null
           gemeinde?: string
           id?: string
           last_attempt?: string | null
+          last_checked?: string | null
           status?: string
           updated_at?: string
           url?: string
