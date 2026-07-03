@@ -646,7 +646,21 @@ export function SwissMap({
           >
             Luftbild
           </button>
+          {luZonesAvailable && (
+            <button
+              type="button"
+              onClick={() => setShowLuZones((v) => !v)}
+              className={cn(
+                "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                showLuZones ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+              )}
+              title="Zonenplan Kanton Luzern"
+            >
+              Zonenplan LU
+            </button>
+          )}
         </div>
+
 
         {/* Kanton-Filter unten links */}
         {showCantons && (
