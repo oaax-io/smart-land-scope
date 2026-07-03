@@ -624,6 +624,12 @@ export function SwissMap({
           cursor={mode === "interactive" ? (hoverParcel ? "pointer" : "crosshair") : "default"}
           attributionControl={{ compact: true }}
           style={{ width: "100%", height: "100%" }}
+          renderWorldCopies={false}
+          fadeDuration={120}
+          maxTileCacheSize={256}
+          refreshExpiredTiles={false}
+          reuseMaps
+
         >
           <NavigationControl position="top-right" showCompass={false} />
 
