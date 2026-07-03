@@ -116,7 +116,9 @@ function ReglementePage() {
       </div>
 
       <KnowledgeBaseDashboard />
+      <PendingZoneRegulations />
       <DocumentsList />
+
       <AddRegulationDialog open={open} onOpenChange={setOpen} />
     </div>
   );
@@ -271,30 +273,33 @@ function KnowledgeBaseDashboard() {
     : "—";
 
   const tiles = [
-    { label: "Kantone", value: stats.data?.cantons ?? 0, icon: Layers, display: undefined as string | undefined },
-    { label: "Gemeinden", value: stats.data?.municipalities ?? 0, icon: MapPin, display: undefined },
-    { label: "Dokumente", value: stats.data?.documents ?? 0, icon: FileText, display: undefined },
-    { label: "Wissenseinträge", value: stats.data?.entries ?? 0, icon: BookOpen, display: undefined },
-    { label: "Geprüfte Einträge", value: stats.data?.verified ?? 0, icon: ShieldCheck, display: verifiedTile },
+    { label: "Kantone", value: stats.data?.cantons ?? 0, icon: Layers, display: undefined as string | undefined, success: false },
+    { label: "Gemeinden", value: stats.data?.municipalities ?? 0, icon: MapPin, display: undefined, success: false },
+    { label: "Dokumente", value: stats.data?.documents ?? 0, icon: FileText, display: undefined, success: false },
+    { label: "Wissenseinträge", value: stats.data?.entries ?? 0, icon: BookOpen, display: undefined, success: false },
+    { label: "Geprüfte Einträge", value: stats.data?.verified ?? 0, icon: ShieldCheck, display: verifiedTile, success: false },
+    { label: "LU Zonenplan", value: 79, icon: DatabaseZap, display: "79 / 79 via WFS", success: true },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+
       {tiles.map((t) => (
-        <Card key={t.label}>
+        <Card key={t.label} className={t.success ? "border-secondary/40 bg-secondary/5" : undefined}>
           <CardContent className="flex items-center gap-3 p-4">
-            <div className="grid h-10 w-10 place-items-center rounded-md bg-secondary/10 text-secondary">
+            <div className={`grid h-10 w-10 place-items-center rounded-md ${t.success ? "bg-secondary text-secondary-foreground" : "bg-secondary/10 text-secondary"}`}>
               <t.icon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">{t.label}</p>
               <p className="font-display text-2xl font-bold leading-tight tabular-nums">
-                {stats.isLoading ? "—" : (t.display ?? t.value.toLocaleString("de-CH"))}
+                {stats.isLoading && !t.success ? "—" : (t.display ?? t.value.toLocaleString("de-CH"))}
               </p>
             </div>
           </CardContent>
         </Card>
       ))}
+
     </div>
   );
 }
@@ -1074,5 +1079,109 @@ function MunicipalityCombobox({
         </Command>
       </PopoverContent>
     </Popover>
+  );
+}
+
+// =====================================================================
+// Ausstehende Grenzabstand-Community-Beiträge (Admin-Verifikation)
+// =====================================================================
+function PendingZoneRegulations() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["zone-regulations-pending"],
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("zone_regulations")
+        .select("id, zone_code, canton_code, setback_small_m, setback_large_m, setback_road_main_m, parking_rate, source_article, verified, created_at, municipality:municipalities(name)")
+        .eq("verified", false)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const verify = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("zone_regulations")
+        .update({ verified: true })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Beitrag verifiziert");
+      qc.invalidateQueries({ queryKey: ["zone-regulations-pending"] });
+    },
+    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("zone_regulations").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Beitrag entfernt");
+      qc.invalidateQueries({ queryKey: ["zone-regulations-pending"] });
+    },
+    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+  });
+
+  const rows = q.data ?? [];
+  if (q.isLoading || rows.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Ausstehende Grenzabstand-Beiträge</CardTitle>
+        <CardDescription>Community-Einträge zur Prüfung ({rows.length}).</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Gemeinde</TableHead>
+                <TableHead>Zone</TableHead>
+                <TableHead>Klein</TableHead>
+                <TableHead>Gross</TableHead>
+                <TableHead>Str. Haupt</TableHead>
+                <TableHead>Parkierung</TableHead>
+                <TableHead>Quelle</TableHead>
+                <TableHead className="text-right">Aktion</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell>
+                    {(r.municipality as { name: string } | null)?.name ?? "—"}{" "}
+                    <span className="text-xs text-muted-foreground">({r.canton_code})</span>
+                  </TableCell>
+                  <TableCell className="font-medium">{r.zone_code}</TableCell>
+                  <TableCell>{r.setback_small_m ?? "—"}</TableCell>
+                  <TableCell>{r.setback_large_m ?? "—"}</TableCell>
+                  <TableCell>{r.setback_road_main_m ?? "—"}</TableCell>
+                  <TableCell>{r.parking_rate ?? "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{r.source_article ?? "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => verify.mutate(r.id)} disabled={verify.isPending}>
+                        <Check className="mr-1 h-4 w-4" /> Verifizieren
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => remove.mutate(r.id)} disabled={remove.isPending}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

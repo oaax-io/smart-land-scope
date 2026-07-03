@@ -80,7 +80,7 @@ function buildMapStyle(base: "cadastral" | "aerial", showLuZones = false) {
     sources["lu-zones"] = {
       type: "raster" as const,
       tiles: [
-        "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=0&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE",
+        "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=ZPGNDNTZ_V1_PY&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE",
       ],
       tileSize: 256,
       attribution: "© Raumdatenpool Kanton Luzern (Open-By)",
@@ -129,7 +129,10 @@ type SwissMapProps = {
   setbacks?: { nord?: number | null; ost?: number | null; sued?: number | null; west?: number | null } | null;
   /** Wenn true, kann ein zusätzlicher LU-Zonenplan-Layer eingeblendet werden. */
   luZonesAvailable?: boolean;
+  /** Kantonskürzel der aktuellen Auswahl (aktiviert LU-spezifische Layer). */
+  canton?: string;
 };
+
 
 
 type CantonFeature = {
@@ -152,7 +155,13 @@ export function SwissMap({
   parcelGeometry = null,
   setbacks = null,
   luZonesAvailable = false,
+  canton,
 }: SwissMapProps) {
+  // LU-Zonenplan-Toggle sichtbar wenn explizit erlaubt, wenn Auswahl im Kanton LU liegt,
+  // oder wenn die Karte interaktiv ist und noch kein Kanton bekannt ist.
+  const luToggleVisible =
+    luZonesAvailable || canton === "LU" || (mode === "interactive" && !canton);
+
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
   const [showLuZones, setShowLuZones] = useState(false);
@@ -473,7 +482,7 @@ export function SwissMap({
           onClick={handleMapClick}
           onMouseMove={handleMapMouseMove}
           onMouseOut={handleMapMouseLeave}
-          mapStyle={buildMapStyle(baseLayer, luZonesAvailable && showLuZones) as any}
+          mapStyle={buildMapStyle(baseLayer, luToggleVisible && showLuZones) as any}
           cursor={mode === "interactive" ? (hoverParcel ? "pointer" : "crosshair") : "default"}
           attributionControl={{ compact: true }}
           style={{ width: "100%", height: "100%" }}
@@ -646,7 +655,7 @@ export function SwissMap({
           >
             Luftbild
           </button>
-          {luZonesAvailable && (
+          {luToggleVisible && (
             <button
               type="button"
               onClick={() => setShowLuZones((v) => !v)}

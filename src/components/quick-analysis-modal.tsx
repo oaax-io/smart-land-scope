@@ -41,6 +41,8 @@ import {
   runKnowledgeAnalysis,
 } from "@/lib/analyze-knowledge.functions";
 import type { Json } from "@/integrations/supabase/types";
+import type { LuZonePlanResult } from "@/lib/swiss-geo";
+
 
 const KANTONE = [
   ["AG","Aargau"],["AI","Appenzell Innerrhoden"],["AR","Appenzell Ausserrhoden"],
@@ -101,14 +103,30 @@ export function QuickAnalysisModal({
     canton: "", parcel_number: "", area_size: "",
     lat: null, lng: null, egrid: null, zone: null, geometry: null,
   });
+  const [luZonePreview, setLuZonePreview] = useState<LuZonePlanResult | null>(null);
 
   // Re-seed form when a new selection opens the modal
   useEffect(() => {
     if (open && initial) {
       setForm(initial);
       setStep(1);
+      setLuZonePreview(null);
+      if (initial.canton === "LU" && initial.lat != null && initial.lng != null) {
+        const lat = initial.lat;
+        const lng = initial.lng;
+        (async () => {
+          try {
+            const { queryLuZonePlan } = await import("@/lib/swiss-geo");
+            const z = await queryLuZonePlan(lat, lng);
+            setLuZonePreview(z);
+          } catch {
+            setLuZonePreview(null);
+          }
+        })();
+      }
     }
   }, [open, initial]);
+
 
   const set = (k: keyof QuickAnalysisInitial, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -199,6 +217,43 @@ export function QuickAnalysisModal({
               <MapPin className="h-4 w-4 text-secondary" />
               Schritt 1 — Grundstücksdaten bestätigen
             </div>
+
+            {luZonePreview && (
+              <div className="rounded-lg border border-secondary/40 bg-secondary/5 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <CheckCircle2 className="h-4 w-4 text-secondary" />
+                  Zone erkannt (Zonenplan Kanton LU)
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <span className="text-muted-foreground">Zone</span>
+                  <span className="font-medium">
+                    {luZonePreview.zoneCode ?? "—"} — {luZonePreview.zoneLabel ?? "—"}
+                  </span>
+                  {luZonePreview.az != null && (
+                    <>
+                      <span className="text-muted-foreground">Ausnützungsziffer</span>
+                      <span className="font-medium">{luZonePreview.az}</span>
+                    </>
+                  )}
+                  {luZonePreview.floors != null && (
+                    <>
+                      <span className="text-muted-foreground">Geschosse</span>
+                      <span className="font-medium">{luZonePreview.floors}</span>
+                    </>
+                  )}
+                  {luZonePreview.heightMax != null && (
+                    <>
+                      <span className="text-muted-foreground">Höhe max.</span>
+                      <span className="font-medium">{luZonePreview.heightMax} m</span>
+                    </>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Quelle: Geodatensatz ZPGNDNTZ, Kanton Luzern (rechtsverbindlich)
+                </p>
+              </div>
+            )}
+
 
             <div className="space-y-1.5">
               <Label htmlFor="qa-address">Adresse *</Label>

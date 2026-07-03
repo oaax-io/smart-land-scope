@@ -99,6 +99,8 @@ function KartePage() {
         heightClassName="h-full"
         lat={selected?.lat ?? null}
         lng={selected?.lng ?? null}
+        canton={selected?.canton ?? undefined}
+
         onParcelSelected={(d) => {
           setSelected(d);
           setAreaSize(d.areaM2 ? String(Math.round(d.areaM2)) : "");

@@ -12,6 +12,8 @@ import {
   Loader2,
   MapPin,
   RefreshCcw,
+  RefreshCw,
+
   ScrollText,
   Sparkles,
   ShieldCheck,
@@ -37,6 +39,8 @@ import { ProjectDataCard, FloorCalculatorCard, DocumentUploadsCard } from "@/com
 import { EasementsPanel } from "@/components/easements-panel";
 import { RegulationComparisonCard } from "@/components/regulation-comparison-card";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
+import { ZoneRegulationsPanel } from "@/components/zone-regulations-panel";
+
 
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
@@ -179,6 +183,30 @@ function AnalysisDetailPage() {
               {reanalyze.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
               Neu analysieren
             </Button>
+            {analysis.canton === "LU" && analysis.lat != null && analysis.lng != null && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const r = await loadLuZoneFn({ data: { analysisId: id } });
+                  if ("ok" in r && r.ok) {
+                    toast.success("Zonenplandaten aktualisiert", {
+                      description: `Zone: ${r.zone.zoneCode ?? "—"} — ${r.zone.zoneLabel ?? "—"}`,
+                    });
+                    queryClient.invalidateQueries({ queryKey: ["analysis", id] });
+                    queryClient.invalidateQueries({ queryKey: ["lu-zone", id] });
+                  } else {
+                    toast.error("Keine Zone gefunden", {
+                      description: `Grund: ${"reason" in r ? r.reason : "unbekannt"}`,
+                    });
+                  }
+                }}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Zonenplan aktualisieren
+              </Button>
+            )}
+
             <Button variant="outline" size="sm" asChild>
               <Link to="/analysen/$id/bericht" params={{ id }}>
                 <Download className="mr-2 h-4 w-4" />Bericht exportieren
@@ -237,6 +265,8 @@ function AnalysisDetailPage() {
                   parcelGeometry={analysis.parcel_geometry as { type: "Polygon"; coordinates: number[][][] } | null}
                   setbacks={analysis.setbacks as { nord?: number | null; ost?: number | null; sued?: number | null; west?: number | null } | null}
                   luZonesAvailable={analysis.canton === "LU"}
+                  canton={analysis.canton as string | undefined}
+
                 />
 
                 {analysis.egrid && (
@@ -263,6 +293,19 @@ function AnalysisDetailPage() {
           {analysis.canton === "LU" && (
             <LuZonePlanCard zoneResult={zoneResult} loading={zoneLoading} />
           )}
+
+          {analysis.municipality && (zoneResult && "zone" in zoneResult ? zoneResult.zone?.zoneCode : analysis.zone) && (
+            <ZoneRegulationsPanel
+              municipalityName={analysis.municipality as string}
+              cantonCode={(analysis.canton as string | null) ?? "LU"}
+              zoneCode={
+                (zoneResult && "zone" in zoneResult ? zoneResult.zone?.zoneCode : null) ??
+                (analysis.zone as string | null) ??
+                ""
+              }
+            />
+          )}
+
 
 
 

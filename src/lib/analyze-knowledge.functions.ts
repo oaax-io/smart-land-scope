@@ -303,6 +303,51 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         }
       }
 
+      // 2c) Community-Beiträge zu Grenzabständen / Parkierung für diese Zone
+      let communityZoneInfo: string | null = null;
+      try {
+        const currentZone =
+          (analysis.zone_override ?? "").trim() ||
+          // luZoneInfo may have set analysis.zone; re-fetch minimal
+          (
+            await supabase
+              .from("analyses")
+              .select("zone")
+              .eq("id", analysis.id)
+              .maybeSingle()
+          ).data?.zone ||
+          null;
+        if (currentZone) {
+          const { data: zr } = await supabase
+            .from("zone_regulations")
+            .select(
+              "setback_small_m, setback_large_m, setback_building_m, setback_road_main_m, setback_road_local_m, parking_rate, attic_counted, basement_counted, source_article, verified",
+            )
+            .eq("municipality_id", muni.id)
+            .eq("zone_code", currentZone)
+            .order("verified", { ascending: false })
+            .limit(1);
+          const r = zr?.[0];
+          if (r) {
+            communityZoneInfo = [
+              `Bekannte Grenzabstände (aus Gemeinschaft-Datenbank${r.verified ? ", geprüft" : ", nicht geprüft"}):`,
+              r.setback_small_m != null ? `Kleiner Grenzabstand: ${r.setback_small_m} m` : null,
+              r.setback_large_m != null ? `Grosser Grenzabstand: ${r.setback_large_m} m` : null,
+              r.setback_building_m != null ? `Gebäudeabstand: ${r.setback_building_m} m` : null,
+              r.setback_road_main_m != null ? `Strassenabstand (Haupt): ${r.setback_road_main_m} m` : null,
+              r.setback_road_local_m != null ? `Strassenabstand (lokal): ${r.setback_road_local_m} m` : null,
+              r.parking_rate ? `Parkierung: ${r.parking_rate}` : null,
+              r.attic_counted != null ? `Dachgeschoss anrechenbar: ${r.attic_counted ? "ja" : "nein"}` : null,
+              r.basement_counted != null ? `Untergeschoss anrechenbar: ${r.basement_counted ? "ja" : "nein"}` : null,
+              r.source_article ? `Quelle: ${r.source_article}` : null,
+            ].filter(Boolean).join("\n");
+          }
+        }
+      } catch {
+        communityZoneInfo = null;
+      }
+
+
       // 3) Build prompt
 
       const docMap = new Map((docs ?? []).map((d) => [d.id, d]));
@@ -364,6 +409,8 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         zoneHintLine,
         "",
         ...(luZoneInfo ? [luZoneInfo, ""] : []),
+        ...(communityZoneInfo ? [communityZoneInfo, ""] : []),
+
         "Wissensdatenbank — Knowledge Entries:",
         entryBlock || "(keine Einträge)",
         zoneHint,
