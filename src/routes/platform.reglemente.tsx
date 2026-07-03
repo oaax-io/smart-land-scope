@@ -283,20 +283,21 @@ function KnowledgeBaseDashboard() {
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
 
       {tiles.map((t) => (
-        <Card key={t.label}>
+        <Card key={t.label} className={t.success ? "border-secondary/40 bg-secondary/5" : undefined}>
           <CardContent className="flex items-center gap-3 p-4">
-            <div className="grid h-10 w-10 place-items-center rounded-md bg-secondary/10 text-secondary">
+            <div className={`grid h-10 w-10 place-items-center rounded-md ${t.success ? "bg-secondary text-secondary-foreground" : "bg-secondary/10 text-secondary"}`}>
               <t.icon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">{t.label}</p>
               <p className="font-display text-2xl font-bold leading-tight tabular-nums">
-                {stats.isLoading ? "—" : (t.display ?? t.value.toLocaleString("de-CH"))}
+                {stats.isLoading && !t.success ? "—" : (t.display ?? t.value.toLocaleString("de-CH"))}
               </p>
             </div>
           </CardContent>
         </Card>
       ))}
+
     </div>
   );
 }
