@@ -35,6 +35,7 @@ import { OEREBTopicsTable } from "@/components/oereb-topics-table";
 import { loadOEREBData } from "@/lib/oereb.functions";
 import { ProjectDataCard, FloorCalculatorCard, DocumentUploadsCard } from "@/components/analysis-project-tab";
 import { EasementsPanel } from "@/components/easements-panel";
+import { RegulationComparisonCard } from "@/components/regulation-comparison-card";
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
   head: ({ params }) => ({ meta: [{ title: `Analyse ${params.id.slice(0, 8)} — SmarTerra` }] }),
@@ -322,6 +323,11 @@ function AnalysisDetailPage() {
               })}
             </CardContent>
           </Card>
+
+          <RegulationComparisonCard
+            analysisId={analysis.id as string}
+            activeZone={(analysis.zone_override ?? analysis.zone ?? analysis.detected_zone) as string | null}
+          />
 
           <LegalDisclaimer variant="subtle" className="mt-4" />
         </TabsContent>
