@@ -72,9 +72,10 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
     if (Object.keys(patch).length > 0) {
       const { error: updateErr } = await supabase
         .from("analyses")
-        .update(patch)
+        .update(patch as never)
         .eq("id", data.analysisId);
       if (updateErr) throw new Error(updateErr.message);
+
     }
 
 
