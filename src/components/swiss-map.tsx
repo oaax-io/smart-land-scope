@@ -48,7 +48,7 @@ const LU_WMS_BASE =
   "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer";
 
 function luWmsTileUrl(layerName: string) {
-  return `${LU_WMS_BASE}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-4326}&CRS=EPSG:4326&WIDTH=512&HEIGHT=512&LAYERS=${layerName}&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE`;
+  return `${LU_WMS_BASE}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=512&HEIGHT=512&LAYERS=${layerName}&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE`;
 }
 
 const LU_OVERLAYS = {
