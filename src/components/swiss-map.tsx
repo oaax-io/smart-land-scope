@@ -687,17 +687,41 @@ export function SwissMap({
             Luftbild
           </button>
           {luToggleVisible && (
-            <button
-              type="button"
-              onClick={() => setShowLuZones((v) => !v)}
-              className={cn(
-                "px-2.5 py-1 text-xs font-medium transition-colors border-l",
-                showLuZones ? "bg-primary text-primary-foreground" : "hover:bg-accent",
-              )}
-              title="Zonenplan Kanton Luzern"
-            >
-              Zonen LU
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setShowLuZones((v) => !v)}
+                className={cn(
+                  "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                  showLuZones ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                )}
+                title="Zonenplan Kanton Luzern (Grundnutzung)"
+              >
+                Zonen LU
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLuBaulinien((v) => !v)}
+                className={cn(
+                  "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                  showLuBaulinien ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                )}
+                title="Baulinien Kanton Luzern"
+              >
+                Baulinien
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLuGefahren((v) => !v)}
+                className={cn(
+                  "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                  showLuGefahren ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                )}
+                title="Naturgefahren Kanton Luzern"
+              >
+                Gefahren
+              </button>
+            </>
           )}
         </div>
 
