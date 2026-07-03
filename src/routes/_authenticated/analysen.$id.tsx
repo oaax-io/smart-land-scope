@@ -258,6 +258,12 @@ function AnalysisDetailPage() {
             <KpiCard label="Max. Höhe" value={analysis.max_height ? `${analysis.max_height} m` : "—"} />
           </div>
 
+          {analysis.canton === "LU" && (
+            <LuZonePlanCard zoneResult={zoneResult} loading={zoneLoading} />
+          )}
+
+
+
           <DevelopmentScoreCard
             input={{
               zone: analysis.zone,
