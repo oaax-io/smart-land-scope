@@ -1407,6 +1407,77 @@ export type Database = {
           },
         ]
       }
+      zone_regulations: {
+        Row: {
+          attic_counted: boolean | null
+          basement_counted: boolean | null
+          canton_code: string
+          contributed_by: string | null
+          created_at: string
+          id: string
+          municipality_id: string
+          parking_rate: string | null
+          setback_building_m: number | null
+          setback_large_m: number | null
+          setback_road_local_m: number | null
+          setback_road_main_m: number | null
+          setback_small_m: number | null
+          source: string
+          source_article: string | null
+          updated_at: string
+          verified: boolean
+          zone_code: string
+        }
+        Insert: {
+          attic_counted?: boolean | null
+          basement_counted?: boolean | null
+          canton_code?: string
+          contributed_by?: string | null
+          created_at?: string
+          id?: string
+          municipality_id: string
+          parking_rate?: string | null
+          setback_building_m?: number | null
+          setback_large_m?: number | null
+          setback_road_local_m?: number | null
+          setback_road_main_m?: number | null
+          setback_small_m?: number | null
+          source?: string
+          source_article?: string | null
+          updated_at?: string
+          verified?: boolean
+          zone_code: string
+        }
+        Update: {
+          attic_counted?: boolean | null
+          basement_counted?: boolean | null
+          canton_code?: string
+          contributed_by?: string | null
+          created_at?: string
+          id?: string
+          municipality_id?: string
+          parking_rate?: string | null
+          setback_building_m?: number | null
+          setback_large_m?: number | null
+          setback_road_local_m?: number | null
+          setback_road_main_m?: number | null
+          setback_small_m?: number | null
+          source?: string
+          source_article?: string | null
+          updated_at?: string
+          verified?: boolean
+          zone_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zone_regulations_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
