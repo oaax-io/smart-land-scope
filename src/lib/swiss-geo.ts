@@ -516,34 +516,96 @@ const LU_BAUWEISE: Record<number, string> = {
   1: "offen", 2: "geschlossen", 3: "keine Bebauung", 99: "unbekannt",
 };
 
+export type LuZoneOverlay = {
+  label: string;
+  legalStatus: string | null;
+  bzrArticle: string | null;
+  validFrom: string | null;
+};
+
 export type LuZonePlanResult = {
+  /** Kurzcode der Gemeinde (z.B. "W3") — falls hinterlegt. */
   zoneCode: string | null;
+  /** Kantonale Bezeichnung (z.B. "Wohnzone bis 14m"). */
   zoneLabel: string | null;
+  /** Bezeichnung der Gemeinde (z.B. "3-geschossige Wohnzone"). */
+  zoneMunicipalityLabel: string | null;
+  /** Kategorie nach kantonalem PBG (z.B. "Wohnzone"). */
   zoneCategory: string | null;
-  az: number | null;
+  /** Rechtsstatus (z.B. "in Kraft"). */
+  legalStatus: string | null;
+
+  // --- PBG NEU (Überbauungsziffer / Gebäudehöhen) ---
   uezMax: number | null;
   uezMin: number | null;
-  floors: number | null;
   heightMax: number | null;
   heightMin: number | null;
   facadeHeightMax: number | null;
+  facadeHeightMin: number | null;
+  eavesHeight: number | null;
   buildingLength: number | null;
   buildingWidth: number | null;
   greenAreaRatio: number | null;
-  noiseClass: string | null;
+
+  // --- PBG ALT (Ausnützungsziffer / Geschosszahl) ---
+  az: number | null;
+  floors: number | null;
+
+  // --- Nutzungsanteile ---
   residentialShareMax: number | null;
+  residentialShareMin: number | null;
   commercialShareMax: number | null;
+  commercialShareMin: number | null;
+
+  // --- Allgemein ---
+  noiseClass: string | null;
   buildingType: string | null;
   bzrArticle: string | null;
   bzrFurther: string | null;
   validFrom: string | null;
+
+  /** Überlagernde Festsetzungen (Lärm-Aufstufung, Ortsbildschutz, Gestaltungspläne, …). */
+  overlays: LuZoneOverlay[];
+
   geometry: { type: "Polygon"; coordinates: number[][][] } | null;
   source: "lu_wfs";
 };
 
+/** Liest ein Attribut aus der LU-Antwort — akzeptiert deutsche Langnamen (aktuell) und alte Kurzcodes (fallback). */
+function luAttr(attrs: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const k of keys) {
+    if (k in attrs) return attrs[k];
+  }
+  return undefined;
+}
+
+function luNum(v: unknown): number | null {
+  if (v == null) return null;
+  const s = String(v).trim().replace(",", ".");
+  if (!s || s.toLowerCase() === "null") return null;
+  const n = Number(s);
+  return Number.isFinite(n) && n !== 0 ? n : null;
+}
+
+function luStr(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s || s.toLowerCase() === "null" || s === "0") return null;
+  return s;
+}
+
+/** "04.07.1997" → "1997-07-04". */
+function luDate(v: unknown): string | null {
+  const s = luStr(v);
+  if (!s) return null;
+  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return s;
+}
+
 /**
- * Fragt den offiziellen Luzerner Zonenplan (ZPGNDNTZ_V1_PY) per WGS84-Koordinate ab.
- * Nur für Kanton LU sinnvoll. Für andere Standorte kann null zurückkommen.
+ * Fragt den offiziellen Luzerner Zonenplan (ZONPLANX_COL_V3_MP) per WGS84-Koordinate ab.
+ * Liefert Grundnutzung + Überlagerungen. Nur für Kanton LU sinnvoll.
  */
 export async function queryLuZonePlan(lat: number, lng: number): Promise<LuZonePlanResult | null> {
   const url = new URL(
@@ -570,20 +632,27 @@ export async function queryLuZonePlan(lat: number, lng: number): Promise<LuZoneP
   const json = await res.json().catch(() => null);
   if (!json?.results?.length) return null;
 
-  const feature =
-    (json.results as any[]).find(
-      (r: any) =>
+  // Grundnutzung = Basisfeature (Layer 19 / "Grundnutzung").
+  const results = json.results as any[];
+  const base =
+    results.find(
+      (r) =>
         r.layerName?.toLowerCase?.().includes("grundnutzung") ||
         r.layerName?.includes?.("ZPGNDNTZ"),
-    ) ?? json.results[0];
-  if (!feature) return null;
+    ) ?? results[0];
+  if (!base) return null;
 
-  const a = feature.attributes ?? {};
-  if (a.RECHTSTAT != null && Number(a.RECHTSTAT) !== 4) return null;
+  const a: Record<string, unknown> = base.attributes ?? {};
+
+  // Nur "in Kraft" berücksichtigen — akzeptiert deutschen Text und alten Zahlencode 4.
+  const legalStatus = luStr(luAttr(a, "Rechtsstatus", "RECHTSTAT"));
+  const legalCode = Number(luAttr(a, "RECHTSTAT"));
+  if (legalStatus && !/kraft/i.test(legalStatus)) return null;
+  if (!legalStatus && Number.isFinite(legalCode) && legalCode !== 4) return null;
 
   let geometry: LuZonePlanResult["geometry"] = null;
-  if (feature.geometry?.rings) {
-    const rings: number[][][] = feature.geometry.rings;
+  if (base.geometry?.rings) {
+    const rings: number[][][] = base.geometry.rings;
     const firstCoord = rings[0]?.[0];
     if (firstCoord) {
       geometry =
@@ -593,41 +662,79 @@ export async function queryLuZonePlan(lat: number, lng: number): Promise<LuZoneP
     }
   }
 
-  const numOrNull = (v: unknown): number | null => {
-    if (v == null || v === "") return null;
-    const n = Number(v);
-    return !isNaN(n) && n !== 0 ? n : null;
-  };
-  const strOrNull = (v: unknown): string | null => {
-    if (v == null) return null;
-    const s = String(v).trim();
-    return s && s !== "0" && s.toLowerCase() !== "null" ? s : null;
-  };
+  const overlays: LuZoneOverlay[] = results
+    .filter((r) => r !== base)
+    .map((r) => {
+      const oa: Record<string, unknown> = r.attributes ?? {};
+      const label =
+        luStr(luAttr(oa, "Zonentyp Kanton", "ZONTYP_KT_BEZ")) ??
+        luStr(luAttr(oa, "Bezeichnung Zonentyp Gemeinde", "ZONTYP_BEZ")) ??
+        luStr(r.value) ??
+        luStr(r.layerName) ??
+        "Überlagerung";
+      return {
+        label,
+        legalStatus: luStr(luAttr(oa, "Rechtsstatus", "RECHTSTAT")),
+        bzrArticle: luStr(luAttr(oa, "Artikel im BZR", "BZR_ARTIKEL")),
+        validFrom: luDate(luAttr(oa, "Inkraftsetzungsdatum", "DATEOFVALID")),
+      };
+    })
+    .filter((o) => {
+      if (!o.legalStatus) return true;
+      return /kraft/i.test(o.legalStatus);
+    });
 
   return {
-    zoneCode: strOrNull(a.ZONTYP_ABK),
-    zoneLabel: strOrNull(a.ZONTYP_BEZ),
-    zoneCategory: LU_ZONTYP_KT[Number(a.ZONTYP_KT)] ?? null,
-    az: numOrNull(a.AZ),
-    uezMax: numOrNull(a.UEZ1_MAX),
-    uezMin: numOrNull(a.UEZ1_MIN),
-    floors: numOrNull(a.GESCHOSSZAHL),
-    heightMax: numOrNull(a.GESHOE_MAX),
-    heightMin: numOrNull(a.GESHOE_MIN),
-    facadeHeightMax: numOrNull(a.FAHOE_MAX),
-    buildingLength: numOrNull(a.GEBLAENGE),
-    buildingWidth: numOrNull(a.GEBBREITE),
-    greenAreaRatio: numOrNull(a.GRUENFLZI),
-    noiseClass: LU_LAERMEMPF[Number(a.LAERMEMPF)] ?? null,
-    residentialShareMax: numOrNull(a.WOHANT_MAX),
-    commercialShareMax: numOrNull(a.ARBANT_MAX),
-    buildingType: LU_BAUWEISE[Number(a.BAUWEISE)] ?? null,
-    bzrArticle: strOrNull(a.BZR_ARTIKEL),
-    bzrFurther: strOrNull(a.BZR_WEITERE),
-    validFrom: strOrNull(a.DATEOFVALID),
+    zoneCode:
+      luStr(luAttr(a, "Abkürzung Zonentyp Gemeinde", "ZONTYP_ABK")) ??
+      luStr(luAttr(a, "Zonentyp Gemeinde")),
+    zoneLabel:
+      luStr(luAttr(a, "Zonentyp Kanton", "ZONTYP_KT_BEZ")) ??
+      luStr(luAttr(a, "Zonentyp Planungs- und Baugesetz")),
+    zoneMunicipalityLabel: luStr(luAttr(a, "Bezeichnung Zonentyp Gemeinde", "ZONTYP_BEZ")),
+    zoneCategory:
+      luStr(luAttr(a, "Zonentyp Planungs- und Baugesetz")) ??
+      LU_ZONTYP_KT[Number(luAttr(a, "ZONTYP_KT"))] ??
+      null,
+    legalStatus,
+
+    uezMax: luNum(luAttr(a, "Überbauungsziffer 1 (maximal)", "UEZ1_MAX")),
+    uezMin: luNum(luAttr(a, "Überbauungsziffer 1 (minimal)", "UEZ1_MIN")),
+    heightMax: luNum(luAttr(a, "Gesamthöhe (maximal) [m]", "GESHOE_MAX")),
+    heightMin: luNum(luAttr(a, "Gesamthöhe (minimal) [m]", "GESHOE_MIN")),
+    facadeHeightMax: luNum(luAttr(a, "Fassadenhöhe (maximal) [m]", "FAHOE_MAX")),
+    facadeHeightMin: luNum(luAttr(a, "Fassadenhöhe (minimal) [m]")),
+    eavesHeight: luNum(luAttr(a, "Traufhöhe [m]")),
+    buildingLength: luNum(luAttr(a, "Gebäudelänge [m]", "GEBLAENGE")),
+    buildingWidth: luNum(luAttr(a, "Gebäudebreite [m]", "GEBBREITE")),
+    greenAreaRatio: luNum(luAttr(a, "Grünflächenziffer", "GRUENFLZI")),
+
+    az: luNum(luAttr(a, "Ausnützungsziffer (nach altem PBG)", "AZ")),
+    floors: luNum(luAttr(a, "Geschosszahl (nach altem PBG)", "GESCHOSSZAHL")),
+
+    residentialShareMax: luNum(luAttr(a, "Wohnanteil (maximal)", "WOHANT_MAX")),
+    residentialShareMin: luNum(luAttr(a, "Wohnanteil (minimal)")),
+    commercialShareMax: luNum(luAttr(a, "Arbeitsanteil (maximal)", "ARBANT_MAX")),
+    commercialShareMin: luNum(luAttr(a, "Arbeitsanteil (minimal)")),
+
+    noiseClass:
+      luStr(luAttr(a, "Lärmempfindlichkeitsstufe (ES)")) ??
+      LU_LAERMEMPF[Number(luAttr(a, "LAERMEMPF"))] ??
+      null,
+    buildingType: (() => {
+      const s = luStr(luAttr(a, "Bauweise"));
+      if (s && s.toLowerCase() !== "unbekannt") return s;
+      return LU_BAUWEISE[Number(luAttr(a, "BAUWEISE"))] ?? null;
+    })(),
+    bzrArticle: luStr(luAttr(a, "Artikel im BZR", "BZR_ARTIKEL")),
+    bzrFurther: luStr(luAttr(a, "Weitere Bestimmungen im BZR", "BZR_WEITERE")),
+    validFrom: luDate(luAttr(a, "Inkraftsetzungsdatum", "DATEOFVALID")),
+
+    overlays,
     geometry,
     source: "lu_wfs",
   };
 }
+
 
 
