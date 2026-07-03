@@ -54,7 +54,30 @@ export type SwissGeoSearchResult = {
   lng: number;
   zoomLevel: number;
   origin: string;
+  /** Aus dem Suchergebnis geparste Adresse (falls verfügbar) — verlässlicher als die spätere GWR-Rückwärtssuche. */
+  address: string | null;
+  postalCode: string | null;
+  municipality: string | null;
 };
+
+/** Zerlegt swisstopo-Label wie "Rothenburgstrasse 33 <b>6020 Emmenbrücke</b>" in Adresse / PLZ / Ort. */
+function parseSwisstopoAddressLabel(rawLabel: string, origin: string): {
+  address: string | null;
+  postalCode: string | null;
+  municipality: string | null;
+} {
+  const plain = rawLabel.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  if (origin !== "address") {
+    return { address: null, postalCode: null, municipality: null };
+  }
+  const m = plain.match(/^(.*?)\s+(\d{4})\s+(.+?)$/);
+  if (!m) return { address: plain || null, postalCode: null, municipality: null };
+  return {
+    address: m[1].trim() || null,
+    postalCode: m[2],
+    municipality: m[3].trim() || null,
+  };
+}
 
 export async function searchSwissLocation(query: string): Promise<SwissGeoSearchResult[]> {
   if (query.trim().length < 2) return [];
@@ -70,17 +93,20 @@ export async function searchSwissLocation(query: string): Promise<SwissGeoSearch
   const json = await res.json();
 
   return (json.results ?? []).map((r: any) => {
-    // swisstopo SearchServer liefert lat/lon direkt als WGS84 – verlässlicher als x/y,
-    // weil dort in LV95 die Reihenfolge x=North/y=East vertauscht ist.
     const lat = typeof r.attrs.lat === "number" ? r.attrs.lat : null;
     const lng = typeof r.attrs.lon === "number" ? r.attrs.lon : null;
+    const origin = r.attrs.origin ?? "";
+    const parsed = parseSwisstopoAddressLabel(r.attrs.label ?? "", origin);
     return {
       label: r.attrs.label,
       featureId: r.attrs.featureId ?? null,
       lat: lat ?? lv95ToWgs84(r.attrs.y, r.attrs.x).lat,
       lng: lng ?? lv95ToWgs84(r.attrs.y, r.attrs.x).lng,
       zoomLevel: r.attrs.zoomlevel ?? 16,
-      origin: r.attrs.origin,
+      origin,
+      address: parsed.address,
+      postalCode: parsed.postalCode,
+      municipality: parsed.municipality,
     };
   });
 }
