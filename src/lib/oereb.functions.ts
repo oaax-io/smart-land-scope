@@ -30,7 +30,7 @@ export const loadOEREBData = createServerFn({ method: "POST" })
     const lat = analysis.lat as number | null;
     const lng = analysis.lng as number | null;
     if (lat == null || lng == null) {
-      return { topics: [], note: "Keine Koordinaten vorhanden — ÖREB-Abfrage nicht möglich." };
+      return { topics: [], note: "Keine Koordinaten vorhanden — ÖREB-Abfrage nicht möglich.", hasPlanungszone: false };
     }
 
     const topics = await fetchOEREBTopics(lat, lng);
