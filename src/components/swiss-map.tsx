@@ -878,6 +878,16 @@ export function SwissMap({
         </div>
       )}
 
+      {(showLuZones || showLuBaulinien || showLuGefahren) && (
+        <LuLegend
+          zones={showLuZones}
+          baulinien={showLuBaulinien}
+          gefahren={showLuGefahren}
+        />
+      )}
+
+
+
 
 
       {mode === "interactive" && (
