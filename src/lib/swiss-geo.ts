@@ -303,20 +303,30 @@ export async function identifyParcelAt(
     if (computed > 0) areaM2 = Math.round(computed);
   }
 
-  // 2) Nächstgelegene Gebäudeadresse: wichtig bei direktem Klick in die Karte
-  const addressResults = await identifyAt("all:ch.bfs.gebaeude_wohnungs_register", lng, lat, 25);
-  const addressAttrs = addressResults?.[0]?.attributes ?? {};
-  const streetName = cleanString(addressAttrs.strname);
-  const houseNumber = cleanString(addressAttrs.deinr);
-  const composedAddress = [streetName, houseNumber].filter(Boolean).join(" ").trim();
-  const address =
-    cleanString(addressAttrs.strname_deinr) ??
-    (composedAddress || null);
-  const postalCode = normalizePostalCode(addressAttrs.dplz4 ?? addressAttrs.plz_plz6);
-  municipality = municipality ?? cleanString(addressAttrs.ggdename ?? addressAttrs.dplzname);
-  canton = canton ?? normalizeCanton(addressAttrs.gdekt ?? addressAttrs.kanton);
-  parcelNumber = parcelNumber ?? cleanString(addressAttrs.lparz);
-  egrid = egrid ?? cleanString(addressAttrs.egrid);
+  // 2) Adresse — Overrides aus der Suche haben Vorrang (verlässlicher als GWR-Nachbar-Lookup),
+  //    sonst nächstgelegene Gebäudeadresse mit enger Toleranz.
+  const overrideAddress = cleanString(overrides?.address);
+  const overridePostal = normalizePostalCode(overrides?.postalCode);
+  const overrideMunicipality = cleanString(overrides?.municipality);
+
+  let address: string | null = overrideAddress;
+  let postalCode: string | null = overridePostal;
+
+  if (!address || !postalCode || !municipality || !canton || !parcelNumber || !egrid) {
+    const addressResults = await identifyAt("all:ch.bfs.gebaeude_wohnungs_register", lng, lat, 5);
+    const addressAttrs = addressResults?.[0]?.attributes ?? {};
+    const streetName = cleanString(addressAttrs.strname);
+    const houseNumber = cleanString(addressAttrs.deinr);
+    const composedAddress = [streetName, houseNumber].filter(Boolean).join(" ").trim();
+    address = address ?? cleanString(addressAttrs.strname_deinr) ?? (composedAddress || null);
+    postalCode = postalCode ?? normalizePostalCode(addressAttrs.dplz4 ?? addressAttrs.plz_plz6);
+    municipality = municipality ?? cleanString(addressAttrs.ggdename ?? addressAttrs.dplzname);
+    canton = canton ?? normalizeCanton(addressAttrs.gdekt ?? addressAttrs.kanton);
+    parcelNumber = parcelNumber ?? cleanString(addressAttrs.lparz);
+    egrid = egrid ?? cleanString(addressAttrs.egrid);
+  }
+
+  municipality = municipality ?? overrideMunicipality;
 
   // 3) Fallback: Gemeinde- und Kantons-Grenzen (immer abfragen, wenn etwas fehlt)
   if (!municipality || !canton) {
