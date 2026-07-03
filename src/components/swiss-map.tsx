@@ -901,8 +901,64 @@ export function SwissMap({
   );
 }
 
-function luLegendUrl(layerName: string) {
-  return `${LU_WMS_BASE}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetLegendGraphic&LAYER=${layerName}&FORMAT=image/png&TRANSPARENT=TRUE`;
+type LegendItem = { color: string; label: string; border?: string; pattern?: "hatch" | "dashed" };
+
+const LU_ZONE_LEGEND: LegendItem[] = [
+  { color: "#f7c88a", label: "Wohnzone (W)" },
+  { color: "#f0a860", label: "Wohn- & Arbeitszone (WA)" },
+  { color: "#e88a5a", label: "Arbeitszone (A)", border: "#a04020" },
+  { color: "#c96b4a", label: "Kern-/Dorfzone (K/D)" },
+  { color: "#c8322a", label: "Zentrumszone (Ze)" },
+  { color: "#a066c8", label: "Sonderbauzone" },
+  { color: "#b8b8b8", label: "Zone für öffentliche Zwecke (öB)" },
+  { color: "#b7d78c", label: "Grün-/Freihaltezone" },
+  { color: "#e8e070", label: "Landwirtschaftszone" },
+  { color: "#ffffff", label: "Reservezone", border: "#666", pattern: "hatch" },
+];
+
+const LU_BAULINIEN_LEGEND: LegendItem[] = [
+  { color: "#e11d48", label: "Baulinie" },
+  { color: "#111827", label: "Strassenlinie" },
+  { color: "#6b7280", label: "Gestaltungslinie", pattern: "dashed" },
+];
+
+const LU_GEFAHREN_LEGEND: LegendItem[] = [
+  { color: "#dc2626", label: "Erhebliche Gefährdung" },
+  { color: "#2563eb", label: "Mittlere Gefährdung" },
+  { color: "#eab308", label: "Geringe Gefährdung" },
+  { color: "#fde68a", label: "Restgefährdung", pattern: "hatch" },
+];
+
+function LegendSwatch({ item }: { item: LegendItem }) {
+  const style: React.CSSProperties = { backgroundColor: item.color };
+  if (item.border) style.border = `1px solid ${item.border}`;
+  else style.border = "1px solid rgba(0,0,0,0.15)";
+  if (item.pattern === "hatch") {
+    style.backgroundImage =
+      "repeating-linear-gradient(45deg, rgba(0,0,0,0.35) 0 2px, transparent 2px 5px)";
+  } else if (item.pattern === "dashed") {
+    style.backgroundImage =
+      "repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 8px)";
+    style.color = item.color;
+    style.backgroundColor = "transparent";
+  }
+  return <span className="inline-block h-3 w-4 shrink-0 rounded-sm" style={style} />;
+}
+
+function LegendColumn({ title, items }: { title: string; items: LegendItem[] }) {
+  return (
+    <div className="min-w-[180px] flex-1 space-y-1.5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <ul className="space-y-1">
+        {items.map((it) => (
+          <li key={it.label} className="flex items-center gap-2 text-xs">
+            <LegendSwatch item={it} />
+            <span className="truncate">{it.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function LuLegend({
@@ -914,32 +970,25 @@ function LuLegend({
   baulinien: boolean;
   gefahren: boolean;
 }) {
-  const items: Array<{ key: string; title: string; layer: string }> = [];
-  if (zones) items.push({ key: "zones", title: "Zonenplan", layer: LU_OVERLAYS.zones.layer });
-  if (baulinien) items.push({ key: "baulinien", title: "Baulinien", layer: LU_OVERLAYS.baulinien.layer });
-  if (gefahren) items.push({ key: "gefahren", title: "Naturgefahren", layer: LU_OVERLAYS.gefahren.layer });
+  const cols: Array<{ key: string; title: string; items: LegendItem[] }> = [];
+  if (zones) cols.push({ key: "z", title: "Zonenplan", items: LU_ZONE_LEGEND });
+  if (baulinien) cols.push({ key: "b", title: "Baulinien", items: LU_BAULINIEN_LEGEND });
+  if (gefahren) cols.push({ key: "g", title: "Naturgefahren", items: LU_GEFAHREN_LEGEND });
 
   return (
     <details className="rounded-md border bg-card">
       <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm font-medium hover:bg-accent/40">
-        <span>Legende — Kanton Luzern ({items.length})</span>
-        <span className="text-[10px] text-muted-foreground">Quelle: geo.lu.ch</span>
+        <span>Legende — Kanton Luzern ({cols.length})</span>
+        <span className="text-[10px] text-muted-foreground">Vereinfachte Darstellung · Quelle: geo.lu.ch</span>
       </summary>
-      <div className="flex flex-wrap gap-4 border-t p-3">
-        {items.map((it) => (
-          <div key={it.key} className="min-w-0 flex-1 space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">{it.title}</p>
-            <img
-              src={luLegendUrl(it.layer)}
-              alt={`Legende ${it.title}`}
-              className="max-h-64 rounded border bg-white p-2"
-              loading="lazy"
-            />
-          </div>
+      <div className="flex flex-wrap gap-6 border-t p-3">
+        {cols.map((c) => (
+          <LegendColumn key={c.key} title={c.title} items={c.items} />
         ))}
       </div>
     </details>
   );
 }
+
 
 
