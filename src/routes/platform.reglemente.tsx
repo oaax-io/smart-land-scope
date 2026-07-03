@@ -32,6 +32,11 @@ import {
 } from "lucide-react";
 import { extractRegulationDocument } from "@/lib/regulation-extract.functions";
 import { startLuFillJob, cancelJob, getActiveLuJob } from "@/lib/background-jobs.functions";
+import {
+  initLuImportLog as initLuImportLogFn,
+  processNextLuBatch as processNextLuBatchFn,
+  getLuImportStats as getLuImportStatsFn,
+} from "@/lib/platform-admin.functions";
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
