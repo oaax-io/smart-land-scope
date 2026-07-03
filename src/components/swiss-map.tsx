@@ -391,16 +391,17 @@ export function SwissMap({
     lat: number,
     lng: number,
     fallbackAddress: string | null,
+    overrides?: { address?: string | null; postalCode?: string | null; municipality?: string | null },
   ) {
     setIdentifying(true);
     try {
-      const parcel: SwissParcelInfo | null = await identifyParcelAt(lng, lat);
+      const parcel: SwissParcelInfo | null = await identifyParcelAt(lng, lat, overrides);
       onParcelSelected?.({
         lat,
         lng,
-        address: parcel?.address ?? fallbackAddress,
-        postalCode: parcel?.postalCode ?? null,
-        municipality: parcel?.municipality ?? null,
+        address: parcel?.address ?? overrides?.address ?? fallbackAddress,
+        postalCode: parcel?.postalCode ?? overrides?.postalCode ?? null,
+        municipality: parcel?.municipality ?? overrides?.municipality ?? null,
         canton: parcel?.canton ?? null,
         parcelNumber: parcel?.parcelNumber ?? null,
         egrid: parcel?.egrid ?? null,
@@ -412,9 +413,9 @@ export function SwissMap({
       onParcelSelected?.({
         lat,
         lng,
-        address: fallbackAddress,
-        postalCode: null,
-        municipality: null,
+        address: overrides?.address ?? fallbackAddress,
+        postalCode: overrides?.postalCode ?? null,
+        municipality: overrides?.municipality ?? null,
         canton: null,
         parcelNumber: null,
         egrid: null,
@@ -432,8 +433,12 @@ export function SwissMap({
     setSearchResults([]);
     setSearchQuery(cleanLabel);
     setMarker({ lat: r.lat, lng: r.lng });
-    setViewState({ longitude: r.lng, latitude: r.lat, zoom: 17 });
-    await resolveParcelAt(r.lat, r.lng, cleanLabel);
+    setViewState({ longitude: r.lng, latitude: r.lat, zoom: 18 });
+    await resolveParcelAt(r.lat, r.lng, cleanLabel, {
+      address: r.address,
+      postalCode: r.postalCode,
+      municipality: r.municipality,
+    });
   }
 
   async function handleMapClick(e: { lngLat: { lng: number; lat: number } }) {
