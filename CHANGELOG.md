@@ -5,6 +5,30 @@ Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0
 
 ## [Unreleased]
 
+## [1.5.0] – 2026-07-03 — Bereinigung, LU-Fokus & Karten-Overlays
+
+### Hinzugefügt
+- **Neue Analyse-Detailseite** (`analysen.$id.tsx`) mit 4 Tabs: Übersicht, Rechtliches, Projekt, Bericht. Rohdaten- und Debug-Panels entfernt; Bericht in `src/components/analysis-report.tsx` konsolidiert.
+- **Sidebar-Neustrukturierung** (`src/components/app-sidebar.tsx`): 8 Hauptpunkte, „Wissensdatenbank" → **Gemeinden**.
+- **Automatischer LU-BZR-Import**: neue Tabelle `lu_bzr_import_log`, serverseitiger Batch-Prozessor `processNextLuImportBatch` und `initLuImportLog` in `src/lib/lu-bzr-import.server.ts`, Admin-Panel `LuAutoImportPanel` in `/platform/reglemente`. Endpunkt in `src/server.ts` löst den alten `/api/cron/lu-tick` ab.
+- **Karten-Overlays Luzern** (`src/components/swiss-map.tsx`): Zonenplan (`ZPGNDNTZ_V1_PY`), Baulinien (`ZPBAULIN_V1_LI`) und Naturgefahren (`ZPNATGEF_V1_PY`) via offiziellem LU-WMS-Endpunkt (`ZONPLANX_COL_V3_MP/MapServer/WMSServer`, EPSG:3857).
+
+### Geändert
+- **MapLibre-Style** wird nun via `useMemo` erzeugt; alle Sources/Layers (Kantone, ausgewählte Parzelle, Baufeld, LU-Overlays) sind direkt Teil des Style-Objekts. Layer-Toggles reagieren dadurch sofort.
+- **WFS-Injektion**: rechtsverbindliche LU-Zonenplan-Daten fliessen konsequent in den KI-Prompt (`analyze-knowledge.functions.ts`).
+- **Neue Analyse**-Buttons unter `/analysen` verweisen jetzt auf die Schnellsuche im Dashboard.
+
+### Entfernt
+- `src/lib/analyze.functions.ts`, `src/lib/regulation-comparison.functions.ts`, `src/lib/regulation-comparison.inline.ts`, `src/lib/lu-fill-tick.server.ts`
+- `src/components/regulation-comparison-card.tsx`, `src/components/zone-regulations-panel.tsx`
+- Routen `src/routes/_authenticated/berichte.tsx`, `src/routes/_authenticated/analysen.neu.tsx`
+
+### Behoben
+- Layer-Toggles auf `/analysen/karte` blieben wirkungslos, weil `react-map-gl`-`<Source>`/`<Layer>` unter React 19 die Style-Diffs blockierten — jetzt behoben durch direkte Style-Komposition.
+- LU-WMS-Layer verwendeten fehlerhafte Layer-Namen; über GetCapabilities verifizierte numerische Indizes ersetzt.
+
+## [1.4.0] – 2026-07-03
+
 ### Hinzugefügt
 - **Luzerner Zonenplan-Integration (GEO-1)**: offizieller LU-Geodatendienst (ESRI MapServer Identify) via `queryLuZonePlan` (`src/lib/swiss-geo.ts`). `loadLuZonePlanForAnalysis` (`src/lib/lu-zoneplan.functions.ts`) persistiert Zonenname, AZ, ÜZ, Gebäude-/Gesamthöhe und Geschosszahl auf der Analyse. Werte fliessen in den KI-Prompt (`analyze-knowledge.functions.ts`) ein. Neuer WMS-Overlay-Toggle (`ZPGNDNTZ_V1_PY`) auf der Karte, gesteuert über die neue `canton`-Prop von `swiss-map.tsx`.
 - **BZR-Versionsvergleich**: `regulation_snapshots`-Tabelle plus `RegulationComparisonCard` zeigt altes vs. neues Reglement in Analyse-Detail und Bericht.

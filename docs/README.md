@@ -20,19 +20,21 @@ src/
     _authenticated/          Geschützter Bereich
       dashboard.tsx          KPIs, letzte Analysen, Quick-Analysis-Modal
       analysen.tsx           Liste + Eingabe
-      analysen.$id.tsx       Detailansicht einer Analyse
-      analysen.karte.tsx     Interaktive Karte mit Kanton-Filter
+      analysen.$id.tsx       Detailansicht mit 4 Tabs (Übersicht, Rechtliches, Projekt, Bericht)
+      analysen.karte.tsx     Interaktive Karte mit Kanton-Filter und LU-Overlays
       projekte.tsx           Projektübersicht
-      berichte.tsx           Berichte
+      gemeinden.tsx          Regionen-/Reglemente-Übersicht (ehem. Wissensdatenbank)
       team.tsx               Mitglieder & Einladungen
       einstellungen.tsx      Profil, Org, Abo
+      dokumentation.tsx      Changelog & Versionshistorie
 
       feedback.index.tsx       Feedback-Liste mit Autor-Namen
-      platform.reglemente.tsx  BZR-Reglemente, Hintergrund-Jobs
+      platform.reglemente.tsx  BZR-Reglemente, Hintergrund-Jobs, LU-Auto-Import
       platform.regionen.tsx    Kantone/Gemeinden aktivieren
 
   components/
-    swiss-map.tsx                  MapLibre-Karte, Hover, Baufeld
+    swiss-map.tsx                  MapLibre-Karte (memoisierter Style), LU-Overlays (Zonen, Baulinien, Gefahren)
+    analysis-report.tsx            Konsolidierter Machbarkeitsbericht (Conea-Format)
     quick-analysis-modal.tsx       Analyse-Wizard im Dashboard
     rechtliche-grundlagen-table.tsx Conea-Format Kennzahlentabelle
     oereb-topics-table.tsx         ÖREB-Themen pro EGRID
@@ -52,6 +54,7 @@ src/
     analyze-scenario.functions.ts   Szenario-Berechnung
     regulation-extract.server.ts    BZR-Extraktion (erweitertes ZoneSchema)
     background-jobs.functions.ts    Hintergrund-Job-Queue (pg_cron Tick)
+    lu-bzr-import.server.ts         Automatischer LU-BZR-Import (Batch-Prozessor + Log)
 ```
 
 ## Kanton-Geodaten

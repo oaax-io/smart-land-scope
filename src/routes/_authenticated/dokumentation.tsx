@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/dokumentation")({
   component: DocsPage,
 });
 
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.5.0";
 const APP_STAGE = "Beta";
 
 type Change = {
@@ -37,6 +37,21 @@ type Release = {
 };
 
 const RELEASES: Release[] = [
+  {
+    version: "1.5.0",
+    date: "2026-07-03",
+    title: "Bereinigung, LU-Fokus & Karten-Overlays",
+    changes: [
+      { type: "Neu", text: "Neue Analyse-Detailseite mit 4 Tabs: Übersicht, Rechtliches, Projekt, Bericht — Rohdaten- und Debug-Karten entfernt" },
+      { type: "Neu", text: "Sidebar auf 8 Hauptpunkte reduziert; 'Wissensdatenbank' heisst neu 'Gemeinden'" },
+      { type: "Neu", text: "Automatischer BZR-Import Luzern: `lu_bzr_import_log`-Tabelle plus serverseitiger Batch-Prozessor (`processNextLuImportBatch`) mit Admin-Panel unter `/platform/reglemente`" },
+      { type: "Neu", text: "Karten-Overlays für Luzern: Zonenplan (`ZPGNDNTZ_V1_PY`), Baulinien (`ZPBAULIN_V1_LI`) und Naturgefahren (`ZPNATGEF_V1_PY`) via offiziellem LU-WMS" },
+      { type: "Verbessert", text: "MapLibre-Style wird memoisiert und Sources/Layers direkt im Style-Objekt erzeugt — Layer-Toggles (Luftbild, Zonen, Baulinien, Gefahren) reagieren jetzt sofort" },
+      { type: "Verbessert", text: "WFS-Daten aus dem LU-Zonenplan werden verbindlich in den KI-Prompt injiziert" },
+      { type: "Behoben", text: "Toggle-Buttons auf `/analysen/karte` hatten aufgrund React-19-Inkompatibilität von `react-map-gl` keinen sichtbaren Effekt" },
+      { type: "Behoben", text: "Doppelfunktionen entfernt: `analyze.functions.ts`, `regulation-comparison`, `zone-regulations-panel`, Routen `berichte` und `analysen.neu`" },
+    ],
+  },
   {
     version: "1.4.0",
     date: "2026-07-03",
