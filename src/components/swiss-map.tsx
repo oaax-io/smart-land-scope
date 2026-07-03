@@ -2,8 +2,6 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Map, {
   Marker,
   NavigationControl,
-  Source,
-  Layer,
   type MapRef,
 } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -50,7 +48,7 @@ const LU_WMS_BASE =
   "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer";
 
 function luWmsTileUrl(layerName: string) {
-  return `${LU_WMS_BASE}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=512&HEIGHT=512&LAYERS=${layerName}&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE`;
+  return `${LU_WMS_BASE}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-4326}&CRS=EPSG:4326&WIDTH=512&HEIGHT=512&LAYERS=${layerName}&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE`;
 }
 
 const LU_OVERLAYS = {
@@ -63,8 +61,17 @@ type LuOverlayKey = keyof typeof LU_OVERLAYS;
 
 function buildMapStyle(
   base: "cadastral" | "aerial",
-  luOverlays: Record<LuOverlayKey, boolean> = { zones: false, baulinien: false, gefahren: false },
+  options: {
+    luOverlays?: Record<LuOverlayKey, boolean>;
+    showCantons?: boolean;
+    cantonsData?: unknown | null;
+    selectedCantonNum?: number | null;
+    selectedParcelFC?: unknown | null;
+    buildableField?: unknown | null;
+    hoverFC?: unknown | null;
+  } = {},
 ) {
+  const luOverlays = options.luOverlays ?? { zones: false, baulinien: false, gefahren: false };
   const baseTiles =
     base === "aerial"
       ? "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg"
@@ -111,6 +118,113 @@ function buildMapStyle(
       paint: { "raster-opacity": cfg.opacity },
     });
   });
+
+  if (options.showCantons && options.cantonsData) {
+    const selectedNum = options.selectedCantonNum ?? null;
+    const fadeStops = (full: number) => ["interpolate", ["linear"], ["zoom"], 11, full, 14, 0];
+    const cantonFillColor: any = ["match", ["get", "KANTONSNUM"], ...CANTON_COLOR_MATCH, "#999999"];
+    const cantonFillOpacity: any =
+      selectedNum != null
+        ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], fadeStops(0.45), fadeStops(0.18)]
+        : fadeStops(0.28);
+    const cantonLineColor: any =
+      selectedNum != null
+        ? [
+            "case",
+            ["==", ["get", "KANTONSNUM"], selectedNum],
+            "#111111",
+            "rgba(60,60,60,0.6)",
+          ]
+        : "rgba(40,40,40,0.7)";
+    const cantonLineWidth: any =
+      selectedNum != null
+        ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 2.5, 0.6]
+        : 0.8;
+    const dimOpacity: any =
+      selectedNum != null
+        ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 0, fadeStops(0.35)]
+        : 0;
+
+    sources.cantons = {
+      type: "geojson" as const,
+      data: options.cantonsData,
+    };
+    layers.push(
+      {
+        id: "cantons-fill",
+        type: "fill" as const,
+        source: "cantons",
+        paint: { "fill-color": cantonFillColor, "fill-opacity": cantonFillOpacity },
+      },
+      {
+        id: "cantons-dim",
+        type: "fill" as const,
+        source: "cantons",
+        paint: { "fill-color": "#0b0f17", "fill-opacity": dimOpacity },
+      },
+      {
+        id: "cantons-line",
+        type: "line" as const,
+        source: "cantons",
+        paint: { "line-color": cantonLineColor, "line-width": cantonLineWidth },
+      },
+    );
+  }
+
+  if (options.buildableField) {
+    sources["buildable-field"] = {
+      type: "geojson" as const,
+      data: options.buildableField,
+    };
+    layers.push(
+      {
+        id: "buildable-field-fill",
+        type: "fill" as const,
+        source: "buildable-field",
+        paint: { "fill-color": "#10b981", "fill-opacity": 0.25 },
+      },
+      {
+        id: "buildable-field-line",
+        type: "line" as const,
+        source: "buildable-field",
+        paint: { "line-color": "#059669", "line-width": 2, "line-dasharray": [2, 2] },
+      },
+    );
+  }
+
+  if (options.selectedParcelFC) {
+    sources["parcel-selected"] = {
+      type: "geojson" as const,
+      data: options.selectedParcelFC,
+    };
+    layers.push({
+      id: "parcel-selected-line",
+      type: "line" as const,
+      source: "parcel-selected",
+      paint: { "line-color": "#0ea5e9", "line-width": 2.5 },
+    });
+  }
+
+  if (options.hoverFC) {
+    sources["parcel-hover"] = {
+      type: "geojson" as const,
+      data: options.hoverFC,
+    };
+    layers.push(
+      {
+        id: "parcel-hover-fill",
+        type: "fill" as const,
+        source: "parcel-hover",
+        paint: { "fill-color": "#fde047", "fill-opacity": 0.28 },
+      },
+      {
+        id: "parcel-hover-line",
+        type: "line" as const,
+        source: "parcel-hover",
+        paint: { "line-color": "#f59e0b", "line-width": 2.5 },
+      },
+    );
+  }
 
   return { version: 8 as const, sources, layers };
 }
@@ -186,16 +300,6 @@ export function SwissMap({
   const [showLuZones, setShowLuZones] = useState(false);
   const [showLuBaulinien, setShowLuBaulinien] = useState(false);
   const [showLuGefahren, setShowLuGefahren] = useState(false);
-
-  const mapStyle = useMemo(
-    () =>
-      buildMapStyle(baseLayer, {
-        zones: luToggleVisible && showLuZones,
-        baulinien: luToggleVisible && showLuBaulinien,
-        gefahren: luToggleVisible && showLuGefahren,
-      }),
-    [baseLayer, luToggleVisible, showLuZones, showLuBaulinien, showLuGefahren],
-  );
 
   const mapRef = useRef<MapRef | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -455,45 +559,37 @@ export function SwissMap({
     </div>
   );
 
-  // Maplibre expressions for the canton overlay.
-  // When a canton is selected, that canton is shown at higher opacity,
-  // the rest is dimmed (lower opacity + dark tint).
   const selectedNum = cantonFilter !== "all" ? CANTON_BY_CODE.get(cantonFilter)?.num : null;
 
-  // Beim Hineinzoomen das Kanton-Overlay ausblenden, damit der Fokus auf
-  // der Parzelle liegt und keine flächige Einfärbung über der Stadt liegt.
-  // Vollständig sichtbar bis Zoom 11, linear ausblenden bis Zoom 14.
-  const fadeStops = (full: number) => [
-    "interpolate",
-    ["linear"],
-    ["zoom"],
-    11, full,
-    14, 0,
-  ];
-
-  const cantonFillColor: any = ["match", ["get", "KANTONSNUM"], ...CANTON_COLOR_MATCH, "#999999"];
-  const cantonFillOpacity: any =
-    selectedNum != null
-      ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], fadeStops(0.45), fadeStops(0.18)]
-      : fadeStops(0.28);
-  const cantonLineColor: any =
-    selectedNum != null
-      ? [
-          "case",
-          ["==", ["get", "KANTONSNUM"], selectedNum],
-          "#111111",
-          "rgba(60,60,60,0.6)",
-        ]
-      : "rgba(40,40,40,0.7)";
-  const cantonLineWidth: any =
-    selectedNum != null
-      ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 2.5, 0.6]
-      : 0.8;
-  // Dim overlay for non-selected cantons (auch ausblenden beim Zoomen)
-  const dimOpacity: any =
-    selectedNum != null
-      ? ["case", ["==", ["get", "KANTONSNUM"], selectedNum], 0, fadeStops(0.35)]
-      : 0;
+  const mapStyle = useMemo(
+    () =>
+      buildMapStyle(baseLayer, {
+        luOverlays: {
+          zones: luToggleVisible && showLuZones,
+          baulinien: luToggleVisible && showLuBaulinien,
+          gefahren: luToggleVisible && showLuGefahren,
+        },
+        showCantons,
+        cantonsData,
+        selectedCantonNum: selectedNum ?? null,
+        selectedParcelFC,
+        buildableField,
+        hoverFC,
+      }),
+    [
+      baseLayer,
+      luToggleVisible,
+      showLuZones,
+      showLuBaulinien,
+      showLuGefahren,
+      showCantons,
+      cantonsData,
+      selectedNum,
+      selectedParcelFC,
+      buildableField,
+      hoverFC,
+    ],
+  );
 
 
   return (
@@ -519,82 +615,6 @@ export function SwissMap({
           style={{ width: "100%", height: "100%" }}
         >
           <NavigationControl position="top-right" showCompass={false} />
-
-          {hoverFC && (
-            <Source id="parcel-hover" type="geojson" data={hoverFC as any}>
-              <Layer
-                id="parcel-hover-fill"
-                type="fill"
-                paint={{
-                  "fill-color": "#fde047",
-                  "fill-opacity": 0.28,
-                }}
-              />
-              <Layer
-                id="parcel-hover-line"
-                type="line"
-                paint={{
-                  "line-color": "#f59e0b",
-                  "line-width": 2.5,
-                }}
-              />
-            </Source>
-          )}
-
-
-          {showCantons && cantonsData && (
-            <Source id="cantons" type="geojson" data={cantonsData as any}>
-              <Layer
-                id="cantons-fill"
-                type="fill"
-                paint={{
-                  "fill-color": cantonFillColor,
-                  "fill-opacity": cantonFillOpacity,
-                }}
-              />
-              <Layer
-                id="cantons-dim"
-                type="fill"
-                paint={{
-                  "fill-color": "#0b0f17",
-                  "fill-opacity": dimOpacity,
-                }}
-              />
-              <Layer
-                id="cantons-line"
-                type="line"
-                paint={{
-                  "line-color": cantonLineColor,
-                  "line-width": cantonLineWidth,
-                }}
-              />
-            </Source>
-          )}
-
-          {selectedParcelFC && (
-            <Source id="parcel-selected" type="geojson" data={selectedParcelFC as any}>
-              <Layer
-                id="parcel-selected-line"
-                type="line"
-                paint={{ "line-color": "#0ea5e9", "line-width": 2.5 }}
-              />
-            </Source>
-          )}
-          {buildableField && (
-            <Source id="buildable-field" type="geojson" data={buildableField as any}>
-              <Layer
-                id="buildable-field-fill"
-                type="fill"
-                paint={{ "fill-color": "#10b981", "fill-opacity": 0.25 }}
-              />
-              <Layer
-                id="buildable-field-line"
-                type="line"
-                paint={{ "line-color": "#059669", "line-width": 2, "line-dasharray": [2, 2] }}
-              />
-            </Source>
-          )}
-
 
           {marker && (
             <Marker longitude={marker.lng} latitude={marker.lat} anchor="bottom">
