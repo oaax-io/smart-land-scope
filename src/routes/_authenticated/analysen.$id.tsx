@@ -293,27 +293,32 @@ function AnalysisDetailPage() {
           {(() => {
             const luZone = zoneResult && zoneResult.ok === true ? zoneResult.zone : null;
             const zoneColor = luZone ? zoneCategoryColor(luZone.zoneCategory) : null;
-            // Prefer authoritative LU value; fall back to AI. Show ÜZ when zone has no AZ but has ÜZ.
+            // Prefer authoritative LU value; fall back to AI. Show BOTH AZ and ÜZ always.
             const az = luZone?.az ?? (analysis.utilization_ratio as number | null);
             const uez = luZone?.uezMax ?? (analysis.building_coverage_ratio as number | null);
-            const showUez = (az == null || az === 0) && uez != null;
-            const ratioLabel = showUez ? "Überbauungsziffer (ÜZ)" : "Ausnützungsziffer (AZ)";
-            const ratioValue = showUez ? uez!.toString() : (az != null ? az.toString() : "—");
             const floors = luZone?.floors ?? (analysis.max_floors as number | null);
             const height = luZone?.heightMax ?? (analysis.max_height as number | null);
+            const azTooltip = az == null
+              ? "Für diese Zone ist keine Ausnützungsziffer festgelegt (typisch für Neu-PBG-Zonen)."
+              : undefined;
+            const uezTooltip = uez == null
+              ? "Für diese Zone ist keine Überbauungsziffer festgelegt (typisch für Alt-PBG-Zonen)."
+              : undefined;
             return (
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-5">
                 <ZoneKpiCard
                   zone={analysis.zone ?? luZone?.zoneCode ?? "—"}
                   label={luZone?.zoneMunicipalityLabel ?? luZone?.zoneLabel ?? luZone?.zoneCategory ?? null}
                   color={zoneColor}
                 />
-                <KpiCard label={ratioLabel} value={ratioValue} tooltip={showUez ? "Diese Zone hat keine Ausnützungsziffer (Neu-PBG). Angezeigt wird die Überbauungsziffer aus dem kantonalen Zonenplan." : undefined} />
+                <KpiCard label="Ausnützungsziffer (AZ)" value={az != null ? az.toString() : "—"} tooltip={azTooltip} />
+                <KpiCard label="Überbauungsziffer (ÜZ)" value={uez != null ? uez.toString() : "—"} tooltip={uezTooltip} />
                 <KpiCard label="Max. Geschosse" value={floors != null ? floors.toString() : "—"} />
                 <KpiCard label="Max. Höhe" value={height != null ? `${height} m` : "—"} />
               </div>
             );
           })()}
+
 
           {analysis.canton === "LU" && (
             <LuZonePlanCard zoneResult={zoneResult} loading={zoneLoading} />
