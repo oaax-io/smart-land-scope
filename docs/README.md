@@ -33,7 +33,8 @@ src/
       platform.regionen.tsx    Kantone/Gemeinden aktivieren
 
   components/
-    swiss-map.tsx                  MapLibre-Karte, Hover, Baufeld
+    swiss-map.tsx                  MapLibre-Karte (memoisierter Style), LU-Overlays (Zonen, Baulinien, Gefahren)
+    analysis-report.tsx            Konsolidierter Machbarkeitsbericht (Conea-Format)
     quick-analysis-modal.tsx       Analyse-Wizard im Dashboard
     rechtliche-grundlagen-table.tsx Conea-Format Kennzahlentabelle
     oereb-topics-table.tsx         ÖREB-Themen pro EGRID
