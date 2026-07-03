@@ -116,7 +116,9 @@ function ReglementePage() {
       </div>
 
       <KnowledgeBaseDashboard />
+      <PendingZoneRegulations />
       <DocumentsList />
+
       <AddRegulationDialog open={open} onOpenChange={setOpen} />
     </div>
   );
