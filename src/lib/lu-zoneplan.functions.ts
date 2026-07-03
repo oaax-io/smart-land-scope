@@ -43,14 +43,24 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
       zone.commercialShareMax != null
         ? `Gewerbeanteil max.: ${Math.round(zone.commercialShareMax * 100)}%`
         : null,
+      ...zone.overlays.map((o) => `Überlagerung: ${o.label}`),
     ]
       .filter(Boolean)
       .join(" | ") || null;
 
+    // Prägnante Zonenbezeichnung: Gemeinde-Code (z.B. "W3") oder Gemeindetext ("3-geschossige Wohnzone")
+    // oder kantonale Bezeichnung ("Wohnzone bis 14m").
+    const zoneName =
+      zone.zoneCode ??
+      zone.zoneMunicipalityLabel ??
+      zone.zoneLabel ??
+      zone.zoneCategory ??
+      null;
+
     const { error: updateErr } = await supabase
       .from("analyses")
       .update({
-        zone: zone.zoneCode ?? zone.zoneLabel,
+        zone: zoneName,
         utilization_ratio: zone.az,
         building_coverage_ratio: zone.uezMax,
         max_floors: zone.floors,
