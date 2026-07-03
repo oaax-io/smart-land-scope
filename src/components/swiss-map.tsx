@@ -129,7 +129,10 @@ type SwissMapProps = {
   setbacks?: { nord?: number | null; ost?: number | null; sued?: number | null; west?: number | null } | null;
   /** Wenn true, kann ein zusätzlicher LU-Zonenplan-Layer eingeblendet werden. */
   luZonesAvailable?: boolean;
+  /** Kantonskürzel der aktuellen Auswahl (aktiviert LU-spezifische Layer). */
+  canton?: string;
 };
+
 
 
 type CantonFeature = {
