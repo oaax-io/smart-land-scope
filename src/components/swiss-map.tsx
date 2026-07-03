@@ -915,30 +915,31 @@ function LuLegend({
   gefahren: boolean;
 }) {
   const items: Array<{ key: string; title: string; layer: string }> = [];
-  if (zones) items.push({ key: "zones", title: "Zonenplan Kanton Luzern", layer: LU_OVERLAYS.zones.layer });
+  if (zones) items.push({ key: "zones", title: "Zonenplan", layer: LU_OVERLAYS.zones.layer });
   if (baulinien) items.push({ key: "baulinien", title: "Baulinien", layer: LU_OVERLAYS.baulinien.layer });
   if (gefahren) items.push({ key: "gefahren", title: "Naturgefahren", layer: LU_OVERLAYS.gefahren.layer });
 
   return (
-    <div className="rounded-md border bg-card p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <h4 className="text-sm font-semibold">Legende — Kanton Luzern</h4>
+    <details className="rounded-md border bg-card">
+      <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm font-medium hover:bg-accent/40">
+        <span>Legende — Kanton Luzern ({items.length})</span>
         <span className="text-[10px] text-muted-foreground">Quelle: geo.lu.ch</span>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      </summary>
+      <div className="flex flex-wrap gap-4 border-t p-3">
         {items.map((it) => (
-          <div key={it.key} className="space-y-1.5">
+          <div key={it.key} className="min-w-0 flex-1 space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground">{it.title}</p>
             <img
               src={luLegendUrl(it.layer)}
               alt={`Legende ${it.title}`}
-              className="max-w-full rounded border bg-white p-2"
+              className="max-h-64 rounded border bg-white p-2"
               loading="lazy"
             />
           </div>
         ))}
       </div>
-    </div>
+    </details>
   );
 }
+
 
