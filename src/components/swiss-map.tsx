@@ -473,7 +473,7 @@ export function SwissMap({
           onClick={handleMapClick}
           onMouseMove={handleMapMouseMove}
           onMouseOut={handleMapMouseLeave}
-          mapStyle={buildMapStyle(baseLayer) as any}
+          mapStyle={buildMapStyle(baseLayer, luZonesAvailable && showLuZones) as any}
           cursor={mode === "interactive" ? (hoverParcel ? "pointer" : "crosshair") : "default"}
           attributionControl={{ compact: true }}
           style={{ width: "100%", height: "100%" }}
