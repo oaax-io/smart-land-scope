@@ -20,15 +20,16 @@ src/
     _authenticated/          Geschützter Bereich
       dashboard.tsx          KPIs, letzte Analysen, Quick-Analysis-Modal
       analysen.tsx           Liste + Eingabe
-      analysen.$id.tsx       Detailansicht einer Analyse
-      analysen.karte.tsx     Interaktive Karte mit Kanton-Filter
+      analysen.$id.tsx       Detailansicht mit 4 Tabs (Übersicht, Rechtliches, Projekt, Bericht)
+      analysen.karte.tsx     Interaktive Karte mit Kanton-Filter und LU-Overlays
       projekte.tsx           Projektübersicht
-      berichte.tsx           Berichte
+      gemeinden.tsx          Regionen-/Reglemente-Übersicht (ehem. Wissensdatenbank)
       team.tsx               Mitglieder & Einladungen
       einstellungen.tsx      Profil, Org, Abo
+      dokumentation.tsx      Changelog & Versionshistorie
 
       feedback.index.tsx       Feedback-Liste mit Autor-Namen
-      platform.reglemente.tsx  BZR-Reglemente, Hintergrund-Jobs
+      platform.reglemente.tsx  BZR-Reglemente, Hintergrund-Jobs, LU-Auto-Import
       platform.regionen.tsx    Kantone/Gemeinden aktivieren
 
   components/
