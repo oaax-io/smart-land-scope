@@ -297,7 +297,7 @@ export function SwissMap({
 
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
-  const [showLuZones, setShowLuZones] = useState(false);
+  const [showLuZones, setShowLuZones] = useState(canton === "LU");
   const [showLuBaulinien, setShowLuBaulinien] = useState(false);
   const [showLuGefahren, setShowLuGefahren] = useState(false);
 
