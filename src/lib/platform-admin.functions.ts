@@ -112,15 +112,20 @@ export const processNextLuBatch = createServerFn({ method: "POST" })
 
 export const getLuImportStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .handler(async ({ context }): Promise<{
+    total: number;
+    pending: number;
+    downloaded: number;
+    extracted: number;
+    unavailable: number;
+    failed: number;
+  }> => {
     const admin = await assertPlatformAdmin(context.userId);
-    const { data } = await admin
-      .from("lu_bzr_import_log")
-      .select("status");
+    const { data } = await admin.from("lu_bzr_import_log").select("status");
     const rows = (data ?? []) as Array<{ status: string }>;
-    const stats: Record<string, number> = {
-      pending: 0, downloaded: 0, extracted: 0, unavailable: 0, failed: 0,
-    };
-    for (const r of rows) stats[r.status] = (stats[r.status] ?? 0) + 1;
+    const stats = { pending: 0, downloaded: 0, extracted: 0, unavailable: 0, failed: 0 };
+    for (const r of rows) {
+      if (r.status in stats) (stats as Record<string, number>)[r.status]++;
+    }
     return { total: rows.length, ...stats };
   });
