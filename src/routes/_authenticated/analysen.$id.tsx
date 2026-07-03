@@ -290,12 +290,30 @@ function AnalysisDetailPage() {
             </Card>
           )}
 
-          <div className="grid gap-4 md:grid-cols-4">
-            <KpiCard icon={Building2} label="Zone" value={analysis.zone ?? "—"} tooltip="Ermittelt aus dem hinterlegten BZR der Gemeinde. Vor Baueingabe amtlich beim Zonenplan der Gemeinde verifizieren." />
-            <KpiCard label="Ausnützungsziffer" value={analysis.utilization_ratio?.toString() ?? "—"} />
-            <KpiCard label="Max. Geschosse" value={analysis.max_floors?.toString() ?? "—"} />
-            <KpiCard label="Max. Höhe" value={analysis.max_height ? `${analysis.max_height} m` : "—"} />
-          </div>
+          {(() => {
+            const luZone = zoneResult && zoneResult.ok === true ? zoneResult.zone : null;
+            const zoneColor = luZone ? zoneCategoryColor(luZone.zoneCategory) : null;
+            // Prefer authoritative LU value; fall back to AI. Show ÜZ when zone has no AZ but has ÜZ.
+            const az = luZone?.az ?? (analysis.utilization_ratio as number | null);
+            const uez = luZone?.uezMax ?? (analysis.building_coverage_ratio as number | null);
+            const showUez = (az == null || az === 0) && uez != null;
+            const ratioLabel = showUez ? "Überbauungsziffer (ÜZ)" : "Ausnützungsziffer (AZ)";
+            const ratioValue = showUez ? uez!.toString() : (az != null ? az.toString() : "—");
+            const floors = luZone?.floors ?? (analysis.max_floors as number | null);
+            const height = luZone?.heightMax ?? (analysis.max_height as number | null);
+            return (
+              <div className="grid gap-4 md:grid-cols-4">
+                <ZoneKpiCard
+                  zone={analysis.zone ?? luZone?.zoneCode ?? "—"}
+                  label={luZone?.zoneMunicipalityLabel ?? luZone?.zoneLabel ?? luZone?.zoneCategory ?? null}
+                  color={zoneColor}
+                />
+                <KpiCard label={ratioLabel} value={ratioValue} tooltip={showUez ? "Diese Zone hat keine Ausnützungsziffer (Neu-PBG). Angezeigt wird die Überbauungsziffer aus dem kantonalen Zonenplan." : undefined} />
+                <KpiCard label="Max. Geschosse" value={floors != null ? floors.toString() : "—"} />
+                <KpiCard label="Max. Höhe" value={height != null ? `${height} m` : "—"} />
+              </div>
+            );
+          })()}
 
           {analysis.canton === "LU" && (
             <LuZonePlanCard zoneResult={zoneResult} loading={zoneLoading} />
@@ -607,6 +625,51 @@ function KpiCard({
         {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
       </CardHeader>
       <CardContent><div className="font-display text-2xl font-bold">{value}</div></CardContent>
+    </Card>
+  );
+}
+
+/** Standardisierte Farben nach kantonaler Zonentyp-Kategorie (angelehnt an SIA / harmonisierten Zonenplan). */
+function zoneCategoryColor(category: string | null | undefined): { bg: string; border: string; text: string } | null {
+  if (!category) return null;
+  const c = category.toLowerCase();
+  if (c.includes("wohn")) return { bg: "#FEF3C7", border: "#F59E0B", text: "#78350F" }; // orange/gelb
+  if (c.includes("kern") || c.includes("dorf")) return { bg: "#F5D0A9", border: "#B45309", text: "#7C2D12" }; // braun
+  if (c.includes("zentrum")) return { bg: "#FECACA", border: "#DC2626", text: "#7F1D1D" }; // rot
+  if (c.includes("misch")) return { bg: "#FED7AA", border: "#EA580C", text: "#7C2D12" }; // orange-braun
+  if (c.includes("arbeit") || c.includes("gewerbe") || c.includes("industrie")) return { bg: "#E9D5FF", border: "#7C3AED", text: "#4C1D95" }; // violett
+  if (c.includes("öffent") || c.includes("offent")) return { bg: "#FBCFE8", border: "#DB2777", text: "#831843" }; // pink
+  if (c.includes("sport") || c.includes("freizeit")) return { bg: "#BBF7D0", border: "#16A34A", text: "#14532D" }; // hellgrün
+  if (c.includes("grün") || c.includes("gruen")) return { bg: "#86EFAC", border: "#15803D", text: "#14532D" }; // grün
+  if (c.includes("landwirt")) return { bg: "#FEF9C3", border: "#CA8A04", text: "#713F12" }; // hell-gelb
+  if (c.includes("wald")) return { bg: "#166534", border: "#14532D", text: "#F0FDF4" }; // dunkelgrün
+  if (c.includes("natur") || c.includes("schutz")) return { bg: "#A7F3D0", border: "#059669", text: "#064E3B" };
+  if (c.includes("sonder") || c.includes("reserve")) return { bg: "#E5E7EB", border: "#6B7280", text: "#111827" };
+  return { bg: "#F3F4F6", border: "#9CA3AF", text: "#111827" };
+}
+
+function ZoneKpiCard({ zone, label, color }: { zone: string; label: string | null; color: ReturnType<typeof zoneCategoryColor> }) {
+  const style = color
+    ? { backgroundColor: color.bg, borderColor: color.border, color: color.text }
+    : undefined;
+  return (
+    <Card
+      title="Ermittelt aus dem kantonalen Zonenplan / hinterlegten BZR. Vor Baueingabe amtlich verifizieren."
+      style={style}
+      className={color ? "border-2" : undefined}
+    >
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium" style={color ? { color: color.text, opacity: 0.75 } : undefined}>
+          Zone
+        </CardTitle>
+        <Building2 className="h-4 w-4" style={color ? { color: color.text, opacity: 0.75 } : undefined} />
+      </CardHeader>
+      <CardContent>
+        <div className="font-display text-2xl font-bold leading-tight">{zone}</div>
+        {label && zone !== label && (
+          <div className="mt-1 text-xs opacity-80 line-clamp-2">{label}</div>
+        )}
+      </CardContent>
     </Card>
   );
 }
