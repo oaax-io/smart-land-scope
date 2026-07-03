@@ -54,7 +54,30 @@ export type SwissGeoSearchResult = {
   lng: number;
   zoomLevel: number;
   origin: string;
+  /** Aus dem Suchergebnis geparste Adresse (falls verfügbar) — verlässlicher als die spätere GWR-Rückwärtssuche. */
+  address: string | null;
+  postalCode: string | null;
+  municipality: string | null;
 };
+
+/** Zerlegt swisstopo-Label wie "Rothenburgstrasse 33 <b>6020 Emmenbrücke</b>" in Adresse / PLZ / Ort. */
+function parseSwisstopoAddressLabel(rawLabel: string, origin: string): {
+  address: string | null;
+  postalCode: string | null;
+  municipality: string | null;
+} {
+  const plain = rawLabel.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  if (origin !== "address") {
+    return { address: null, postalCode: null, municipality: null };
+  }
+  const m = plain.match(/^(.*?)\s+(\d{4})\s+(.+?)$/);
+  if (!m) return { address: plain || null, postalCode: null, municipality: null };
+  return {
+    address: m[1].trim() || null,
+    postalCode: m[2],
+    municipality: m[3].trim() || null,
+  };
+}
 
 export async function searchSwissLocation(query: string): Promise<SwissGeoSearchResult[]> {
   if (query.trim().length < 2) return [];
@@ -70,17 +93,20 @@ export async function searchSwissLocation(query: string): Promise<SwissGeoSearch
   const json = await res.json();
 
   return (json.results ?? []).map((r: any) => {
-    // swisstopo SearchServer liefert lat/lon direkt als WGS84 – verlässlicher als x/y,
-    // weil dort in LV95 die Reihenfolge x=North/y=East vertauscht ist.
     const lat = typeof r.attrs.lat === "number" ? r.attrs.lat : null;
     const lng = typeof r.attrs.lon === "number" ? r.attrs.lon : null;
+    const origin = r.attrs.origin ?? "";
+    const parsed = parseSwisstopoAddressLabel(r.attrs.label ?? "", origin);
     return {
       label: r.attrs.label,
       featureId: r.attrs.featureId ?? null,
       lat: lat ?? lv95ToWgs84(r.attrs.y, r.attrs.x).lat,
       lng: lng ?? lv95ToWgs84(r.attrs.y, r.attrs.x).lng,
       zoomLevel: r.attrs.zoomlevel ?? 16,
-      origin: r.attrs.origin,
+      origin,
+      address: parsed.address,
+      postalCode: parsed.postalCode,
+      municipality: parsed.municipality,
     };
   });
 }
@@ -248,7 +274,11 @@ function normalizePostalCode(value: unknown): string | null {
   return raw?.match(/\b\d{4}\b/)?.[0] ?? null;
 }
 
-export async function identifyParcelAt(lng: number, lat: number): Promise<SwissParcelInfo | null> {
+export async function identifyParcelAt(
+  lng: number,
+  lat: number,
+  overrides?: { address?: string | null; postalCode?: string | null; municipality?: string | null },
+): Promise<SwissParcelInfo | null> {
   // 1) Parzelle aus Cadastralwebmap — Geometrie gleich mitholen, damit wir die
   //    Fläche auch dann ableiten können, wenn das Attribut `area` nicht geliefert wird.
   const parcelResults = await identifyAt("all:ch.kantone.cadastralwebmap-farbe", lng, lat, 2, {
@@ -273,20 +303,30 @@ export async function identifyParcelAt(lng: number, lat: number): Promise<SwissP
     if (computed > 0) areaM2 = Math.round(computed);
   }
 
-  // 2) Nächstgelegene Gebäudeadresse: wichtig bei direktem Klick in die Karte
-  const addressResults = await identifyAt("all:ch.bfs.gebaeude_wohnungs_register", lng, lat, 25);
-  const addressAttrs = addressResults?.[0]?.attributes ?? {};
-  const streetName = cleanString(addressAttrs.strname);
-  const houseNumber = cleanString(addressAttrs.deinr);
-  const composedAddress = [streetName, houseNumber].filter(Boolean).join(" ").trim();
-  const address =
-    cleanString(addressAttrs.strname_deinr) ??
-    (composedAddress || null);
-  const postalCode = normalizePostalCode(addressAttrs.dplz4 ?? addressAttrs.plz_plz6);
-  municipality = municipality ?? cleanString(addressAttrs.ggdename ?? addressAttrs.dplzname);
-  canton = canton ?? normalizeCanton(addressAttrs.gdekt ?? addressAttrs.kanton);
-  parcelNumber = parcelNumber ?? cleanString(addressAttrs.lparz);
-  egrid = egrid ?? cleanString(addressAttrs.egrid);
+  // 2) Adresse — Overrides aus der Suche haben Vorrang (verlässlicher als GWR-Nachbar-Lookup),
+  //    sonst nächstgelegene Gebäudeadresse mit enger Toleranz.
+  const overrideAddress = cleanString(overrides?.address);
+  const overridePostal = normalizePostalCode(overrides?.postalCode);
+  const overrideMunicipality = cleanString(overrides?.municipality);
+
+  let address: string | null = overrideAddress;
+  let postalCode: string | null = overridePostal;
+
+  if (!address || !postalCode || !municipality || !canton || !parcelNumber || !egrid) {
+    const addressResults = await identifyAt("all:ch.bfs.gebaeude_wohnungs_register", lng, lat, 5);
+    const addressAttrs = addressResults?.[0]?.attributes ?? {};
+    const streetName = cleanString(addressAttrs.strname);
+    const houseNumber = cleanString(addressAttrs.deinr);
+    const composedAddress = [streetName, houseNumber].filter(Boolean).join(" ").trim();
+    address = address ?? cleanString(addressAttrs.strname_deinr) ?? (composedAddress || null);
+    postalCode = postalCode ?? normalizePostalCode(addressAttrs.dplz4 ?? addressAttrs.plz_plz6);
+    municipality = municipality ?? cleanString(addressAttrs.ggdename ?? addressAttrs.dplzname);
+    canton = canton ?? normalizeCanton(addressAttrs.gdekt ?? addressAttrs.kanton);
+    parcelNumber = parcelNumber ?? cleanString(addressAttrs.lparz);
+    egrid = egrid ?? cleanString(addressAttrs.egrid);
+  }
+
+  municipality = municipality ?? overrideMunicipality;
 
   // 3) Fallback: Gemeinde- und Kantons-Grenzen (immer abfragen, wenn etwas fehlt)
   if (!municipality || !canton) {
