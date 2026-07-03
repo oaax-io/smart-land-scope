@@ -209,7 +209,21 @@ function LuAutoImportPanel() {
             {batch.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Nächste 5 verarbeiten
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={check.isPending}
+            onClick={() => check.mutate()}
+          >
+            {check.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            BZR auf Updates prüfen (10 Gemeinden)
+          </Button>
         </div>
+
         <p className="text-xs text-muted-foreground">
           Tipp: Mehrfach klicken bis alle „downloaded". KI-Extraktion startet danach über den
           Bulk-KI-Button unten.
