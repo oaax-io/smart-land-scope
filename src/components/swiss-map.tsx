@@ -204,6 +204,8 @@ export function SwissMap({
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
   const [showLuZones, setShowLuZones] = useState(false);
+  const [showLuBaulinien, setShowLuBaulinien] = useState(false);
+  const [showLuGefahren, setShowLuGefahren] = useState(false);
 
   const mapRef = useRef<MapRef | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
