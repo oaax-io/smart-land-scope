@@ -93,39 +93,7 @@ function buildMapStyle(base: "cadastral" | "aerial", showLuZones = false) {
     });
   }
 
-  if (showLuBaulinien) {
-    sources["lu-baulinien"] = {
-      type: "raster" as const,
-      tiles: [
-        "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=ZPBAULIN_V1_LI&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE",
-      ],
-      tileSize: 256,
-      attribution: "© Raumdatenpool Kanton Luzern",
-    };
-    layers.push({
-      id: "lu-baulinien-layer",
-      type: "raster" as const,
-      source: "lu-baulinien",
-      paint: { "raster-opacity": 0.8 },
-    });
-  }
 
-  if (showLuGefahren) {
-    sources["lu-gefahren"] = {
-      type: "raster" as const,
-      tiles: [
-        "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=ZPNATGEF_V1_PY&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE",
-      ],
-      tileSize: 256,
-      attribution: "© Raumdatenpool Kanton Luzern",
-    };
-    layers.push({
-      id: "lu-gefahren-layer",
-      type: "raster" as const,
-      source: "lu-gefahren",
-      paint: { "raster-opacity": 0.55 },
-    });
-  }
 
   return { version: 8 as const, sources, layers };
 }
