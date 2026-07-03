@@ -857,35 +857,67 @@ function LuZonePlanCard({
   loading: boolean;
 }) {
   const z = zoneResult && zoneResult.ok === true ? zoneResult.zone : null;
-  const rows: [string, string][] = z
+
+  const zoneHeadline = z
+    ? [z.zoneCode, z.zoneMunicipalityLabel ?? z.zoneLabel].filter(Boolean).join(" — ") ||
+      z.zoneLabel ||
+      z.zoneCategory ||
+      "—"
+    : "—";
+
+  const rowsAlt: [string, string][] = z
     ? ([
-        ["Zone", [z.zoneCode, z.zoneLabel].filter(Boolean).join(" — ") || "—"],
-        ["Kategorie", z.zoneCategory ?? "—"],
-        ["Ausnützungsziffer (AZ)", z.az?.toString() ?? "—"],
-        ["Überbauungsziffer (ÜZ) max.", z.uezMax?.toString() ?? "—"],
-        ["Überbauungsziffer (ÜZ) min.", z.uezMin?.toString() ?? "—"],
+        ["Ausnützungsziffer (AZ)", z.az != null ? z.az.toString() : "—"],
         ["Geschosszahl", z.floors ? `${z.floors} Vollgeschosse` : "—"],
+        [
+          "Wohnanteil",
+          z.residentialShareMax != null
+            ? `${Math.round(z.residentialShareMax * 100)} %${
+                z.residentialShareMin != null ? ` (min ${Math.round(z.residentialShareMin * 100)} %)` : ""
+              }`
+            : "—",
+        ],
+        [
+          "Gewerbeanteil",
+          z.commercialShareMax != null
+            ? `${Math.round(z.commercialShareMax * 100)} %${
+                z.commercialShareMin != null ? ` (min ${Math.round(z.commercialShareMin * 100)} %)` : ""
+              }`
+            : "—",
+        ],
+      ] as [string, string][])
+    : [];
+
+  const rowsNeu: [string, string][] = z
+    ? ([
+        ["Überbauungsziffer (ÜZ) max.", z.uezMax != null ? z.uezMax.toString() : "—"],
+        ["Überbauungsziffer (ÜZ) min.", z.uezMin != null ? z.uezMin.toString() : "—"],
         ["Gesamthöhe max.", z.heightMax ? `${z.heightMax} m` : "—"],
         ["Fassadenhöhe max.", z.facadeHeightMax ? `${z.facadeHeightMax} m` : "—"],
+        ["Traufhöhe", z.eavesHeight ? `${z.eavesHeight} m` : "—"],
         ["Gebäudelänge max.", z.buildingLength ? `${z.buildingLength} m` : "—"],
-        ["Grünflächenziffer", z.greenAreaRatio?.toString() ?? "—"],
+        ["Gebäudebreite max.", z.buildingWidth ? `${z.buildingWidth} m` : "—"],
+        ["Grünflächenziffer", z.greenAreaRatio != null ? z.greenAreaRatio.toString() : "—"],
+      ] as [string, string][])
+    : [];
+
+  const rowsAllg: [string, string][] = z
+    ? ([
         ["Lärmempfindlichkeit", z.noiseClass ?? "—"],
         ["Bauweise", z.buildingType ?? "—"],
-        [
-          "Wohnanteil max.",
-          z.residentialShareMax != null ? `${Math.round(z.residentialShareMax * 100)} %` : "—",
-        ],
-        [
-          "Gewerbeanteil max.",
-          z.commercialShareMax != null ? `${Math.round(z.commercialShareMax * 100)} %` : "—",
-        ],
         ["BZR-Artikel", z.bzrArticle ?? "—"],
+        ["Weitere Bestimmungen", z.bzrFurther ?? "—"],
+        ["Rechtsstatus", z.legalStatus ?? "—"],
         [
           "Inkraftsetzung",
           z.validFrom ? new Date(z.validFrom).toLocaleDateString("de-CH") : "—",
         ],
-      ].filter(([, v]) => v !== "—") as [string, string][])
+      ] as [string, string][])
     : [];
+
+  const hasAlt = rowsAlt.some(([, v]) => v !== "—");
+  const hasNeu = rowsNeu.some(([, v]) => v !== "—");
+  const filteredAllg = rowsAllg.filter(([, v]) => v !== "—");
 
   return (
     <Card className="border-primary/30">
@@ -897,11 +929,11 @@ function LuZonePlanCard({
           <Badge variant="outline" className="ml-1 text-[10px]">rechtsverbindlich</Badge>
         </CardTitle>
         <CardDescription>
-          Rechtsverbindliche Daten aus dem kantonalen Geodatensatz (ZPGNDNTZ, täglich aktualisiert,
+          Rechtsverbindliche Daten aus dem kantonalen Geodatensatz (ZONPLANX, täglich aktualisiert,
           Quelle: Raumdatenpool Kanton Luzern).
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-5">
         {zoneResult?.ok === false && (
           <Alert>
             <AlertTriangle className="h-4 w-4" />
@@ -915,21 +947,107 @@ function LuZonePlanCard({
             </AlertDescription>
           </Alert>
         )}
+
         {z && (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {rows.map(([k, v], i) => (
-              <div key={i} className="flex items-baseline justify-between gap-3 rounded-md border bg-background/50 px-3 py-2">
-                <span className="text-xs text-muted-foreground">{k}</span>
-                <span className="text-sm font-medium">{v}</span>
+          <>
+            <div className="rounded-md border bg-primary/5 px-3 py-2">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Grundnutzung
               </div>
-            ))}
-          </div>
+              <div className="text-sm font-semibold">{zoneHeadline}</div>
+              {z.zoneCategory && (
+                <div className="text-xs text-muted-foreground">Kategorie: {z.zoneCategory}</div>
+              )}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <ZoneBlock
+                title="Zonenplan (nach altem PBG)"
+                subtitle="Ausnützung / Geschosszahl"
+                rows={rowsAlt}
+                emptyLabel={hasAlt ? undefined : "Für diese Zone nicht festgelegt."}
+              />
+              <ZoneBlock
+                title="Zonenplan (nach neuem PBG)"
+                subtitle="Überbauungsziffer / Gebäudehöhen"
+                rows={rowsNeu}
+                emptyLabel={hasNeu ? undefined : "Noch nicht in neues PBG überführt."}
+              />
+            </div>
+
+            {filteredAllg.length > 0 && (
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Allgemein
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {filteredAllg.map(([k, v], i) => (
+                    <div
+                      key={i}
+                      className="flex items-baseline justify-between gap-3 rounded-md border bg-background/50 px-3 py-2"
+                    >
+                      <span className="text-xs text-muted-foreground">{k}</span>
+                      <span className="text-sm font-medium">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {z.overlays.length > 0 && (
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Überlagernde Festsetzungen
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {z.overlays.map((o, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs">
+                      {o.label}
+                      {o.bzrArticle ? ` · Art. ${o.bzrArticle}` : ""}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
         {!zoneResult && loading && (
           <p className="text-sm text-muted-foreground">Lade Zonenplan-Daten …</p>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function ZoneBlock({
+  title,
+  subtitle,
+  rows,
+  emptyLabel,
+}: {
+  title: string;
+  subtitle: string;
+  rows: [string, string][];
+  emptyLabel?: string;
+}) {
+  const filled = rows.filter(([, v]) => v !== "—");
+  return (
+    <div className="rounded-lg border p-3">
+      <div className="mb-1 text-sm font-semibold">{title}</div>
+      <div className="mb-3 text-[11px] text-muted-foreground">{subtitle}</div>
+      {emptyLabel ? (
+        <p className="text-xs italic text-muted-foreground">{emptyLabel}</p>
+      ) : (
+        <div className="space-y-1.5">
+          {filled.map(([k, v], i) => (
+            <div key={i} className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="text-xs text-muted-foreground">{k}</span>
+              <span className="font-medium">{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
