@@ -672,6 +672,8 @@ function ReportPage() {
           </Section>
         )}
 
+        <RegulationComparisonSection comparison={a.regulation_comparison as ComparisonPayload | null} activeZone={(a.zone_override ?? a.zone) as string | null} />
+
         <LegalDisclaimer variant="prominent" className="mt-8" />
 
         <footer className="mt-6 border-t pt-4 text-xs text-muted-foreground">
