@@ -41,8 +41,9 @@ Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0
 - **Sidebar**: Logo skaliert korrekt im kollabierten Zustand.
 
 ### Technisch
-- Neue Tabellen: `analysis_easements`, `analysis_floors` (mit generated `volume_m3`), `analysis_units`, `analysis_scenarios`; erweiterter Enum `analysis_document_kind`.
-- Neue Server-Funktionen: `easement-extract.functions.ts`, `oereb.functions.ts`, `analyze-scenario.functions.ts`, `background-jobs.functions.ts`.
+- Neue Tabellen: `analysis_easements`, `analysis_floors` (mit generated `volume_m3`), `analysis_units`, `analysis_scenarios`, `regulation_snapshots`, `zone_regulations`; erweiterter Enum `analysis_document_kind`.
+- Neue Server-Funktionen: `easement-extract.functions.ts`, `oereb.functions.ts`, `analyze-scenario.functions.ts`, `background-jobs.functions.ts`, `lu-zoneplan.functions.ts`.
+- `swiss-map.tsx` unterstützt neue `canton`-Prop für kanton-spezifische WMS-Overlays.
 - `getParcelOutlineAt()` persistiert `parcel_geometry`; harmonisierte Bauzonen-Kategorie über swisstopo extrahiert.
 
 
