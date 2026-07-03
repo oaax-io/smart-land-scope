@@ -265,6 +265,8 @@ function AnalysisDetailPage() {
                   parcelGeometry={analysis.parcel_geometry as { type: "Polygon"; coordinates: number[][][] } | null}
                   setbacks={analysis.setbacks as { nord?: number | null; ost?: number | null; sued?: number | null; west?: number | null } | null}
                   luZonesAvailable={analysis.canton === "LU"}
+                  canton={analysis.canton as string | undefined}
+
                 />
 
                 {analysis.egrid && (
