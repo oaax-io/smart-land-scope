@@ -8,7 +8,9 @@ const OEREBInput = z.object({ analysisId: z.string().uuid() });
 export type LoadOEREBResult = {
   topics: OEREBTopic[];
   note: string | null;
+  hasPlanungszone: boolean;
 };
+
 
 export const loadOEREBData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
