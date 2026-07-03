@@ -6,6 +6,14 @@ Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0
 ## [Unreleased]
 
 ### Hinzugefügt
+- **Luzerner Zonenplan-Integration (GEO-1)**: offizieller LU-Geodatendienst (ESRI MapServer Identify) via `queryLuZonePlan` (`src/lib/swiss-geo.ts`). `loadLuZonePlanForAnalysis` (`src/lib/lu-zoneplan.functions.ts`) persistiert Zonenname, AZ, ÜZ, Gebäude-/Gesamthöhe und Geschosszahl auf der Analyse. Werte fliessen in den KI-Prompt (`analyze-knowledge.functions.ts`) ein. Neuer WMS-Overlay-Toggle (`ZPGNDNTZ_V1_PY`) auf der Karte, gesteuert über die neue `canton`-Prop von `swiss-map.tsx`.
+- **BZR-Versionsvergleich**: `regulation_snapshots`-Tabelle plus `RegulationComparisonCard` zeigt altes vs. neues Reglement in Analyse-Detail und Bericht.
+- **GEO-2 Erweiterungen**:
+  - Dashboard-Schnellsuche zeigt bei LU-Parzellen sofort eine Live-Zonenvorschau (`quick-analysis-modal.tsx`).
+  - Analyse-Detail: Button **„Zonenplan aktualisieren"** lädt LU-WFS-Daten neu und triggert eine Re-Analyse.
+  - Platform-Admin (`/platform/reglemente`): Coverage-Kachel „LU Zonenplan" und Moderations-Tabelle `PendingZoneRegulations` für Community-Beiträge.
+  - Präzise WMS-Overlay-Steuerung (kanton-abhängig sichtbar), verbesserte Layer-Darstellung.
+  - **Community-Grenzabstände**: neue Tabelle `zone_regulations` + `ZoneRegulationsPanel` — Nutzer erfassen und verifizieren Grenzabstände/Parkplatzwerte pro Zone; verifizierte Werte werden dem KI-Prompt beigelegt.
 - **Dienstbarkeiten-Modul** (`/analysen/$id` → Tab "Dienstbarkeiten"): manuelle Erfassung von Dienstbarkeiten, Grundlasten und Pfandrechten **oder** Upload eines Grundbuchauszugs (PDF/Scan) mit automatischer KI-Extraktion via `easement-extract.functions.ts` (Gemini 2.5 Pro). Erfasste Lasten erscheinen als neues Kapitel 3 "Dienstbarkeiten & Lasten" im Bericht.
 - **Machbarkeitsstudie-Workflow**: Projektdaten (Projektnummer, Auftraggeber, Projektleiter), parametrischer Geschoss-/Volumenrechner (`analysis_floors`, generated `volume_m3`), Wohnungs-Mix (`analysis_units`), Upload-Slots für Architekten-Zeichnungen (Situation, Grundriss, Schnitt, Fassade) — alle Daten fliessen in den Bericht ein.
 - **Professioneller Bericht** (`/analysen/$id/bericht`): druckbare Machbarkeitsstudie im Conea-Format mit Titelseite, Inhaltsverzeichnis, Executive Summary, Kapiteln 1–9 (Rechtliche Grundlagen, ÖREB, Dienstbarkeiten, Lage, Wohnungen, Volumen, Baurecht, Potenzial, Risiken), KI-Empfehlung und Beilagen; Word-Export inkl. Projektnummer im Dateinamen.
