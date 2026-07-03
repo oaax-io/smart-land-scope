@@ -141,6 +141,8 @@ function LuAutoImportPanel() {
   const initFn = useServerFn(initLuImportLogFn);
   const batchFn = useServerFn(processNextLuBatchFn);
   const statsFn = useServerFn(getLuImportStatsFn);
+  const checkFn = useServerFn(checkBzrUpdatesFn);
+
 
   const stats = useQuery({
     queryKey: ["lu-import-stats"],
