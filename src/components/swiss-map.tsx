@@ -684,103 +684,105 @@ export function SwissMap({
 
 
 
-        {/* Layer-Umschalter */}
-        <div className="absolute left-2 top-2 z-10 flex overflow-hidden rounded-md border bg-background/95 shadow-sm backdrop-blur">
-          <button
-            type="button"
-            onClick={() => setBaseLayer("cadastral")}
-            className={cn(
-              "px-2.5 py-1 text-xs font-medium transition-colors",
-              baseLayer === "cadastral" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+        {/* Kombinierter Container unten links: Layer-Umschalter + Kanton-Filter */}
+        <div className="absolute left-2 bottom-8 z-10 flex flex-col gap-1.5">
+          {/* Layer-Umschalter */}
+          <div className="flex flex-wrap overflow-hidden rounded-md border bg-background/95 shadow-sm backdrop-blur">
+            <button
+              type="button"
+              onClick={() => setBaseLayer("cadastral")}
+              className={cn(
+                "px-2.5 py-1 text-xs font-medium transition-colors",
+                baseLayer === "cadastral" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+              )}
+            >
+              Parzellen
+            </button>
+            <button
+              type="button"
+              onClick={() => setBaseLayer("aerial")}
+              className={cn(
+                "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                baseLayer === "aerial" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+              )}
+            >
+              Luftbild
+            </button>
+            {luToggleVisible && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowLuZones((v) => !v)}
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                    showLuZones ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                  )}
+                  title="Zonenplan Kanton Luzern (Grundnutzung)"
+                >
+                  Zonen LU
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowLuBaulinien((v) => !v)}
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                    showLuBaulinien ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                  )}
+                  title="Baulinien Kanton Luzern"
+                >
+                  Baulinien
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowLuGefahren((v) => !v)}
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                    showLuGefahren ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                  )}
+                  title="Naturgefahren Kanton Luzern"
+                >
+                  Gefahren
+                </button>
+              </>
             )}
-          >
-            Parzellen
-          </button>
-          <button
-            type="button"
-            onClick={() => setBaseLayer("aerial")}
-            className={cn(
-              "px-2.5 py-1 text-xs font-medium transition-colors border-l",
-              baseLayer === "aerial" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
-            )}
-          >
-            Luftbild
-          </button>
-          {luToggleVisible && (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowLuZones((v) => !v)}
-                className={cn(
-                  "px-2.5 py-1 text-xs font-medium transition-colors border-l",
-                  showLuZones ? "bg-primary text-primary-foreground" : "hover:bg-accent",
-                )}
-                title="Zonenplan Kanton Luzern (Grundnutzung)"
-              >
-                Zonen LU
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLuBaulinien((v) => !v)}
-                className={cn(
-                  "px-2.5 py-1 text-xs font-medium transition-colors border-l",
-                  showLuBaulinien ? "bg-primary text-primary-foreground" : "hover:bg-accent",
-                )}
-                title="Baulinien Kanton Luzern"
-              >
-                Baulinien
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLuGefahren((v) => !v)}
-                className={cn(
-                  "px-2.5 py-1 text-xs font-medium transition-colors border-l",
-                  showLuGefahren ? "bg-primary text-primary-foreground" : "hover:bg-accent",
-                )}
-                title="Naturgefahren Kanton Luzern"
-              >
-                Gefahren
-              </button>
-            </>
+          </div>
+
+          {/* Kanton-Filter */}
+          {showCantons && (
+            <div className="rounded-md border bg-background/95 shadow-sm backdrop-blur">
+              <div className="flex items-center gap-2 px-2 py-1.5">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Kanton
+                </span>
+                <Select value={cantonFilter} onValueChange={setCantonFilter}>
+                  <SelectTrigger className="h-8 w-[180px] border-0 bg-transparent px-2 text-sm focus:ring-0">
+                    <SelectValue placeholder="Alle Kantone" />
+                  </SelectTrigger>
+                  <SelectContent align="start" side="top" className="max-h-80">
+                    <SelectItem value="all">
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-sm bg-muted-foreground/40" />
+                        Alle Kantone
+                      </span>
+                    </SelectItem>
+                    {CANTONS.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-sm"
+                            style={{ backgroundColor: c.color }}
+                          />
+                          {c.code} — {c.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           )}
         </div>
 
-
-        {/* Kanton-Filter unten links */}
-        {showCantons && (
-          <div className="absolute left-2 bottom-8 z-10 rounded-md border bg-background/95 shadow-sm backdrop-blur">
-
-            <div className="flex items-center gap-2 px-2 py-1.5">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Kanton
-              </span>
-              <Select value={cantonFilter} onValueChange={setCantonFilter}>
-                <SelectTrigger className="h-8 w-[180px] border-0 bg-transparent px-2 text-sm focus:ring-0">
-                  <SelectValue placeholder="Alle Kantone" />
-                </SelectTrigger>
-                <SelectContent align="start" side="top" className="max-h-80">
-                  <SelectItem value="all">
-                    <span className="flex items-center gap-2">
-                      <span className="inline-block h-2.5 w-2.5 rounded-sm bg-muted-foreground/40" />
-                      Alle Kantone
-                    </span>
-                  </SelectItem>
-                  {CANTONS.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="inline-block h-2.5 w-2.5 rounded-sm"
-                          style={{ backgroundColor: c.color }}
-                        />
-                        {c.code} — {c.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
 
         {/* Aktionen rechts oben (unter NavigationControl) */}
         {allowExpand && (
