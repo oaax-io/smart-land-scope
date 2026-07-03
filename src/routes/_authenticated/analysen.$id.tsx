@@ -408,11 +408,28 @@ function AnalysisDetailPage() {
               </h2>
               <p className="text-sm text-muted-foreground">Themen aus dem amtlichen ÖREB-Kataster für die Parzelle.</p>
             </div>
+            {oerebData?.hasPlanungszone && (
+              <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle>Laufende Ortsplanungsrevision — Planungszone aktiv</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <p>
+                    Für diese Parzelle gilt eine kommunale Planungszone. Das bedeutet: Sowohl
+                    das aktuell rechtskräftige BZR als auch die neue Planung sind zu
+                    berücksichtigen. Projekte müssen mit beiden Regelwerken vereinbar sein.
+                    Vor jeder Projektierung unbedingt die zuständige Gemeindeverwaltung
+                    konsultieren.
+                  </p>
+                  <p className="text-xs opacity-70">Quelle: ÖREB-Kataster (automatisch erkannt)</p>
+                </AlertDescription>
+              </Alert>
+            )}
             <OEREBTabContent
               analysisId={analysis.id as string}
               lat={(analysis.lat as number | null) ?? null}
               lng={(analysis.lng as number | null) ?? null}
             />
+
           </section>
 
           <Separator />
