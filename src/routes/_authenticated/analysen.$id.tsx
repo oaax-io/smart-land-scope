@@ -39,6 +39,8 @@ import { ProjectDataCard, FloorCalculatorCard, DocumentUploadsCard } from "@/com
 import { EasementsPanel } from "@/components/easements-panel";
 import { RegulationComparisonCard } from "@/components/regulation-comparison-card";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
+import { ZoneRegulationsPanel } from "@/components/zone-regulations-panel";
+
 
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
