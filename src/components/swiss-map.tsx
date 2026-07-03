@@ -52,9 +52,9 @@ function luWmsTileUrl(layerName: string) {
 }
 
 const LU_OVERLAYS = {
-  zones: { layer: "ZPGNDNTZ_V1_PY", opacity: 0.45 },
-  baulinien: { layer: "ZPBAULIN_V1_LI", opacity: 0.85 },
-  gefahren: { layer: "ZPNATGEF_V1_PY", opacity: 0.55 },
+  zones: { layer: "1", opacity: 0.45 },
+  baulinien: { layer: "15", opacity: 0.85 },
+  gefahren: { layer: "10", opacity: 0.55 },
 } as const;
 
 type LuOverlayKey = keyof typeof LU_OVERLAYS;
