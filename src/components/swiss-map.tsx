@@ -127,7 +127,10 @@ type SwissMapProps = {
   parcelGeometry?: { type: "Polygon"; coordinates: number[][][] } | null;
   /** Grenzabstände in Metern, für die vereinfachte Baufeld-Berechnung. */
   setbacks?: { nord?: number | null; ost?: number | null; sued?: number | null; west?: number | null } | null;
+  /** Wenn true, kann ein zusätzlicher LU-Zonenplan-Layer eingeblendet werden. */
+  luZonesAvailable?: boolean;
 };
+
 
 type CantonFeature = {
   type: "Feature";
