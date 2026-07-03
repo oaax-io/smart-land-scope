@@ -46,37 +46,56 @@ import {
 } from "@/lib/swiss-cantons";
 
 // swisstopo WMTS — Kartenstile
-function buildMapStyle(base: "cadastral" | "aerial") {
+function buildMapStyle(base: "cadastral" | "aerial", showLuZones = false) {
   const baseTiles =
     base === "aerial"
       ? "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg"
       : "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/{z}/{x}/{y}.jpeg";
-  return {
-    version: 8 as const,
-    sources: {
-      "swisstopo-base": {
-        type: "raster" as const,
-        tiles: [baseTiles],
-        tileSize: 256,
-        attribution: "© swisstopo",
-        maxzoom: 18,
-      },
-      "swisstopo-cadastral": {
-        type: "raster" as const,
-        tiles: [
-          "https://wmts.geo.admin.ch/1.0.0/ch.kantone.cadastralwebmap-farbe/default/current/3857/{z}/{x}/{y}.png",
-        ],
-        tileSize: 256,
-        attribution: "© swisstopo / Kantone (Amtliche Vermessung)",
-        maxzoom: 19,
-      },
+
+  const sources: Record<string, any> = {
+    "swisstopo-base": {
+      type: "raster" as const,
+      tiles: [baseTiles],
+      tileSize: 256,
+      attribution: "© swisstopo",
+      maxzoom: 18,
     },
-    layers: [
-      { id: "base-layer", type: "raster" as const, source: "swisstopo-base" },
-      { id: "cadastral-layer", type: "raster" as const, source: "swisstopo-cadastral" },
-    ],
+    "swisstopo-cadastral": {
+      type: "raster" as const,
+      tiles: [
+        "https://wmts.geo.admin.ch/1.0.0/ch.kantone.cadastralwebmap-farbe/default/current/3857/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "© swisstopo / Kantone (Amtliche Vermessung)",
+      maxzoom: 19,
+    },
   };
+
+  const layers: any[] = [
+    { id: "base-layer", type: "raster" as const, source: "swisstopo-base" },
+    { id: "cadastral-layer", type: "raster" as const, source: "swisstopo-cadastral" },
+  ];
+
+  if (showLuZones) {
+    sources["lu-zones"] = {
+      type: "raster" as const,
+      tiles: [
+        "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=0&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE",
+      ],
+      tileSize: 256,
+      attribution: "© Raumdatenpool Kanton Luzern (Open-By)",
+    };
+    layers.push({
+      id: "lu-zones-layer",
+      type: "raster" as const,
+      source: "lu-zones",
+      paint: { "raster-opacity": 0.45 },
+    });
+  }
+
+  return { version: 8 as const, sources, layers };
 }
+
 
 
 const DEFAULT_VIEW = { longitude: 8.2275, latitude: 46.8182, zoom: 7 };
