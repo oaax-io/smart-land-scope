@@ -711,8 +711,34 @@ export function SwissMap({
               )}
               title="Zonenplan Kanton Luzern"
             >
-              Zonenplan LU
+              Zonen LU
             </button>
+          )}
+          {canton === "LU" && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowLuBaulinien((v) => !v)}
+                className={cn(
+                  "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                  showLuBaulinien ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                )}
+                title="Baulinien Kanton Luzern"
+              >
+                Baulinien
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLuGefahren((v) => !v)}
+                className={cn(
+                  "px-2.5 py-1 text-xs font-medium transition-colors border-l",
+                  showLuGefahren ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                )}
+                title="Naturgefahren Kanton Luzern"
+              >
+                Gefahren
+              </button>
+            </>
           )}
         </div>
 
