@@ -80,7 +80,7 @@ function buildMapStyle(base: "cadastral" | "aerial", showLuZones = false) {
     sources["lu-zones"] = {
       type: "raster" as const,
       tiles: [
-        "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=0&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE",
+        "https://public.geo.lu.ch/ogd/services/managed/ZONPLANX_COL_V3_MP/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=ZPGNDNTZ_V1_PY&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE",
       ],
       tileSize: 256,
       attribution: "© Raumdatenpool Kanton Luzern (Open-By)",
