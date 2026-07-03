@@ -184,10 +184,17 @@ export function SwissMap({
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
   const [showLuZones, setShowLuZones] = useState(false);
+  const [showLuBaulinien, setShowLuBaulinien] = useState(false);
+  const [showLuGefahren, setShowLuGefahren] = useState(false);
 
   const mapStyle = useMemo(
-    () => buildMapStyle(baseLayer, luToggleVisible && showLuZones),
-    [baseLayer, luToggleVisible, showLuZones],
+    () =>
+      buildMapStyle(baseLayer, {
+        zones: luToggleVisible && showLuZones,
+        baulinien: luToggleVisible && showLuBaulinien,
+        gefahren: luToggleVisible && showLuGefahren,
+      }),
+    [baseLayer, luToggleVisible, showLuZones, showLuBaulinien, showLuGefahren],
   );
 
   const mapRef = useRef<MapRef | null>(null);
