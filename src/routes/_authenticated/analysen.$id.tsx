@@ -290,12 +290,30 @@ function AnalysisDetailPage() {
             </Card>
           )}
 
-          <div className="grid gap-4 md:grid-cols-4">
-            <KpiCard icon={Building2} label="Zone" value={analysis.zone ?? "—"} tooltip="Ermittelt aus dem hinterlegten BZR der Gemeinde. Vor Baueingabe amtlich beim Zonenplan der Gemeinde verifizieren." />
-            <KpiCard label="Ausnützungsziffer" value={analysis.utilization_ratio?.toString() ?? "—"} />
-            <KpiCard label="Max. Geschosse" value={analysis.max_floors?.toString() ?? "—"} />
-            <KpiCard label="Max. Höhe" value={analysis.max_height ? `${analysis.max_height} m` : "—"} />
-          </div>
+          {(() => {
+            const luZone = zoneResult && zoneResult.ok === true ? zoneResult.zone : null;
+            const zoneColor = luZone ? zoneCategoryColor(luZone.zoneCategory) : null;
+            // Prefer authoritative LU value; fall back to AI. Show ÜZ when zone has no AZ but has ÜZ.
+            const az = luZone?.az ?? (analysis.utilization_ratio as number | null);
+            const uez = luZone?.uezMax ?? (analysis.building_coverage_ratio as number | null);
+            const showUez = (az == null || az === 0) && uez != null;
+            const ratioLabel = showUez ? "Überbauungsziffer (ÜZ)" : "Ausnützungsziffer (AZ)";
+            const ratioValue = showUez ? uez!.toString() : (az != null ? az.toString() : "—");
+            const floors = luZone?.floors ?? (analysis.max_floors as number | null);
+            const height = luZone?.heightMax ?? (analysis.max_height as number | null);
+            return (
+              <div className="grid gap-4 md:grid-cols-4">
+                <ZoneKpiCard
+                  zone={analysis.zone ?? luZone?.zoneCode ?? "—"}
+                  label={luZone?.zoneMunicipalityLabel ?? luZone?.zoneLabel ?? luZone?.zoneCategory ?? null}
+                  color={zoneColor}
+                />
+                <KpiCard label={ratioLabel} value={ratioValue} tooltip={showUez ? "Diese Zone hat keine Ausnützungsziffer (Neu-PBG). Angezeigt wird die Überbauungsziffer aus dem kantonalen Zonenplan." : undefined} />
+                <KpiCard label="Max. Geschosse" value={floors != null ? floors.toString() : "—"} />
+                <KpiCard label="Max. Höhe" value={height != null ? `${height} m` : "—"} />
+              </div>
+            );
+          })()}
 
           {analysis.canton === "LU" && (
             <LuZonePlanCard zoneResult={zoneResult} loading={zoneLoading} />
