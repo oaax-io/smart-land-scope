@@ -866,3 +866,89 @@ function InfoLine({ label, value }: { label: string; value: string }) {
   );
 }
 
+type LuZoneResult = Awaited<ReturnType<typeof loadLuZonePlanForAnalysis>>;
+
+function LuZonePlanCard({
+  zoneResult,
+  loading,
+}: {
+  zoneResult: LuZoneResult | undefined;
+  loading: boolean;
+}) {
+  const z = zoneResult && zoneResult.ok === true ? zoneResult.zone : null;
+  const rows: [string, string][] = z
+    ? ([
+        ["Zone", [z.zoneCode, z.zoneLabel].filter(Boolean).join(" — ") || "—"],
+        ["Kategorie", z.zoneCategory ?? "—"],
+        ["Ausnützungsziffer (AZ)", z.az?.toString() ?? "—"],
+        ["Überbauungsziffer (ÜZ) max.", z.uezMax?.toString() ?? "—"],
+        ["Überbauungsziffer (ÜZ) min.", z.uezMin?.toString() ?? "—"],
+        ["Geschosszahl", z.floors ? `${z.floors} Vollgeschosse` : "—"],
+        ["Gesamthöhe max.", z.heightMax ? `${z.heightMax} m` : "—"],
+        ["Fassadenhöhe max.", z.facadeHeightMax ? `${z.facadeHeightMax} m` : "—"],
+        ["Gebäudelänge max.", z.buildingLength ? `${z.buildingLength} m` : "—"],
+        ["Grünflächenziffer", z.greenAreaRatio?.toString() ?? "—"],
+        ["Lärmempfindlichkeit", z.noiseClass ?? "—"],
+        ["Bauweise", z.buildingType ?? "—"],
+        [
+          "Wohnanteil max.",
+          z.residentialShareMax != null ? `${Math.round(z.residentialShareMax * 100)} %` : "—",
+        ],
+        [
+          "Gewerbeanteil max.",
+          z.commercialShareMax != null ? `${Math.round(z.commercialShareMax * 100)} %` : "—",
+        ],
+        ["BZR-Artikel", z.bzrArticle ?? "—"],
+        [
+          "Inkraftsetzung",
+          z.validFrom ? new Date(z.validFrom).toLocaleDateString("de-CH") : "—",
+        ],
+      ].filter(([, v]) => v !== "—") as [string, string][])
+    : [];
+
+  return (
+    <Card className="border-primary/30">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-display text-lg">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          Zonenplan Kanton Luzern
+          {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+          <Badge variant="outline" className="ml-1 text-[10px]">rechtsverbindlich</Badge>
+        </CardTitle>
+        <CardDescription>
+          Rechtsverbindliche Daten aus dem kantonalen Geodatensatz (ZPGNDNTZ, täglich aktualisiert,
+          Quelle: Raumdatenpool Kanton Luzern).
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {zoneResult?.ok === false && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              {zoneResult.reason === "no_coordinates" &&
+                "Keine Koordinaten — Grundstück auf der Karte auswählen."}
+              {zoneResult.reason === "no_zone_found" &&
+                "Für diesen Standort wurde keine Bauzone im Luzerner Zonenplan gefunden."}
+              {zoneResult.reason === "wrong_canton" &&
+                "Zonenplan-Abfrage nur für Grundstücke im Kanton Luzern verfügbar."}
+            </AlertDescription>
+          </Alert>
+        )}
+        {z && (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {rows.map(([k, v], i) => (
+              <div key={i} className="flex items-baseline justify-between gap-3 rounded-md border bg-background/50 px-3 py-2">
+                <span className="text-xs text-muted-foreground">{k}</span>
+                <span className="text-sm font-medium">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {!zoneResult && loading && (
+          <p className="text-sm text-muted-foreground">Lade Zonenplan-Daten …</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
