@@ -36,6 +36,8 @@ import { loadOEREBData } from "@/lib/oereb.functions";
 import { ProjectDataCard, FloorCalculatorCard, DocumentUploadsCard } from "@/components/analysis-project-tab";
 import { EasementsPanel } from "@/components/easements-panel";
 import { RegulationComparisonCard } from "@/components/regulation-comparison-card";
+import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
+
 
 export const Route = createFileRoute("/_authenticated/analysen/$id")({
   head: ({ params }) => ({ meta: [{ title: `Analyse ${params.id.slice(0, 8)} — SmarTerra` }] }),
