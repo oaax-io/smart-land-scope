@@ -745,3 +745,95 @@ function DefRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+type ComparisonPayload = {
+  current: {
+    documents: Array<{ id: string; title: string; version: string | null; valid_from: string | null }>;
+    zones: Record<string, { values: Record<string, string | number | null> }>;
+  };
+  previous: {
+    document: { title: string | null; version: string | null; valid_from: string | null; archived_at: string } | null;
+    zones: Record<string, { values: Record<string, string | number | null> }>;
+  } | null;
+  differences: Array<{ zone: string; key: string; label: string; previous: string | number | null; current: string | number | null }>;
+  generated_at: string;
+};
+
+const REPORT_FIELDS: Array<[string, string]> = [
+  ["utilization_ratio", "Ausnützungsziffer (AZ)"],
+  ["building_coverage_ratio", "Überbauungsziffer (ÜZ)"],
+  ["max_floors", "Vollgeschosse"],
+  ["max_height_m", "Gebäudehöhe (m)"],
+  ["gesamthoehe", "Gesamthöhe"],
+  ["grenzabstand_klein", "Grenzabstand klein"],
+  ["grenzabstand_gross", "Grenzabstand gross"],
+  ["laermempfindlichkeitsstufe", "Lärmempfindlichkeit"],
+];
+
+function fmtValue(v: string | number | null | undefined): string {
+  if (v == null || v === "") return "—";
+  if (typeof v === "number") return v.toString().replace(".", ",");
+  return String(v);
+}
+
+function RegulationComparisonSection({ comparison, activeZone }: { comparison: ComparisonPayload | null; activeZone: string | null }) {
+  if (!comparison) return null;
+  const cur = comparison.current;
+  const prev = comparison.previous;
+  const zoneCodes = [...new Set([...Object.keys(cur.zones), ...Object.keys(prev?.zones ?? {})])]
+    .filter((z) => z !== "_allgemein");
+  const shownZone = activeZone && zoneCodes.includes(activeZone) ? activeZone : zoneCodes[0];
+  if (!shownZone) return null;
+
+  return (
+    <Section title="Rechtsstand-Vergleich (Alt vs. Neu)">
+      <div className="mb-3 space-y-1 text-xs text-muted-foreground">
+        <p>
+          <strong>Aktuelle Fassung:</strong>{" "}
+          {cur.documents[0]?.title ?? "—"}
+          {cur.documents[0]?.version ? ` · v${cur.documents[0].version}` : ""}
+          {cur.documents[0]?.valid_from ? ` · gültig ab ${cur.documents[0].valid_from}` : ""}
+        </p>
+        {prev ? (
+          <p>
+            <strong>Vorherige Fassung:</strong>{" "}
+            {prev.document?.title ?? "—"}
+            {prev.document?.version ? ` · v${prev.document.version}` : ""}
+            {prev.document?.valid_from ? ` · gültig ab ${prev.document.valid_from}` : ""}
+            {prev.document?.archived_at ? ` · archiviert ${new Date(prev.document.archived_at).toLocaleDateString("de-CH")}` : ""}
+          </p>
+        ) : (
+          <p><em>Keine Vorgänger-Fassung archiviert.</em></p>
+        )}
+        <p>Vergleich für Zone <strong>{shownZone}</strong>.</p>
+      </div>
+      <div className="overflow-hidden rounded-lg border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-muted/30 text-left text-xs uppercase text-muted-foreground">
+              <th className="px-4 py-2">Kennzahl</th>
+              <th className="px-4 py-2">Vorher</th>
+              <th className="px-4 py-2">Aktuell</th>
+              <th className="px-4 py-2">Änderung</th>
+            </tr>
+          </thead>
+          <tbody>
+            {REPORT_FIELDS.map(([key, label]) => {
+              const a = prev?.zones?.[shownZone]?.values?.[key] ?? null;
+              const b = cur.zones?.[shownZone]?.values?.[key] ?? null;
+              const changed = a !== b && (a != null || b != null);
+              return (
+                <tr key={key} className="border-t">
+                  <td className="px-4 py-2 font-medium">{label}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{fmtValue(a)}</td>
+                  <td className="px-4 py-2">{fmtValue(b)}</td>
+                  <td className="px-4 py-2 text-xs">{changed ? "geändert" : "unverändert"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  );
+}
