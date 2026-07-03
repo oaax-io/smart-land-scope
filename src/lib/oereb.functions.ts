@@ -8,7 +8,9 @@ const OEREBInput = z.object({ analysisId: z.string().uuid() });
 export type LoadOEREBResult = {
   topics: OEREBTopic[];
   note: string | null;
+  hasPlanungszone: boolean;
 };
+
 
 export const loadOEREBData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -28,7 +30,7 @@ export const loadOEREBData = createServerFn({ method: "POST" })
     const lat = analysis.lat as number | null;
     const lng = analysis.lng as number | null;
     if (lat == null || lng == null) {
-      return { topics: [], note: "Keine Koordinaten vorhanden — ÖREB-Abfrage nicht möglich." };
+      return { topics: [], note: "Keine Koordinaten vorhanden — ÖREB-Abfrage nicht möglich.", hasPlanungszone: false };
     }
 
     const topics = await fetchOEREBTopics(lat, lng);
@@ -53,5 +55,7 @@ export const loadOEREBData = createServerFn({ method: "POST" })
       });
     }
 
-    return { topics, note: null };
+    const hasPlanungszone = topics.some((t) => t.theme.toLowerCase().includes("planungszon"));
+    return { topics, note: null, hasPlanungszone };
+
   });

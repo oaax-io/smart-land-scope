@@ -129,3 +129,12 @@ export const getLuImportStats = createServerFn({ method: "GET" })
     }
     return { total: rows.length, ...stats };
   });
+
+export const checkBzrUpdates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertPlatformAdmin(context.userId);
+    const { checkAndUpdateBzr } = await import("./lu-bzr-import.server");
+    return checkAndUpdateBzr(10);
+  });
+

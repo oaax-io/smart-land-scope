@@ -30,6 +30,7 @@ import { Route as AuthenticatedAnalysenIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedFeedbackIdRouteImport } from './routes/_authenticated/feedback.$id'
 import { Route as AuthenticatedAnalysenKarteRouteImport } from './routes/_authenticated/analysen.karte'
 import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
+import { Route as ApiPublicHooksBzrCheckRouteImport } from './routes/api/public/hooks/bzr-check'
 import { Route as AuthenticatedAnalysenIdBerichtRouteImport } from './routes/_authenticated/analysen.$id.bericht'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -141,6 +142,11 @@ const AuthenticatedAnalysenIdRoute = AuthenticatedAnalysenIdRouteImport.update({
   path: '/analysen/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicHooksBzrCheckRoute = ApiPublicHooksBzrCheckRouteImport.update({
+  id: '/api/public/hooks/bzr-check',
+  path: '/api/public/hooks/bzr-check',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAnalysenIdBerichtRoute =
   AuthenticatedAnalysenIdBerichtRouteImport.update({
     id: '/bericht',
@@ -170,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/analysen/': typeof AuthenticatedAnalysenIndexRoute
   '/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
+  '/api/public/hooks/bzr-check': typeof ApiPublicHooksBzrCheckRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/analysen': typeof AuthenticatedAnalysenIndexRoute
   '/feedback': typeof AuthenticatedFeedbackIndexRoute
   '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
+  '/api/public/hooks/bzr-check': typeof ApiPublicHooksBzrCheckRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/_authenticated/analysen/': typeof AuthenticatedAnalysenIndexRoute
   '/_authenticated/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/_authenticated/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
+  '/api/public/hooks/bzr-check': typeof ApiPublicHooksBzrCheckRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/analysen/'
     | '/feedback/'
     | '/analysen/$id/bericht'
+    | '/api/public/hooks/bzr-check'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/analysen'
     | '/feedback'
     | '/analysen/$id/bericht'
+    | '/api/public/hooks/bzr-check'
   id:
     | '__root__'
     | '/'
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/_authenticated/analysen/'
     | '/_authenticated/feedback/'
     | '/_authenticated/analysen/$id/bericht'
+    | '/api/public/hooks/bzr-check'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -296,6 +308,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   PlatformRoute: typeof PlatformRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicHooksBzrCheckRoute: typeof ApiPublicHooksBzrCheckRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -447,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalysenIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/hooks/bzr-check': {
+      id: '/api/public/hooks/bzr-check'
+      path: '/api/public/hooks/bzr-check'
+      fullPath: '/api/public/hooks/bzr-check'
+      preLoaderRoute: typeof ApiPublicHooksBzrCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/analysen/$id/bericht': {
       id: '/_authenticated/analysen/$id/bericht'
       path: '/bericht'
@@ -528,6 +548,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   PlatformRoute: PlatformRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicHooksBzrCheckRoute: ApiPublicHooksBzrCheckRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

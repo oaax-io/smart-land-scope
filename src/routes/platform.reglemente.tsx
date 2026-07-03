@@ -36,7 +36,9 @@ import {
   initLuImportLog as initLuImportLogFn,
   processNextLuBatch as processNextLuBatchFn,
   getLuImportStats as getLuImportStatsFn,
+  checkBzrUpdates as checkBzrUpdatesFn,
 } from "@/lib/platform-admin.functions";
+
 import { MunicipalityDetailDialog } from "@/components/regulation/municipality-detail-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -139,6 +141,8 @@ function LuAutoImportPanel() {
   const initFn = useServerFn(initLuImportLogFn);
   const batchFn = useServerFn(processNextLuBatchFn);
   const statsFn = useServerFn(getLuImportStatsFn);
+  const checkFn = useServerFn(checkBzrUpdatesFn);
+
 
   const stats = useQuery({
     queryKey: ["lu-import-stats"],
@@ -165,6 +169,23 @@ function LuAutoImportPanel() {
     },
     onError: (e: Error) => toast.error("Fehler", { description: e.message }),
   });
+
+  const check = useMutation({
+    mutationFn: () => checkFn(),
+    onSuccess: (r) => {
+      if (r.updated.length > 0) {
+        toast.success(`${r.updated.length} BZR aktualisiert`, {
+          description: r.updated.join(", "),
+        });
+      } else {
+        toast.info(`${r.checked} BZR geprüft — keine Änderungen`);
+      }
+      qc.invalidateQueries({ queryKey: ["lu-import-stats"] });
+    },
+    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+  });
+
+
 
   const s = stats.data;
   return (
@@ -205,7 +226,21 @@ function LuAutoImportPanel() {
             {batch.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Nächste 5 verarbeiten
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={check.isPending}
+            onClick={() => check.mutate()}
+          >
+            {check.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            BZR auf Updates prüfen (10 Gemeinden)
+          </Button>
         </div>
+
         <p className="text-xs text-muted-foreground">
           Tipp: Mehrfach klicken bis alle „downloaded". KI-Extraktion startet danach über den
           Bulk-KI-Button unten.
