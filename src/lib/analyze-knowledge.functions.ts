@@ -286,17 +286,20 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
               zone.bzrArticle ? `BZR-Artikel: Art. ${zone.bzrArticle}` : null,
             ].filter(Boolean).join("\n");
 
-            await supabase
-              .from("analyses")
-              .update({
-                zone: zone.zoneCode ?? zone.zoneLabel,
-                utilization_ratio: zone.az,
-                building_coverage_ratio: zone.uezMax,
-                max_floors: zone.floors,
-                max_height: zone.heightMax,
-                noise_zone: zone.noiseClass,
-              })
-              .eq("id", analysis.id);
+            // WICHTIG: Nur nicht-null Werte patchen, damit KI-Werte
+            // in Zonen ohne AZ (z.B. Neu-PBG-Zentrumszonen) nicht
+            // durch leere Zonenplan-Felder überschrieben werden.
+            const patch: Record<string, unknown> = {};
+            const zoneName = zone.zoneCode ?? zone.zoneMunicipalityLabel ?? zone.zoneLabel;
+            if (zoneName != null) patch.zone = zoneName;
+            if (zone.az != null) patch.utilization_ratio = zone.az;
+            if (zone.uezMax != null) patch.building_coverage_ratio = zone.uezMax;
+            if (zone.floors != null) patch.max_floors = zone.floors;
+            if (zone.heightMax != null) patch.max_height = zone.heightMax;
+            if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
+            if (Object.keys(patch).length > 0) {
+              await supabase.from("analyses").update(patch as never).eq("id", analysis.id);
+            }
           }
         } catch {
           luZoneInfo = null;
