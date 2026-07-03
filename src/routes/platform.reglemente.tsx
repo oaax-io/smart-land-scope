@@ -271,15 +271,17 @@ function KnowledgeBaseDashboard() {
     : "—";
 
   const tiles = [
-    { label: "Kantone", value: stats.data?.cantons ?? 0, icon: Layers, display: undefined as string | undefined },
-    { label: "Gemeinden", value: stats.data?.municipalities ?? 0, icon: MapPin, display: undefined },
-    { label: "Dokumente", value: stats.data?.documents ?? 0, icon: FileText, display: undefined },
-    { label: "Wissenseinträge", value: stats.data?.entries ?? 0, icon: BookOpen, display: undefined },
-    { label: "Geprüfte Einträge", value: stats.data?.verified ?? 0, icon: ShieldCheck, display: verifiedTile },
+    { label: "Kantone", value: stats.data?.cantons ?? 0, icon: Layers, display: undefined as string | undefined, success: false },
+    { label: "Gemeinden", value: stats.data?.municipalities ?? 0, icon: MapPin, display: undefined, success: false },
+    { label: "Dokumente", value: stats.data?.documents ?? 0, icon: FileText, display: undefined, success: false },
+    { label: "Wissenseinträge", value: stats.data?.entries ?? 0, icon: BookOpen, display: undefined, success: false },
+    { label: "Geprüfte Einträge", value: stats.data?.verified ?? 0, icon: ShieldCheck, display: verifiedTile, success: false },
+    { label: "LU Zonenplan", value: 79, icon: DatabaseZap, display: "79 / 79 via WFS", success: true },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+
       {tiles.map((t) => (
         <Card key={t.label}>
           <CardContent className="flex items-center gap-3 p-4">
