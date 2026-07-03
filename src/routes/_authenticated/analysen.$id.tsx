@@ -134,6 +134,15 @@ function AnalysisDetailPage() {
     },
   });
 
+  const loadOerebFn = useServerFn(loadOEREBData);
+  const { data: oerebData } = useQuery({
+    queryKey: ["oereb", id],
+    enabled: !!analysis?.id && analysis?.lat != null && analysis?.lng != null,
+    staleTime: 1000 * 60 * 30,
+    queryFn: () => loadOerebFn({ data: { analysisId: id } }),
+  });
+
+
   if (isLoading) {
 
     return <div className="mx-auto max-w-7xl p-6 text-sm text-muted-foreground">Lade Analyse …</div>;
