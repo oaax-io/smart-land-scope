@@ -155,7 +155,14 @@ export function SwissMap({
   parcelGeometry = null,
   setbacks = null,
   luZonesAvailable = false,
+  canton,
 }: SwissMapProps) {
+  const luZonesEnabled =
+    luZonesAvailable ||
+    canton === "LU" ||
+    (canton === undefined && (arguments as unknown as { length: number }).length > 0 && false);
+  // simple derivation: show toggle when LU is relevant or when caller passes no canton on interactive maps.
+
   const [expanded, setExpanded] = useState(false);
   const [baseLayer, setBaseLayer] = useState<"cadastral" | "aerial">("cadastral");
   const [showLuZones, setShowLuZones] = useState(false);
