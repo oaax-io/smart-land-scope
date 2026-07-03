@@ -156,3 +156,148 @@ export async function importLuBzrDocumentsInternal(uploaderId?: string | null) {
   for (const r of results) summary[r.status] = (summary[r.status] ?? 0) + 1;
   return { results, summary };
 }
+
+/**
+ * Idempotent: seed the lu_bzr_import_log table with all known BZR source URLs.
+ */
+export async function initLuImportLog() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const rows = LU_BZR_SOURCES.map((s) => ({
+    gemeinde: s.gemeinde,
+    bfs_nr: s.bfsNr,
+    url: s.url,
+    status: "pending",
+  }));
+  const { error } = await supabaseAdmin
+    .from("lu_bzr_import_log")
+    .upsert(rows as never, { onConflict: "bfs_nr", ignoreDuplicates: true });
+  if (error) throw new Error(error.message);
+  return { total: rows.length };
+}
+
+/**
+ * Process the next `batchSize` pending entries from `lu_bzr_import_log`.
+ * Downloads the PDF, uploads it into storage, and inserts a
+ * regulation_documents row. Idempotent per bfs_nr.
+ */
+export async function processNextLuImportBatch(batchSize = 3): Promise<{ processed: number; errors: string[] }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: batch } = await supabaseAdmin
+    .from("lu_bzr_import_log")
+    .select("*")
+    .eq("status", "pending")
+    .order("bfs_nr")
+    .limit(batchSize);
+  if (!batch?.length) return { processed: 0, errors: [] };
+
+  const { data: canton } = await supabaseAdmin.from("cantons").select("id").eq("code", "LU").maybeSingle();
+  if (!canton) return { processed: 0, errors: ["Kanton LU nicht gefunden"] };
+
+  const errors: string[] = [];
+  let processed = 0;
+
+  for (const item of batch as Array<{ gemeinde: string; bfs_nr: number; url: string }>) {
+    try {
+      await supabaseAdmin
+        .from("lu_bzr_import_log")
+        .update({ last_attempt: new Date().toISOString() } as never)
+        .eq("bfs_nr", item.bfs_nr);
+
+      const res = await fetch(item.url, { headers: { "User-Agent": "SmarTerra/1.0" } });
+      if (!res.ok) {
+        const status = res.status === 404 ? "unavailable" : "failed";
+        await supabaseAdmin
+          .from("lu_bzr_import_log")
+          .update({ status, error_message: `HTTP ${res.status}`, updated_at: new Date().toISOString() } as never)
+          .eq("bfs_nr", item.bfs_nr);
+        if (status === "failed") errors.push(`${item.gemeinde}: HTTP ${res.status}`);
+        continue;
+      }
+
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length < 2000 || buf.subarray(0, 5).toString() !== "%PDF-") {
+        await supabaseAdmin
+          .from("lu_bzr_import_log")
+          .update({ status: "unavailable", error_message: "Kein PDF", updated_at: new Date().toISOString() } as never)
+          .eq("bfs_nr", item.bfs_nr);
+        continue;
+      }
+
+      const { data: muni } = await supabaseAdmin
+        .from("municipalities")
+        .select("id")
+        .eq("canton_id", canton.id)
+        .ilike("name", item.gemeinde)
+        .maybeSingle();
+      if (!muni) {
+        await supabaseAdmin
+          .from("lu_bzr_import_log")
+          .update({ status: "failed", error_message: "Gemeinde nicht in DB", updated_at: new Date().toISOString() } as never)
+          .eq("bfs_nr", item.bfs_nr);
+        errors.push(`${item.gemeinde}: nicht in DB`);
+        continue;
+      }
+
+      const { data: existing } = await supabaseAdmin
+        .from("regulation_documents")
+        .select("id")
+        .eq("municipality_id", muni.id)
+        .eq("doc_type", "BZR")
+        .eq("active", true)
+        .maybeSingle();
+      if (existing) {
+        await supabaseAdmin
+          .from("lu_bzr_import_log")
+          .update({ status: "extracted", document_id: existing.id, updated_at: new Date().toISOString() } as never)
+          .eq("bfs_nr", item.bfs_nr);
+        processed++;
+        continue;
+      }
+
+      const storagePath = `LU/${item.gemeinde}/BZR.pdf`;
+      const { error: upErr } = await supabaseAdmin.storage
+        .from("regulation-documents")
+        .upload(storagePath, buf, { contentType: "application/pdf", upsert: true });
+      if (upErr) throw new Error(upErr.message);
+
+      const { data: doc, error: insErr } = await supabaseAdmin
+        .from("regulation_documents")
+        .insert({
+          municipality_id: muni.id,
+          doc_type: "BZR",
+          title: `Bau- und Zonenreglement ${item.gemeinde}`,
+          file_path: storagePath,
+          file_name: "BZR.pdf",
+          file_size: buf.length,
+          mime_type: "application/pdf",
+          notes: `Automatisch von ${item.url} importiert (BFS-Nr ${item.bfs_nr})`,
+          active: true,
+        } as never)
+        .select("id")
+        .single();
+      if (insErr) throw new Error(insErr.message);
+
+      await supabaseAdmin
+        .from("lu_bzr_import_log")
+        .update({
+          status: "downloaded",
+          document_id: (doc as { id: string }).id,
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq("bfs_nr", item.bfs_nr);
+      processed++;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`${item.gemeinde}: ${msg}`);
+      await supabaseAdmin
+        .from("lu_bzr_import_log")
+        .update({ status: "failed", error_message: msg, updated_at: new Date().toISOString() } as never)
+        .eq("bfs_nr", item.bfs_nr);
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+
+  return { processed, errors };
+}
+

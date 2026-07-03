@@ -864,6 +864,53 @@ export type Database = {
           },
         ]
       }
+      lu_bzr_import_log: {
+        Row: {
+          bfs_nr: number
+          created_at: string
+          document_id: string | null
+          error_message: string | null
+          gemeinde: string
+          id: string
+          last_attempt: string | null
+          status: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          bfs_nr: number
+          created_at?: string
+          document_id?: string | null
+          error_message?: string | null
+          gemeinde: string
+          id?: string
+          last_attempt?: string | null
+          status?: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          bfs_nr?: number
+          created_at?: string
+          document_id?: string | null
+          error_message?: string | null
+          gemeinde?: string
+          id?: string
+          last_attempt?: string | null
+          status?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lu_bzr_import_log_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "regulation_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       municipalities: {
         Row: {
           active: boolean

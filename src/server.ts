@@ -40,8 +40,20 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 async function handleCustomRoute(request: Request): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname === "/api/cron/lu-tick") {
-    const { handleLuFillTick } = await import("./lib/lu-fill-tick.server");
-    return handleLuFillTick(request);
+    const { processNextLuImportBatch } = await import("./lib/lu-bzr-import.server");
+    const secret = process.env.CRON_SECRET;
+    if (secret) {
+      const auth = request.headers.get("authorization") || "";
+      if (auth !== `Bearer ${secret}`) {
+        return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+          status: 401, headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    const result = await processNextLuImportBatch(5);
+    return new Response(JSON.stringify({ ok: true, ...result }), {
+      headers: { "Content-Type": "application/json" },
+    });
   }
   return null;
 }

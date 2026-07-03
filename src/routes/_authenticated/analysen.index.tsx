@@ -47,7 +47,7 @@ function AnalysenListPage() {
           </p>
         </div>
         <Button asChild>
-          <Link to="/analysen/neu">
+          <Link to="/dashboard">
             <Plus className="mr-2 h-4 w-4" />
             Neue Analyse
           </Link>
@@ -71,7 +71,7 @@ function AnalysenListPage() {
                 Starten Sie Ihre erste Grundstücksanalyse — Adresse, Parzelle, Zone und Potenzial in einem Schritt.
               </p>
               <Button asChild className="mt-5">
-                <Link to="/analysen/neu">
+                <Link to="/dashboard">
                   <Plus className="mr-2 h-4 w-4" />
                   Neue Analyse
                 </Link>

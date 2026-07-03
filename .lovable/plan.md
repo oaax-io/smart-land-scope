@@ -1,69 +1,47 @@
-# Präzise Zonenerkennung + Alt/Neu-Reglement-Vergleich
+# SmarTerra Bereinigung & Neustrukturierung
 
-Zwei zusammenhängende Erweiterungen, damit jede Analyse (a) die *tatsächliche* Zone am Punkt liefert und (b) Alt- und Neu-Fassung des BZR nebeneinander stellt.
+Umsetzung deiner 7 Teile in einer geordneten Reihenfolge, damit der Build zu keiner Zeit bricht (erst Referenzen entfernen, dann Dateien löschen).
 
-## Teil 1 — Echte Zonenerkennung (LU zuerst)
+## Reihenfolge (wichtig für Build-Stabilität)
 
-Aktuell rät die KI die Zone aus dem Adress-Text → gleiche Strasse ⇒ gleiche Zone. Neu: Geo-Abfrage am Parzellen-Zentroid.
+1. **DB-Migration** — Tabelle `lu_bzr_import_log` inkl. GRANT/RLS.
+2. **Neue Komponente `src/components/analysis-report.tsx`** — Bericht-JSX + Queries aus `analysen.$id.bericht.tsx` auslagern (Word/Print-Export bleibt darin gekapselt).
+3. **`analysen.$id.tsx` neu strukturieren** — auf 4 Tabs:
+   - Übersicht: KPIs, Karte, LuZonePlanCard, „Was darf gebaut werden?", DevelopmentScoreCard (unten), Risiken, LegalDisclaimer. Entfernt: `AiAnswerCard`, `RegulationComparisonCard`, `ZoneRegulationsPanel`.
+   - Rechtliches: `OEREBTabContent` → `EasementsPanel` → `ScenarioComparison` → ZoneOverride (aus altem Potenzial-Tab).
+   - Projekt: unverändert.
+   - Bericht: `<AnalysisReport analysisId=…>` direkt eingebettet, Print/Word-Buttons oben.
+   - `canton={analysis.canton}` an `SwissMap` weitergeben.
+4. **`analysen.$id.bericht.tsx`** — auf schlanken Print-Wrapper reduzieren, der `AnalysisReport` rendert (URL bleibt für Vollbild-Druck).
+5. **`analyze-knowledge.functions.ts`** — Import auf `regulation-comparison.inline` entfernen; WFS-Block (`queryLuZonePlan`) VOR Prompt-Aufbau einfügen, Werte direkt in `analyses` persistieren, `luZoneInfo` in Prompt injizieren mit „rechtsverbindlich"-Hinweis.
+6. **Sidebar** (`app-sidebar.tsx`) — neue 8-Punkte-Navigation, „Berichte" raus, „Wissensdatenbank" → „Gemeinden".
+7. **Dashboard** (`dashboard.tsx`) — „Neue Analyse"-Button entfernen (bzw. auf QuickAnalysisModal umlenken), „LU-Reglemente importieren"-Karte (falls vorhanden) entfernen; Rest bleibt.
+8. **`lu-bzr-import.server.ts` konsolidieren** — `initImportLog()` + `processNextBatch()` gemäss Spezifikation; Logik aus `lu-fill-tick.server.ts` integrieren; `src/server.ts` Verweis auf `handleLuFillTick` anpassen (auf neuen Batch-Handler oder entfernen).
+9. **`platform-admin.functions.ts`** — `initLuImportLog` und `processNextLuBatch` als authentifizierte Server-Fns (Platform-Admin-Check).
+10. **`platform.reglemente.tsx`** — „LU Auto-Import"-Panel oben (Init-Button, Batch-Button, `ImportProgress` mit Status-Badges aus `lu_bzr_import_log`).
+11. **`swiss-map.tsx`** — `canton`/`luOverlays`-Props, 3 optionale LU-Raster-Layer (Zonen/Baulinien/Gefahren), Toggle-UI nur wenn `canton==="LU"`.
+12. **`analysen.karte.tsx`** — falls Kanton aus Auswahl bekannt: `canton`-Prop durchreichen (sonst dynamisch bei Parzellen-Klick).
+13. **Dateien löschen** (erst nachdem alle Referenzen entfernt sind):
+    - `src/lib/analyze.functions.ts`
+    - `src/lib/regulation-comparison.functions.ts`
+    - `src/lib/regulation-comparison.inline.ts`
+    - `src/lib/lu-fill-tick.server.ts`
+    - `src/components/regulation-comparison-card.tsx`
+    - `src/components/zone-regulations-panel.tsx`
+    - `src/routes/_authenticated/berichte.tsx`
+    - `src/routes/_authenticated/analysen.neu.tsx`
 
-**Datenquellen (in dieser Reihenfolge, erste treffende Antwort gewinnt):**
-1. **Kanton LU** — WMS/Feature-Service `geo.lu.ch` Zonenplan (`ID: `Nutzungsplanung: Grundnutzung`), liefert Zonencode wie `W3`, `Gs4`, `K4`, `Ar-15-OH` inklusive Gemeinde.
-2. **Fallback** — Bestehende `ch.are.bauzonen` (nur als grobe Kategorie).
-3. **Manueller Override** — bleibt wie heute höchste Priorität.
+## Offene Punkte / Annahmen
 
-**Ablauf:**
-- Neue Server-Funktion `resolveExactZoneAt(lng, lat, cantonCode)` in `src/lib/swiss-geo.ts`.
-- Beim Anlegen/Neu-Analysieren wird der Zentroid der Parzellen-Geometrie an diese Funktion übergeben.
-- Ergebnis in neuer Spalte `analyses.detected_zone_precise` + `analyses.detected_zone_source` (`'lu-kanton' | 'bund' | 'manual'`).
-- Im Analyse-Prompt: wenn `detected_zone_precise` gesetzt → als **verbindliche** Zone übergeben, KI muss diese verwenden (kein Raten mehr).
+- **Bericht als Tab statt Route**: Print-Vollbildroute `/analysen/$id/bericht` bleibt bestehen (nur Wrapper), damit `window.print()` sauber A4 layoutet. Der Tab „Bericht" rendert dieselbe Komponente inline.
+- **`AiAnswerCard` entfernen**: bestätigt in deiner Spezifikation.
+- **`ZoneOverride`**: Bezeichnung ist unklar — im aktuellen Code ist das die manuelle Zonen-Korrektur (`detected_zone`/`zone_override`). Ich hänge diese Karte an Tab „Rechtliches" unter Szenario-Vergleich.
+- **`WissenPage` (`/wissen`)**: nur Label in Sidebar ändern; Route und Inhalt bleiben (heisst weiterhin `wissen.tsx`, Titel & Sidebar-Label werden „Gemeinden").
+- **`server.ts` Cron-Handler**: `handleLuFillTick` wird auf `processNextBatch` aus `lu-bzr-import.server.ts` umgestellt (behält den existierenden Cron-Endpoint `/api/cron/lu-tick` — sonst bricht der pg_cron-Job `tick_lu_fill_job`).
+- **Dokumentation/Changelog** aktualisiere ich am Ende (v1.5.0-Eintrag).
 
-Andere Kantone: Modul-Struktur vorbereiten (Registry `cantonZoneResolvers`), aber nur `LU` liefern. ZH/AG folgen später.
+## Umfang
 
-## Teil 2 — Alt/Neu-Reglement nebeneinander
+Rund 20 Dateien betroffen, davon 8 gelöscht, 1 neue DB-Tabelle, 2 neue Komponenten (`analysis-report.tsx`, `ImportProgress` inline), 2 neue Server-Fns.
 
-Bestehendes Modell: `regulation_documents` hat `version`, `valid_from`, `active`. Beim Neu-Upload wird das alte auf `active=false` gesetzt. `knowledge_entries` verweisen auf `source_document`.
-
-**Neu:**
-- Analyzer lädt Wissen für **beide** relevanten Fassungen: aktuellste aktive + jüngste inaktive („Vorgänger-Fassung") derselben Gemeinde.
-- Jede Zone wird zweimal ausgewertet und in `analysis_results.regulation_comparison` (jsonb) gespeichert:
-  ```
-  {
-    current:  { doc_id, version, valid_from, zone, az, floors, height, ... },
-    previous: { doc_id, version, valid_from, zone, az, floors, height, ... },
-    diffs:    [{ field: 'utilization_ratio', old: 0.8, new: 0.95, delta_pct: +18.75 }, ...]
-  }
-  ```
-- Ist keine Vorgänger-Fassung vorhanden → `previous: null`, kein Vergleich (statt Fake-Werte).
-
-**UI Übersicht (`analysen.$id.tsx` — Tab „Übersicht"/„Rechtsrahmen"):**
-- Neue Karte **„Rechtsstand-Vergleich"** mit zwei Spalten (Aktuell / Vorher) und Delta-Badges (+/-) für die Kennzahlen.
-- Selector „Rechtsstand für Berechnung: **Aktuell** / Vorherige Fassung" — steuert, welche Werte die Wohnungspotenzial-Berechnung verwendet (`analyses.regulation_basis`).
-
-**Bericht (`analysen.$id.bericht.tsx`):**
-- Neues Kapitel **„Rechtsstand & Änderungen ggü. Vorfassung"** direkt nach „Rechtliche Grundlagen".
-- Tabelle Aktuell vs. Vorher pro Zone mit Delta-Spalte.
-- Wenn `previous == null`: Hinweiszeile „Keine Vorgänger-Fassung im System hinterlegt."
-
-## Technische Details
-
-### Datenbank-Migration
-- `analyses`: Spalten `detected_zone_precise text`, `detected_zone_source text`, `regulation_basis text default 'current'`.
-- `analysis_results`: Spalte `regulation_comparison jsonb`.
-- Kein neuer Table nötig; Vergleich wird bei jedem Analyse-Run gerechnet.
-
-### Neue/geänderte Dateien
-- `src/lib/swiss-geo.ts` — `resolveExactZoneAt()`, `cantonZoneResolvers` Registry.
-- `src/lib/canton-zone-lu.server.ts` — LU-spezifische WMS/Feature-Abfrage.
-- `src/lib/analyze-knowledge.functions.ts` — beide Fassungen laden, Vergleich berechnen, Prompt-Zone verbindlich setzen.
-- `src/components/regulation-comparison-card.tsx` — neue UI-Karte.
-- `src/routes/_authenticated/analysen.$id.tsx` — Karte einbinden + Basis-Selector.
-- `src/routes/_authenticated/analysen.$id.bericht.tsx` — neues Kapitel.
-- `src/components/quick-analysis-modal.tsx` + `analysen.neu.tsx` + `analysen.karte.tsx` — beim Anlegen zusätzlich `detected_zone_precise` schreiben.
-
-### Kompatibilität
-- Bestehende Analysen ohne `detected_zone_precise` → Verhalten unverändert (KI-Zuordnung wie bisher, mit Warn-Badge „Zone ungeprüft — neu analysieren empfohlen").
-- Vergleich erscheint nur, wenn eine Vorfassung existiert; sonst nur „Aktuell"-Ansicht wie heute.
-
-## Nicht enthalten (bewusst)
-- ZH/AG/andere Kantone → Registry ist vorbereitet, Implementierung in Folge-PR.
-- Automatische Neuberechnung aller ~150 bestehenden Analysen — stattdessen ein „Neu analysieren"-Button pro Analyse.
+Soll ich so vorgehen?
