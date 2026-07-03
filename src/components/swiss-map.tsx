@@ -655,7 +655,7 @@ export function SwissMap({
           >
             Luftbild
           </button>
-          {luZonesAvailable && (
+          {luToggleVisible && (
             <button
               type="button"
               onClick={() => setShowLuZones((v) => !v)}
