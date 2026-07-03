@@ -136,17 +136,9 @@ function ReglementePage() {
 
 function LuAutoImportPanel() {
   const qc = useQueryClient();
-  // Dynamic imports to avoid circular server-fn issues at module load
-  const initFn = useServerFn(
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    (require("@/lib/platform-admin.functions") as typeof import("@/lib/platform-admin.functions")).initLuImportLog,
-  );
-  const batchFn = useServerFn(
-    (require("@/lib/platform-admin.functions") as typeof import("@/lib/platform-admin.functions")).processNextLuBatch,
-  );
-  const statsFn = useServerFn(
-    (require("@/lib/platform-admin.functions") as typeof import("@/lib/platform-admin.functions")).getLuImportStats,
-  );
+  const initFn = useServerFn(initLuImportLogFn);
+  const batchFn = useServerFn(processNextLuBatchFn);
+  const statsFn = useServerFn(getLuImportStatsFn);
 
   const stats = useQuery({
     queryKey: ["lu-import-stats"],
