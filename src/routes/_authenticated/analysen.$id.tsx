@@ -294,6 +294,19 @@ function AnalysisDetailPage() {
             <LuZonePlanCard zoneResult={zoneResult} loading={zoneLoading} />
           )}
 
+          {analysis.municipality && (zoneResult && "zone" in zoneResult ? zoneResult.zone?.zoneCode : analysis.zone) && (
+            <ZoneRegulationsPanel
+              municipalityName={analysis.municipality as string}
+              cantonCode={(analysis.canton as string | null) ?? "LU"}
+              zoneCode={
+                (zoneResult && "zone" in zoneResult ? zoneResult.zone?.zoneCode : null) ??
+                (analysis.zone as string | null) ??
+                ""
+              }
+            />
+          )}
+
+
 
 
           <DevelopmentScoreCard
