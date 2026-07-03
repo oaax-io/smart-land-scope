@@ -1081,3 +1081,107 @@ function MunicipalityCombobox({
     </Popover>
   );
 }
+
+// =====================================================================
+// Ausstehende Grenzabstand-Community-Beiträge (Admin-Verifikation)
+// =====================================================================
+function PendingZoneRegulations() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["zone-regulations-pending"],
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("zone_regulations")
+        .select("id, zone_code, canton_code, setback_small_m, setback_large_m, setback_road_main_m, parking_rate, source_article, verified, created_at, municipality:municipalities(name)")
+        .eq("verified", false)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const verify = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("zone_regulations")
+        .update({ verified: true })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Beitrag verifiziert");
+      qc.invalidateQueries({ queryKey: ["zone-regulations-pending"] });
+    },
+    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("zone_regulations").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Beitrag entfernt");
+      qc.invalidateQueries({ queryKey: ["zone-regulations-pending"] });
+    },
+    onError: (e: Error) => toast.error("Fehler", { description: e.message }),
+  });
+
+  const rows = q.data ?? [];
+  if (q.isLoading || rows.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Ausstehende Grenzabstand-Beiträge</CardTitle>
+        <CardDescription>Community-Einträge zur Prüfung ({rows.length}).</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Gemeinde</TableHead>
+                <TableHead>Zone</TableHead>
+                <TableHead>Klein</TableHead>
+                <TableHead>Gross</TableHead>
+                <TableHead>Str. Haupt</TableHead>
+                <TableHead>Parkierung</TableHead>
+                <TableHead>Quelle</TableHead>
+                <TableHead className="text-right">Aktion</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell>
+                    {(r.municipality as { name: string } | null)?.name ?? "—"}{" "}
+                    <span className="text-xs text-muted-foreground">({r.canton_code})</span>
+                  </TableCell>
+                  <TableCell className="font-medium">{r.zone_code}</TableCell>
+                  <TableCell>{r.setback_small_m ?? "—"}</TableCell>
+                  <TableCell>{r.setback_large_m ?? "—"}</TableCell>
+                  <TableCell>{r.setback_road_main_m ?? "—"}</TableCell>
+                  <TableCell>{r.parking_rate ?? "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{r.source_article ?? "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => verify.mutate(r.id)} disabled={verify.isPending}>
+                        <Check className="mr-1 h-4 w-4" /> Verifizieren
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => remove.mutate(r.id)} disabled={remove.isPending}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
