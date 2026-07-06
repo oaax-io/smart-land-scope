@@ -503,6 +503,8 @@ export function WirtschaftlichkeitCard({
     nwfFaktorPct: 80,
   });
   const [params, setParams] = useState(inputs);
+  const [parzellenpreis, setParzellenpreis] = useState<number | null>(null);
+  const [sliderBandbreite, setSliderBandbreite] = useState<number>(20);
 
   useEffect(() => {
     const t = setTimeout(() => setParams(inputs), 500);
