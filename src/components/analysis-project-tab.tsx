@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -487,64 +488,103 @@ export function WirtschaftlichkeitCard({
   bgfM2: number;
   volumenM3: number;
 }) {
-  const [params, setParams] = useState({
+  // Live input state (immediate display); debounced state used for calculations
+  const [inputs, setInputs] = useState({
     kostenOberirdischProM3: 950,
     kostenUGProM3: 550,
-    ugAnteil: 0.25,
-    siaHonorareMin: 12,
-    siaHonorareMax: 15,
-    bkp5Min: 3,
-    bkp5Max: 5,
-    bkp6Min: 5,
-    bkp6Max: 8,
-    nwfFaktor: 0.8,
+    ugAnteilPct: 25,
+    siaMinPct: 12,
+    siaMaxPct: 15,
+    bkp5MinPct: 3,
+    bkp5MaxPct: 5,
+    bkp6MinPct: 5,
+    bkp6MaxPct: 8,
     marktpreisProM2: 8500,
+    nwfFaktorPct: 80,
   });
+  const [params, setParams] = useState(inputs);
 
-  const setP = (key: keyof typeof params, value: number) =>
-    setParams((p) => ({ ...p, [key]: Number.isFinite(value) ? value : 0 }));
+  useEffect(() => {
+    const t = setTimeout(() => setParams(inputs), 500);
+    return () => clearTimeout(t);
+  }, [inputs]);
+
+  const setI = (key: keyof typeof inputs, value: number) =>
+    setInputs((p) => ({ ...p, [key]: Number.isFinite(value) ? value : 0 }));
 
   const volOberirdisch = volumenM3;
-  const volUG = volOberirdisch * params.ugAnteil;
+  const volUG = volOberirdisch * (params.ugAnteilPct / 100);
   const bkp2Oberirdisch = volOberirdisch * params.kostenOberirdischProM3;
   const bkp2UG = volUG * params.kostenUGProM3;
   const bkp2Total = bkp2Oberirdisch + bkp2UG;
 
-  const siaMin = bkp2Total * (params.siaHonorareMin / 100);
-  const siaMax = bkp2Total * (params.siaHonorareMax / 100);
-  const bkp5Min = bkp2Total * (params.bkp5Min / 100);
-  const bkp5Max = bkp2Total * (params.bkp5Max / 100);
-  const bkp6Min = bkp2Total * (params.bkp6Min / 100);
-  const bkp6Max = bkp2Total * (params.bkp6Max / 100);
+  const siaMin = bkp2Total * (params.siaMinPct / 100);
+  const siaMax = bkp2Total * (params.siaMaxPct / 100);
+  const bkp5Min = bkp2Total * (params.bkp5MinPct / 100);
+  const bkp5Max = bkp2Total * (params.bkp5MaxPct / 100);
+  const bkp6Min = bkp2Total * (params.bkp6MinPct / 100);
+  const bkp6Max = bkp2Total * (params.bkp6MaxPct / 100);
 
   const totalMin = bkp2Total + siaMin + bkp5Min + bkp6Min;
   const totalMax = bkp2Total + siaMax + bkp5Max + bkp6Max;
 
-  const nwf = bgfM2 * params.nwfFaktor;
+  const nwf = bgfM2 * (params.nwfFaktorPct / 100);
   const erloes = nwf * params.marktpreisProM2;
-  const margeMin = erloes - totalMax;
-  const margeMax = erloes - totalMin;
-  const ratioMin = totalMin > 0 ? erloes / totalMin : 0;
-  const ratioMax = totalMax > 0 ? erloes / totalMax : 0;
+  const margeMin = erloes - totalMax; // schlechtester Fall
+  const margeMax = erloes - totalMin; // bester Fall
+  const ratioMin = totalMax > 0 ? erloes / totalMax : 0;
+  const ratioMax = totalMin > 0 ? erloes / totalMin : 0;
 
-  const paramInputs: Array<{
-    label: string;
-    key: keyof typeof params;
+  const badge = (() => {
+    if (erloes === 0 || totalMin === 0) return null;
+    if (margeMax > 0 && ratioMax > 1.3)
+      return { label: "Wirtschaftlich attraktiv", tone: "bg-emerald-100 text-emerald-800 border-emerald-200" };
+    if (ratioMax >= 1.1 && ratioMax <= 1.3)
+      return { label: "Knapp wirtschaftlich", tone: "bg-amber-100 text-amber-800 border-amber-200" };
+    if (ratioMax < 1.1)
+      return { label: "Wirtschaftlichkeit gefährdet", tone: "bg-red-100 text-red-800 border-red-200" };
+    return null;
+  })();
+
+  const NumInput = ({
+    keyName,
+    step = "1",
+    className = "w-24",
+  }: {
+    keyName: keyof typeof inputs;
     step?: string;
-    suffix?: string;
-  }> = [
-    { label: "Kosten oberirdisch (BKP 2)", key: "kostenOberirdischProM3", suffix: "CHF/m³" },
-    { label: "Kosten Untergeschoss (BKP 2)", key: "kostenUGProM3", suffix: "CHF/m³" },
-    { label: "UG-Anteil vom oberirdischen Volumen", key: "ugAnteil", step: "0.05", suffix: "×" },
-    { label: "SIA-Honorare Min", key: "siaHonorareMin", suffix: "%" },
-    { label: "SIA-Honorare Max", key: "siaHonorareMax", suffix: "%" },
-    { label: "Baunebenkosten (BKP 5) Min", key: "bkp5Min", suffix: "%" },
-    { label: "Baunebenkosten (BKP 5) Max", key: "bkp5Max", suffix: "%" },
-    { label: "Reserve (BKP 6) Min", key: "bkp6Min", suffix: "%" },
-    { label: "Reserve (BKP 6) Max", key: "bkp6Max", suffix: "%" },
-    { label: "NWF-Faktor (NWF = BGF × Faktor)", key: "nwfFaktor", step: "0.01", suffix: "×" },
-    { label: "Marktpreis pro m² NWF", key: "marktpreisProM2", suffix: "CHF/m²" },
-  ];
+    className?: string;
+  }) => (
+    <Input
+      type="number"
+      step={step}
+      value={inputs[keyName]}
+      onChange={(e) => setI(keyName, Number(e.target.value))}
+      className={`h-8 text-right ${className}`}
+    />
+  );
+
+  const Row = ({
+    label,
+    minValue,
+    maxValue,
+    strong,
+    highlight,
+  }: {
+    label: string;
+    minValue: string;
+    maxValue: string;
+    strong?: boolean;
+    highlight?: boolean;
+  }) => (
+    <tr
+      className={`border-t ${highlight ? "bg-primary/5" : ""} ${strong ? "font-semibold" : ""}`}
+    >
+      <td className="px-3 py-1.5">{label}</td>
+      <td className="px-3 py-1.5 text-right font-mono tabular-nums">{minValue}</td>
+      <td className="px-3 py-1.5 text-right font-mono tabular-nums">{maxValue}</td>
+    </tr>
+  );
 
   return (
     <Card>
@@ -554,8 +594,8 @@ export function WirtschaftlichkeitCard({
           Wirtschaftlichkeit &amp; Grobkostenschätzung
         </CardTitle>
         <CardDescription>
-          Indikative Baukosten (BKP 2 + Honorare + Nebenkosten + Reserve) und Ertragspotenzial
-          basierend auf BGF und Volumen aus dem Geschossrechner.
+          Indikative Baukosten (BKP 2 + Honorare + BKP 5/6) und Ertragspotenzial — basierend auf
+          BGF und Volumen aus dem Geschossrechner.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -566,148 +606,106 @@ export function WirtschaftlichkeitCard({
         )}
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Parameter */}
-          <div className="space-y-3">
-            <h3 className="font-display text-sm font-semibold">Parameter</h3>
-            <div className="space-y-2">
-              {paramInputs.map((p) => (
-                <div key={p.key} className="grid grid-cols-[1fr_auto] items-center gap-2">
-                  <Label className="text-xs" htmlFor={`w-${p.key}`}>
-                    {p.label}
-                  </Label>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      id={`w-${p.key}`}
-                      type="number"
-                      step={p.step ?? "1"}
-                      value={params[p.key]}
-                      onChange={(e) => setP(p.key, Number(e.target.value))}
-                      className="h-8 w-28 text-right"
-                    />
-                    {p.suffix && (
-                      <span className="w-16 text-xs text-muted-foreground">{p.suffix}</span>
-                    )}
-                  </div>
+          <div className="space-y-4">
+            <ParamSection title="Baukosten">
+              <ParamRow label="Kosten oberirdisch (CHF/m³)">
+                <NumInput keyName="kostenOberirdischProM3" />
+              </ParamRow>
+              <ParamRow label="Kosten UG (CHF/m³)">
+                <NumInput keyName="kostenUGProM3" />
+              </ParamRow>
+              <ParamRow label="UG-Anteil (% des Volumens)">
+                <div className="flex items-center gap-1">
+                  <NumInput keyName="ugAnteilPct" className="w-20" />
+                  <span className="text-xs text-muted-foreground">%</span>
                 </div>
-              ))}
-            </div>
-            <div className="rounded-md border bg-muted/20 p-3 text-xs">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">BGF (aus Rechner)</span>
-                <span className="font-mono tabular-nums">{CHF(bgfM2)} m²</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Volumen oberirdisch</span>
-                <span className="font-mono tabular-nums">{CHF(volOberirdisch)} m³</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Volumen UG (berechnet)</span>
-                <span className="font-mono tabular-nums">{CHF(volUG)} m³</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Nettowohnfläche (NWF)</span>
-                <span className="font-mono tabular-nums">{CHF(nwf)} m²</span>
-              </div>
-            </div>
+              </ParamRow>
+            </ParamSection>
+
+            <ParamSection title="Honorare & Nebenkosten">
+              <ParamRow label="SIA-Honorare (%)">
+                <div className="flex items-center gap-1">
+                  <NumInput keyName="siaMinPct" className="w-16" />
+                  <span className="text-xs text-muted-foreground">–</span>
+                  <NumInput keyName="siaMaxPct" className="w-16" />
+                </div>
+              </ParamRow>
+              <ParamRow label="BKP5 Baunebenkosten (%)">
+                <div className="flex items-center gap-1">
+                  <NumInput keyName="bkp5MinPct" className="w-16" />
+                  <span className="text-xs text-muted-foreground">–</span>
+                  <NumInput keyName="bkp5MaxPct" className="w-16" />
+                </div>
+              </ParamRow>
+              <ParamRow label="BKP6 Reserve (%)">
+                <div className="flex items-center gap-1">
+                  <NumInput keyName="bkp6MinPct" className="w-16" />
+                  <span className="text-xs text-muted-foreground">–</span>
+                  <NumInput keyName="bkp6MaxPct" className="w-16" />
+                </div>
+              </ParamRow>
+            </ParamSection>
+
+            <ParamSection title="Ertrag">
+              <ParamRow label="Marktpreis NWF (CHF/m²)">
+                <NumInput keyName="marktpreisProM2" />
+              </ParamRow>
+              <ParamRow label="NWF-Faktor (% von BGF)">
+                <div className="flex items-center gap-1">
+                  <NumInput keyName="nwfFaktorPct" className="w-20" />
+                  <span className="text-xs text-muted-foreground">%</span>
+                </div>
+              </ParamRow>
+            </ParamSection>
           </div>
 
           {/* Ergebnis */}
           <div className="space-y-3">
-            <h3 className="font-display text-sm font-semibold">Ergebnis</h3>
             <div className="overflow-hidden rounded-lg border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 text-left">Position</th>
-                    <th className="px-3 py-2 text-right">Min (CHF)</th>
-                    <th className="px-3 py-2 text-right">Max (CHF)</th>
+                    <th className="px-3 py-2 text-right">Min</th>
+                    <th className="px-3 py-2 text-right">Max</th>
                   </tr>
                 </thead>
-                <tbody className="[&_tr]:border-t">
-                  <tr>
-                    <td className="px-3 py-2">BKP 2 oberirdisch</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums" colSpan={2}>
-                      {CHF(bkp2Oberirdisch)}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-3 py-2">BKP 2 Untergeschoss</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums" colSpan={2}>
-                      {CHF(bkp2UG)}
-                    </td>
-                  </tr>
-                  <tr className="bg-muted/20 font-medium">
-                    <td className="px-3 py-2">BKP 2 Total</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums" colSpan={2}>
-                      {CHF(bkp2Total)}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-3 py-2">
-                      SIA-Honorare ({params.siaHonorareMin}–{params.siaHonorareMax}%)
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{CHF(siaMin)}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{CHF(siaMax)}</td>
-                  </tr>
-                  <tr>
-                    <td className="px-3 py-2">
-                      BKP 5 Nebenkosten ({params.bkp5Min}–{params.bkp5Max}%)
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{CHF(bkp5Min)}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{CHF(bkp5Max)}</td>
-                  </tr>
-                  <tr>
-                    <td className="px-3 py-2">
-                      BKP 6 Reserve ({params.bkp6Min}–{params.bkp6Max}%)
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{CHF(bkp6Min)}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{CHF(bkp6Max)}</td>
-                  </tr>
-                  <tr className="bg-primary/5 font-semibold">
-                    <td className="px-3 py-2">Total Investition</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{CHF(totalMin)}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{CHF(totalMax)}</td>
-                  </tr>
+                <tbody>
+                  <Row label="BGF (aus Rechner)" minValue={`${CHF(bgfM2)} m²`} maxValue="—" />
+                  <Row label="Volumen oberirdisch" minValue={`${CHF(volOberirdisch)} m³`} maxValue="—" />
+                  <Row label="Volumen UG" minValue={`${CHF(volUG)} m³`} maxValue="—" />
+                  <Row label="BKP2 oberirdisch" minValue={`CHF ${CHF(bkp2Oberirdisch)}`} maxValue="—" strong />
+                  <Row label="BKP2 UG" minValue={`CHF ${CHF(bkp2UG)}`} maxValue="—" strong />
+                  <Row label="BKP2 Total" minValue={`CHF ${CHF(bkp2Total)}`} maxValue="—" strong highlight />
+                  <Row label="SIA-Honorare" minValue={`CHF ${CHF(siaMin)}`} maxValue={`CHF ${CHF(siaMax)}`} />
+                  <Row label="BKP5 Nebenkosten" minValue={`CHF ${CHF(bkp5Min)}`} maxValue={`CHF ${CHF(bkp5Max)}`} />
+                  <Row label="BKP6 Reserve" minValue={`CHF ${CHF(bkp6Min)}`} maxValue={`CHF ${CHF(bkp6Max)}`} />
+                  <Row label="Total Baukosten" minValue={`CHF ${CHF(totalMin)}`} maxValue={`CHF ${CHF(totalMax)}`} strong highlight />
+                  <Row label="Nettowohnfläche (NWF)" minValue={`${CHF(nwf)} m²`} maxValue="—" />
+                  <Row label="Geschätzter Erlös" minValue={`CHF ${CHF(erloes)}`} maxValue="—" />
+                  <Row label="Marge" minValue={`CHF ${CHF(margeMin)}`} maxValue={`CHF ${CHF(margeMax)}`} strong highlight />
+                  <Row
+                    label="Erlös/Kosten-Ratio"
+                    minValue={ratioMin ? ratioMin.toFixed(2) : "—"}
+                    maxValue={ratioMax ? ratioMax.toFixed(2) : "—"}
+                    strong
+                    highlight
+                  />
                 </tbody>
               </table>
             </div>
 
-            <div className="overflow-hidden rounded-lg border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Ertragspotenzial</th>
-                    <th className="px-3 py-2 text-right"></th>
-                    <th className="px-3 py-2 text-right"></th>
-                  </tr>
-                </thead>
-                <tbody className="[&_tr]:border-t">
-                  <tr>
-                    <td className="px-3 py-2">Erlös (NWF × Marktpreis)</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums" colSpan={2}>
-                      {CHF(erloes)}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-3 py-2">Marge (Erlös − Invest.)</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{CHF(margeMin)}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{CHF(margeMax)}</td>
-                  </tr>
-                  <tr>
-                    <td className="px-3 py-2">Erlös / Investition</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">
-                      {ratioMin ? `${ratioMin.toFixed(2)}×` : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">
-                      {ratioMax ? `${ratioMax.toFixed(2)}×` : "—"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {badge && (
+              <div>
+                <Badge variant="outline" className={badge.tone}>
+                  {badge.label}
+                </Badge>
+              </div>
+            )}
 
             <p className="text-xs text-muted-foreground">
-              Grobschätzung nach SIA-Kostenkennwerten. Ersetzt keine Kostenschätzung nach BKP durch
-              Architekt/Kostenplaner.
+              Richtwerte nach SIA 416 und kantonalen Baukostenkennwerten. Marktpreis ist ein
+              Platzhalter — vor Baueingabe durch Marktanalyse ersetzen.
             </p>
           </div>
         </div>
@@ -715,6 +713,27 @@ export function WirtschaftlichkeitCard({
     </Card>
   );
 }
+
+function ParamSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="font-display text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h3>
+      <div className="space-y-2 rounded-md border p-3">{children}</div>
+    </div>
+  );
+}
+
+function ParamRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <Label className="text-xs">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
 
 /* ---------------- Document Uploads ---------------- */
 
