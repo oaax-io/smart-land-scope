@@ -190,6 +190,10 @@ export function FloorCalculatorCard({
     [units],
   );
 
+  useEffect(() => {
+    onCalcChange?.(totalArea, totalVolume);
+  }, [totalArea, totalVolume, onCalcChange]);
+
   const debouncers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const debounceUpdate = (id: string, patch: Partial<Floor>) => {
     if (debouncers.current[id]) clearTimeout(debouncers.current[id]);
