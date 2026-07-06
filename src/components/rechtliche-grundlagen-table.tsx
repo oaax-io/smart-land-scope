@@ -6,6 +6,7 @@ type Zone = {
   name?: string | null;
   max_floors?: number | null;
   max_height_m?: number | null;
+  max_facade_height_m?: number | null;
   max_height_valley_m?: number | null;
   utilization_ratio?: number | null;
   building_coverage_ratio?: number | null;
@@ -13,16 +14,21 @@ type Zone = {
   open_space_ratio?: number | null;
   setback_small_m?: number | null;
   setback_large_m?: number | null;
+  setback_note?: string | null;
   max_building_length_m?: number | null;
   max_facade_length_m?: number | null;
   height_bonus_m?: number | null;
   attic_floor_counted?: boolean | null;
   basement_counted?: boolean | null;
+  building_type?: string | null;
   noise_sensitivity?: string | null;
   transit_quality?: string | null;
   play_area_m2_per_apt?: number | null;
+  play_area_requirement?: string | null;
   parking_rate?: string | null;
+  parking_note?: string | null;
   article_reference?: string | null;
+  source_label?: string | null;
 };
 
 type Props = {
@@ -44,6 +50,11 @@ function fmt(value: unknown, suffix = ""): string {
   if (value == null || value === "") return "–";
   if (typeof value === "boolean") return value ? "Ja" : "Nein";
   return `${value}${suffix}`;
+}
+
+function valueOrNote(value: unknown, note?: string | null, suffix = ""): string {
+  if (value != null && value !== "") return fmt(value, suffix);
+  return note?.trim() || "–";
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -79,6 +90,15 @@ export function RechtlicheGrundlagenTable({
   const uzLabel = zone.utilization_ratio != null ? "AZ" : "ÜZ";
   const maxFlaecheBzr =
     grundstueckflaeche != null && uz != null ? Math.round(grundstueckflaeche * uz) : null;
+  const isLu = cantonCode?.toUpperCase() === "LU";
+  const luSetbackNote = isLu
+    ? "nicht zonenspezifisch im BZR; nach kantonalem PBG und konkreter Gebäudehöhe zu prüfen"
+    : null;
+  const luTransitNote = isLu ? "nicht zonenspezifisch im BZR geregelt" : null;
+  const luParkingNote = isLu ? "projektabhängig nach kommunalen Parkierungsvorgaben" : null;
+  const luPlayAreaNote = isLu
+    ? "Spiel- und Freizeitflächen gemäss BZR Art. 71; Konzept ab mehr als 20 Wohnungen"
+    : null;
 
   return (
     <Card>
@@ -134,7 +154,7 @@ export function RechtlicheGrundlagenTable({
             }
           />
           <Row label="Empfindlichkeitsstufe (ES)" value={fmt(zone.noise_sensitivity)} />
-          <Row label="Erschliessungsqualität ÖV" value={fmt(zone.transit_quality)} />
+          <Row label="Erschliessungsqualität ÖV" value={valueOrNote(zone.transit_quality, luTransitNote)} />
         </Group>
 
         <Group title="Dichte">
@@ -144,25 +164,30 @@ export function RechtlicheGrundlagenTable({
           <Row label="Überbauungsziffer (ÜZ)" value={fmt(zone.building_coverage_ratio)} />
           <Row label="Baumassenziffer (BMZ)" value={fmt(zone.building_mass_ratio)} />
           <Row label="Freiflächenziffer (FFZ)" value={fmt(zone.open_space_ratio)} />
+          <Row label="Bauweise" value={fmt(zone.building_type)} />
         </Group>
 
         <Group title="Masse">
           <Row label="Max. Gesamthöhe" value={fmt(zone.max_height_m, " m")} />
-          <Row label="Talseitige Fassadenhöhe" value={fmt(zone.max_height_valley_m, " m")} />
+          <Row
+            label="Max. Fassadenhöhe"
+            value={fmt(zone.max_facade_height_m ?? zone.max_height_valley_m, " m")}
+          />
           <Row label="Mehrhöhenzuschlag" value={fmt(zone.height_bonus_m, " m")} />
           <Row label="Max. Gebäudelänge" value={fmt(zone.max_building_length_m, " m")} />
           <Row label="Max. Fassadenlänge" value={fmt(zone.max_facade_length_m, " m")} />
         </Group>
 
         <Group title="Abstände">
-          <Row label="Grosser Grundabstand" value={fmt(zone.setback_large_m, " m")} />
-          <Row label="Kleiner Grundabstand" value={fmt(zone.setback_small_m, " m")} />
+          <Row label="Grosser Grundabstand" value={valueOrNote(zone.setback_large_m, zone.setback_note ?? luSetbackNote, " m")} />
+          <Row label="Kleiner Grundabstand" value={valueOrNote(zone.setback_small_m, zone.setback_note ?? luSetbackNote, " m")} />
           <Row
             label="Gebäudeabstand"
-            value={fmt(
+            value={valueOrNote(
               zone.setback_small_m != null && zone.setback_large_m != null
                 ? zone.setback_small_m + zone.setback_large_m
                 : null,
+              zone.setback_note ?? luSetbackNote,
               " m",
             )}
           />
@@ -174,18 +199,19 @@ export function RechtlicheGrundlagenTable({
             value={
               zone.play_area_m2_per_apt != null
                 ? `${zone.play_area_m2_per_apt} m² / Wohnung`
-                : "–"
+                : zone.play_area_requirement ?? luPlayAreaNote ?? "–"
             }
           />
         </Group>
 
         <Group title="Verkehr">
-          <Row label="Parkierung" value={fmt(zone.parking_rate)} />
+          <Row label="Parkierung" value={valueOrNote(zone.parking_rate, zone.parking_note ?? luParkingNote)} />
         </Group>
 
         <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">Kantonale Grundlage:</span> {basis}
           {zone.article_reference ? ` · ${zone.article_reference}` : ""}
+          {zone.source_label ? ` · ${zone.source_label}` : ""}
         </div>
       </CardContent>
     </Card>
