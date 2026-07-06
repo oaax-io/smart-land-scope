@@ -110,7 +110,7 @@ export function RechtlicheGrundlagenTable({
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">ÜZ / AZ</div>
+                <div className="text-xs text-muted-foreground">{uzLabel}</div>
                 <div className="font-semibold tabular-nums">{uz ?? "–"}</div>
               </div>
               <div>
