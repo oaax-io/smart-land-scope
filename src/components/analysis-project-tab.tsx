@@ -821,6 +821,12 @@ export function WirtschaftlichkeitCard({
                 <strong>Schnellschätzung</strong> basierend auf ÜZ und Gebäudehöhe. Genauigkeit ±25–35%.
                 Für präzise Berechnung: Geschosse im Rechner oben erfassen.
               </div>
+            ) : bgfTotal === 0 ? (
+              <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+                <strong>Keine Geschossflächen erfasst.</strong> Trage im Geschossrechner oben die
+                Bruttogeschossfläche (BGF m²) pro Geschoss ein — sonst bleiben alle Werte 0.
+                Alternativ oben rechts auf <em>Schnellschätzung</em> wechseln.
+              </div>
             ) : (
               <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900">
                 <strong>Präzise Berechnung</strong> basierend auf erfassten Geschossdaten.
