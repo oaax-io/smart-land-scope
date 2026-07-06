@@ -128,6 +128,9 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Lade Bericht …</div>;
   if (!a) return <div className="p-6 text-sm text-muted-foreground">Analyse nicht gefunden.</div>;
 
+  const chf = (n: number) =>
+    n.toLocaleString("de-CH", { style: "currency", currency: "CHF", maximumFractionDigits: 0 });
+
   const score = computeDevelopmentScore({
     zone: a.zone,
     utilization_ratio: a.utilization_ratio as number | null,
