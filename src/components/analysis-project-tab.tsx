@@ -485,6 +485,7 @@ const CHF = (n: number) =>
   new Intl.NumberFormat("de-CH", { maximumFractionDigits: 0 }).format(Math.round(n));
 
 export function WirtschaftlichkeitCard({
+  analysis,
   bgfM2,
   volumenM3,
 }: {
@@ -492,11 +493,52 @@ export function WirtschaftlichkeitCard({
   bgfM2: number;
   volumenM3: number;
 }) {
-  // Live input state (immediate display); debounced state used for calculations
+  // Modus: auto (Detail wenn Floors vorhanden, sonst Schnellschätzung)
+  const autoMode: "quick" | "detail" = bgfM2 > 0 ? "detail" : "quick";
+  const [mode, setMode] = useState<"quick" | "detail">(autoMode);
+  const [modeTouched, setModeTouched] = useState(false);
+  useEffect(() => {
+    if (!modeTouched) setMode(autoMode);
+  }, [autoMode, modeTouched]);
+
+  // Schnellschätzungs-Inputs (aus Analyse vorausgefüllt)
+  const [quickInputs, setQuickInputs] = useState({
+    grundstueckflaeche: Number(analysis.area_size ?? 0) || 0,
+    uez:
+      Number(analysis.building_coverage_ratio ?? analysis.utilization_ratio ?? 0) || 0,
+    maxHoeheM: Number(analysis.max_height ?? 0) || 0,
+    geschossHoeheM: 3.0,
+  });
+  useEffect(() => {
+    setQuickInputs({
+      grundstueckflaeche: Number(analysis.area_size ?? 0) || 0,
+      uez:
+        Number(analysis.building_coverage_ratio ?? analysis.utilization_ratio ?? 0) || 0,
+      maxHoeheM: Number(analysis.max_height ?? 0) || 0,
+      geschossHoeheM: 3.0,
+    });
+  }, [analysis.id, analysis.area_size, analysis.building_coverage_ratio, analysis.utilization_ratio, analysis.max_height]);
+
+  const setQ = (key: keyof typeof quickInputs, value: number) =>
+    setQuickInputs((p) => ({ ...p, [key]: Number.isFinite(value) ? value : 0 }));
+
+  // Floors-Query nur für Detailmodus
+  const { data: floors } = useQuery({
+    queryKey: ["floors-wirt", analysis.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_floors")
+        .select("floor_index,gross_area_m2,floor_height_m")
+        .eq("analysis_id", analysis.id);
+      return data ?? [];
+    },
+    enabled: mode === "detail",
+  });
+
+  // Kostenparameter (mit Debounce für Berechnungen)
   const [inputs, setInputs] = useState({
     kostenOberirdischProM3: 950,
     kostenUGProM3: 550,
-    ugAnteilPct: 25,
     siaMinPct: 12,
     siaMaxPct: 15,
     bkp5MinPct: 3,
@@ -504,7 +546,7 @@ export function WirtschaftlichkeitCard({
     bkp6MinPct: 5,
     bkp6MaxPct: 8,
     marktpreisProM2: 8500,
-    nwfFaktorPct: 80,
+    nwfFaktorPct: 65, // Schweizer Richtwert (Emmen-Beispiel: 58%)
   });
   const [params, setParams] = useState(inputs);
   const [parzellenpreis, setParzellenpreis] = useState<number | null>(null);
@@ -518,8 +560,37 @@ export function WirtschaftlichkeitCard({
   const setI = (key: keyof typeof inputs, value: number) =>
     setInputs((p) => ({ ...p, [key]: Number.isFinite(value) ? value : 0 }));
 
-  const volOberirdisch = volumenM3;
-  const volUG = volOberirdisch * (params.ugAnteilPct / 100);
+  // BGF / Volumen je nach Modus
+  let bgfTotal = 0;
+  let volOberirdisch = 0;
+  let volUG = 0;
+
+  if (mode === "quick") {
+    const bebauteFlaeche = quickInputs.grundstueckflaeche * quickInputs.uez;
+    const vollgeschosse =
+      quickInputs.geschossHoeheM > 0
+        ? Math.floor(quickInputs.maxHoeheM / quickInputs.geschossHoeheM)
+        : 0;
+    const bgfOberirdisch = bebauteFlaeche * vollgeschosse;
+    const ugFlaeche = bebauteFlaeche * 1.3;
+    bgfTotal = bgfOberirdisch + ugFlaeche;
+    volOberirdisch = bgfOberirdisch * quickInputs.geschossHoeheM;
+    volUG = ugFlaeche * quickInputs.geschossHoeheM;
+  } else {
+    bgfTotal = bgfM2;
+    if (floors && floors.length > 0) {
+      volOberirdisch = floors
+        .filter((f) => (f.floor_index ?? 0) >= 0)
+        .reduce((s, f) => s + (f.gross_area_m2 || 0) * (f.floor_height_m || 0), 0);
+      volUG = floors
+        .filter((f) => (f.floor_index ?? 0) < 0)
+        .reduce((s, f) => s + (f.gross_area_m2 || 0) * (f.floor_height_m || 0), 0);
+    } else {
+      volOberirdisch = volumenM3;
+      volUG = 0;
+    }
+  }
+
   const bkp2Oberirdisch = volOberirdisch * params.kostenOberirdischProM3;
   const bkp2UG = volUG * params.kostenUGProM3;
   const bkp2Total = bkp2Oberirdisch + bkp2UG;
@@ -533,16 +604,15 @@ export function WirtschaftlichkeitCard({
 
   const totalMin = bkp2Total + siaMin + bkp5Min + bkp6Min;
   const totalMax = bkp2Total + siaMax + bkp5Max + bkp6Max;
+  const totalMittel = (totalMin + totalMax) / 2;
 
-  const nwf = bgfM2 * (params.nwfFaktorPct / 100);
+  const nwf = bgfTotal * (params.nwfFaktorPct / 100);
   const erloes = nwf * params.marktpreisProM2;
-  const margeMin = erloes - totalMax; // schlechtester Fall
-  const margeMax = erloes - totalMin; // bester Fall
+  const margeMin = erloes - totalMax;
+  const margeMax = erloes - totalMin;
   const ratioMin = totalMax > 0 ? erloes / totalMax : 0;
   const ratioMax = totalMin > 0 ? erloes / totalMin : 0;
 
-  // Residualwert
-  const totalMittel = (totalMin + totalMax) / 2;
   const residualwert = erloes - totalMittel;
   const sliderMin = residualwert * (1 - sliderBandbreite / 100);
   const sliderMax = residualwert * (1 + sliderBandbreite / 100);
@@ -585,6 +655,24 @@ export function WirtschaftlichkeitCard({
     />
   );
 
+  const QuickNumInput = ({
+    keyName,
+    step = "1",
+    className = "w-24",
+  }: {
+    keyName: keyof typeof quickInputs;
+    step?: string;
+    className?: string;
+  }) => (
+    <Input
+      type="number"
+      step={step}
+      value={quickInputs[keyName]}
+      onChange={(e) => setQ(keyName, Number(e.target.value))}
+      className={`h-8 text-right ${className}`}
+    />
+  );
+
   const Row = ({
     label,
     minValue,
@@ -598,52 +686,93 @@ export function WirtschaftlichkeitCard({
     strong?: boolean;
     highlight?: boolean;
   }) => (
-    <tr
-      className={`border-t ${highlight ? "bg-primary/5" : ""} ${strong ? "font-semibold" : ""}`}
-    >
+    <tr className={`border-t ${highlight ? "bg-primary/5" : ""} ${strong ? "font-semibold" : ""}`}>
       <td className="px-3 py-1.5">{label}</td>
       <td className="px-3 py-1.5 text-right font-mono tabular-nums">{minValue}</td>
       <td className="px-3 py-1.5 text-right font-mono tabular-nums">{maxValue}</td>
     </tr>
   );
 
+  const switchMode = (m: "quick" | "detail") => {
+    setModeTouched(true);
+    setMode(m);
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-display text-lg">
-          <Calculator className="h-4 w-4 text-secondary" />
-          Wirtschaftlichkeit &amp; Grobkostenschätzung
-        </CardTitle>
-        <CardDescription>
-          Indikative Baukosten (BKP 2 + Honorare + BKP 5/6) und Ertragspotenzial — basierend auf
-          BGF und Volumen aus dem Geschossrechner.
-        </CardDescription>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 font-display text-lg">
+              <Calculator className="h-4 w-4 text-secondary" />
+              Wirtschaftlichkeit &amp; Grobkostenschätzung
+            </CardTitle>
+            <CardDescription>
+              Indikative Baukosten (BKP 2 + Honorare + BKP 5/6) und Ertragspotenzial.
+            </CardDescription>
+          </div>
+          <div className="inline-flex rounded-md border p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => switchMode("quick")}
+              className={`rounded px-2.5 py-1 transition-colors ${
+                mode === "quick" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              Schnellschätzung
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("detail")}
+              className={`rounded px-2.5 py-1 transition-colors ${
+                mode === "detail" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              Detailrechnung
+            </button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        {bgfM2 === 0 && volumenM3 === 0 && (
-          <p className="mb-4 rounded-md border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-            Erfassen Sie zuerst Geschosse im Rechner darüber, damit BGF und Volumen berechnet werden.
-          </p>
-        )}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-[280px_1fr]">
           {/* Parameter */}
           <div className="space-y-4">
-            <ParamSection title="Baukosten">
+            {mode === "quick" && (
+              <ParamSection title="Schnellschätzung – Basis">
+                <ParamRow label="Grundstück (m²)">
+                  <QuickNumInput keyName="grundstueckflaeche" />
+                </ParamRow>
+                <ParamRow label="ÜZ (Faktor 0–1)">
+                  <QuickNumInput keyName="uez" step="0.01" className="w-20" />
+                </ParamRow>
+                <ParamRow label="Max. Gebäudehöhe (m)">
+                  <QuickNumInput keyName="maxHoeheM" step="0.1" className="w-20" />
+                </ParamRow>
+                <ParamRow label="Geschosshöhe (m)">
+                  <QuickNumInput keyName="geschossHoeheM" step="0.1" className="w-20" />
+                </ParamRow>
+              </ParamSection>
+            )}
+
+            <ParamSection title="Gebäude & Kosten">
               <ParamRow label="Kosten oberirdisch (CHF/m³)">
                 <NumInput keyName="kostenOberirdischProM3" />
               </ParamRow>
               <ParamRow label="Kosten UG (CHF/m³)">
                 <NumInput keyName="kostenUGProM3" />
               </ParamRow>
-              <ParamRow label="UG-Anteil (% des Volumens)">
-                <div className="flex items-center gap-1">
-                  <NumInput keyName="ugAnteilPct" className="w-20" />
+              <ParamRow label="NWF-Faktor (% von BGF)">
+                <div
+                  className="flex items-center gap-1"
+                  title="Schweizer Richtwert: 60–70%. Pauschalwert 80% überschätzt Wohnfläche. Referenz Emmen: 58%."
+                >
+                  <NumInput keyName="nwfFaktorPct" className="w-20" />
                   <span className="text-xs text-muted-foreground">%</span>
                 </div>
               </ParamRow>
             </ParamSection>
 
-            <ParamSection title="Honorare & Nebenkosten">
+            <ParamSection title="Honorare">
               <ParamRow label="SIA-Honorare (%)">
                 <div className="flex items-center gap-1">
                   <NumInput keyName="siaMinPct" className="w-16" />
@@ -651,7 +780,7 @@ export function WirtschaftlichkeitCard({
                   <NumInput keyName="siaMaxPct" className="w-16" />
                 </div>
               </ParamRow>
-              <ParamRow label="BKP5 Baunebenkosten (%)">
+              <ParamRow label="BKP5 Nebenkosten (%)">
                 <div className="flex items-center gap-1">
                   <NumInput keyName="bkp5MinPct" className="w-16" />
                   <span className="text-xs text-muted-foreground">–</span>
@@ -671,17 +800,33 @@ export function WirtschaftlichkeitCard({
               <ParamRow label="Marktpreis NWF (CHF/m²)">
                 <NumInput keyName="marktpreisProM2" />
               </ParamRow>
-              <ParamRow label="NWF-Faktor (% von BGF)">
-                <div className="flex items-center gap-1">
-                  <NumInput keyName="nwfFaktorPct" className="w-20" />
-                  <span className="text-xs text-muted-foreground">%</span>
-                </div>
+            </ParamSection>
+
+            <ParamSection title="Slider">
+              <ParamRow label="Bandbreite ±%">
+                <Input
+                  type="number"
+                  className="h-8 w-20 text-right"
+                  value={sliderBandbreite}
+                  onChange={(e) => setSliderBandbreite(Number(e.target.value) || 20)}
+                />
               </ParamRow>
             </ParamSection>
           </div>
 
           {/* Ergebnis */}
           <div className="space-y-3">
+            {mode === "quick" ? (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                <strong>Schnellschätzung</strong> basierend auf ÜZ und Gebäudehöhe. Genauigkeit ±25–35%.
+                Für präzise Berechnung: Geschosse im Rechner oben erfassen.
+              </div>
+            ) : (
+              <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900">
+                <strong>Präzise Berechnung</strong> basierend auf erfassten Geschossdaten.
+              </div>
+            )}
+
             <div className="overflow-hidden rounded-lg border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -692,11 +837,11 @@ export function WirtschaftlichkeitCard({
                   </tr>
                 </thead>
                 <tbody>
-                  <Row label="BGF (aus Rechner)" minValue={`${CHF(bgfM2)} m²`} maxValue="—" />
+                  <Row label="BGF total" minValue={`${CHF(bgfTotal)} m²`} maxValue="—" />
                   <Row label="Volumen oberirdisch" minValue={`${CHF(volOberirdisch)} m³`} maxValue="—" />
                   <Row label="Volumen UG" minValue={`${CHF(volUG)} m³`} maxValue="—" />
-                  <Row label="BKP2 oberirdisch" minValue={`CHF ${CHF(bkp2Oberirdisch)}`} maxValue="—" strong />
-                  <Row label="BKP2 UG" minValue={`CHF ${CHF(bkp2UG)}`} maxValue="—" strong />
+                  <Row label="BKP2 oberirdisch" minValue={`CHF ${CHF(bkp2Oberirdisch)}`} maxValue="—" />
+                  <Row label="BKP2 UG" minValue={`CHF ${CHF(bkp2UG)}`} maxValue="—" />
                   <Row label="BKP2 Total" minValue={`CHF ${CHF(bkp2Total)}`} maxValue="—" strong highlight />
                   <Row label="SIA-Honorare" minValue={`CHF ${CHF(siaMin)}`} maxValue={`CHF ${CHF(siaMax)}`} />
                   <Row label="BKP5 Nebenkosten" minValue={`CHF ${CHF(bkp5Min)}`} maxValue={`CHF ${CHF(bkp5Max)}`} />
@@ -709,9 +854,8 @@ export function WirtschaftlichkeitCard({
                     label="Erlös/Kosten-Ratio"
                     minValue={ratioMin ? ratioMin.toFixed(2) : "—"}
                     maxValue={ratioMax ? ratioMax.toFixed(2) : "—"}
-                    strong
-                    highlight
                   />
+                  <Row label="Residualwert" minValue={`CHF ${CHF(residualwert)}`} maxValue="—" strong highlight />
                 </tbody>
               </table>
             </div>
@@ -802,15 +946,6 @@ export function WirtschaftlichkeitCard({
                 )}
               </span>
             )}
-            <div className="ml-auto flex items-center gap-2">
-              <label className="text-xs text-muted-foreground">Bandbreite ±%</label>
-              <Input
-                type="number"
-                className="h-8 w-20 text-right"
-                value={sliderBandbreite}
-                onChange={(e) => setSliderBandbreite(Number(e.target.value) || 20)}
-              />
-            </div>
           </div>
 
           {/* Preis-Regler */}
