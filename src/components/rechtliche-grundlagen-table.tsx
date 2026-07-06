@@ -75,7 +75,8 @@ export function RechtlicheGrundlagenTable({
   const basis =
     (cantonCode && CANTONAL_BASIS[cantonCode.toUpperCase()]) ||
     "Kantonales Planungs- und Baugesetz";
-  const uz = zone.utilization_ratio;
+  const uz = zone.utilization_ratio ?? zone.building_coverage_ratio;
+  const uzLabel = zone.utilization_ratio != null ? "AZ" : "ÜZ";
   const maxFlaecheBzr =
     grundstueckflaeche != null && uz != null ? Math.round(grundstueckflaeche * uz) : null;
 
@@ -109,7 +110,7 @@ export function RechtlicheGrundlagenTable({
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">ÜZ / AZ</div>
+                <div className="text-xs text-muted-foreground">{uzLabel}</div>
                 <div className="font-semibold tabular-nums">{uz ?? "–"}</div>
               </div>
               <div>
