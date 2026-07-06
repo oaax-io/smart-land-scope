@@ -537,6 +537,21 @@ export function WirtschaftlichkeitCard({
   const ratioMin = totalMax > 0 ? erloes / totalMax : 0;
   const ratioMax = totalMin > 0 ? erloes / totalMin : 0;
 
+  // Residualwert
+  const totalMittel = (totalMin + totalMax) / 2;
+  const residualwert = erloes - totalMittel;
+  const sliderMin = residualwert * (1 - sliderBandbreite / 100);
+  const sliderMax = residualwert * (1 + sliderBandbreite / 100);
+  const abweichungChf = parzellenpreis != null ? parzellenpreis - residualwert : null;
+  const abweichungProzent =
+    parzellenpreis != null && residualwert > 0
+      ? ((parzellenpreis - residualwert) / residualwert) * 100
+      : null;
+  const sliderPosition =
+    parzellenpreis != null && sliderMax !== sliderMin
+      ? Math.max(0, Math.min(100, ((parzellenpreis - sliderMin) / (sliderMax - sliderMin)) * 100))
+      : 50;
+
   const badge = (() => {
     if (erloes === 0 || totalMin === 0) return null;
     if (margeMax > 0 && ratioMax > 1.3)
