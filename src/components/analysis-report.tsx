@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Download, Printer, Sparkles } from "lucide-react";
+import { Download, FileDown, Printer, Sparkles } from "lucide-react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas-pro";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
