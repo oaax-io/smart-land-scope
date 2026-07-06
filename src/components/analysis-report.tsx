@@ -48,6 +48,17 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
       return data ?? [];
     },
   });
+  const { data: wirtschaft } = useQuery({
+    queryKey: ["wirtschaft-report", id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_wirtschaft")
+        .select("*")
+        .eq("analysis_id", id)
+        .maybeSingle();
+      return data;
+    },
+  });
   const { data: archDocuments = [] } = useQuery({
     queryKey: ["analysis-documents", id, "report"],
     queryFn: async () => {
