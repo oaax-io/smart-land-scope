@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Download, Printer, Sparkles } from "lucide-react";
+import { Download, FileDown, Sparkles } from "lucide-react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas-pro";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -210,27 +212,73 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     return `<!doctype html><html><head><meta charset="utf-8"><title>Machbarkeitsstudie</title><style>${styles}</style></head><body>${body.outerHTML}</body></html>`;
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
+    const body = document.getElementById(domId);
+    if (!body) {
+      toast.error("Bericht-Inhalt nicht gefunden");
+      return;
+    }
+    const toastId = toast.loading("PDF wird generiert…");
     try {
-      const html = buildReportHtml();
-      const w = window.open("", "_blank");
-      if (!w) {
-        toast.error("Popup blockiert", { description: "Bitte Popups für diese Seite erlauben." });
-        return;
+      // Snapshot at higher resolution for crisp text
+      const canvas = await html2canvas(body, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: body.scrollWidth,
+      });
+
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10; // mm
+      const usableWidth = pageWidth - margin * 2;
+      const usableHeight = pageHeight - margin * 2;
+
+      // Full image height in mm when rendered at usable width
+      const imgHeightMm = (canvas.height * usableWidth) / canvas.width;
+
+      // Slice canvas into page-sized chunks so no image is cropped mid-line
+      const pageCanvasHeightPx = (usableHeight * canvas.width) / usableWidth;
+      let renderedPx = 0;
+      let pageIndex = 0;
+      while (renderedPx < canvas.height) {
+        const sliceHeight = Math.min(pageCanvasHeightPx, canvas.height - renderedPx);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceHeight;
+        const ctx = sliceCanvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas-Kontext nicht verfügbar");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+        ctx.drawImage(
+          canvas,
+          0, renderedPx, canvas.width, sliceHeight,
+          0, 0, canvas.width, sliceHeight,
+        );
+        const imgData = sliceCanvas.toDataURL("image/jpeg", 0.92);
+        const sliceHeightMm = (sliceHeight * usableWidth) / canvas.width;
+        if (pageIndex > 0) pdf.addPage();
+        pdf.addImage(imgData, "JPEG", margin, margin, usableWidth, sliceHeightMm, undefined, "FAST");
+        renderedPx += sliceHeight;
+        pageIndex += 1;
       }
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-      const trigger = () => {
-        try { w.focus(); w.print(); } catch (e) { console.error(e); }
-      };
-      if (w.document.readyState === "complete") setTimeout(trigger, 300);
-      else w.addEventListener("load", () => setTimeout(trigger, 300));
+      void imgHeightMm;
+
+      const projectRef = (a.project_number as string | null) ?? id.slice(0, 8).toUpperCase();
+      const safeAddr = (a.address ?? "Grundstueck").replace(/[^\w\-]+/g, "-");
+      pdf.save(`Machbarkeitsstudie-${projectRef}-${safeAddr}.pdf`);
+      toast.success("PDF heruntergeladen", { id: toastId });
     } catch (e) {
       console.error(e);
-      toast.error("PDF-Export fehlgeschlagen", { description: e instanceof Error ? e.message : String(e) });
+      toast.error("PDF-Export fehlgeschlagen", {
+        id: toastId,
+        description: e instanceof Error ? e.message : String(e),
+      });
     }
   };
+
 
   const exportWord = () => {
     try {
@@ -258,7 +306,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
       {showToolbar && (
         <div className="mb-4 flex flex-wrap items-center justify-end gap-2 print:hidden">
           <Button variant="outline" size="sm" onClick={exportPdf}>
-            <Printer className="mr-2 h-4 w-4" />PDF exportieren
+            <FileDown className="mr-2 h-4 w-4" />PDF herunterladen
           </Button>
           <Button size="sm" onClick={exportWord}>
             <Download className="mr-2 h-4 w-4" />Word exportieren
@@ -575,6 +623,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
               aussenflaecheAnrechnungsfaktor: Number(
                 wirtschaft?.aussenflaeche_anrechnungsfaktor ?? 0.35,
               ),
+              sliderBandbreite: Number(wirtschaft?.slider_bandbreite ?? 20),
             };
             // Volumen-Split: Detail = aus Floors, Quick = aus Schnellschätzung
             const volOberFromFloors = floors
@@ -758,7 +807,64 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                     Der bereinigte Wert berücksichtigt einen Risikoabschlag von{" "}
                     {p.risikoabschlagProzent}% für Unsicherheiten in Bau- und Marktpreisen.
                   </p>
+
+                  {/* Visuelle Preis-Bandbreite */}
+                  {(() => {
+                    const sliderMin = residualwert * (1 - p.sliderBandbreite / 100);
+                    const sliderMax = residualwert * (1 + p.sliderBandbreite / 100);
+                    const sliderPosition =
+                      p.parzellenpreis != null && sliderMax !== sliderMin
+                        ? Math.max(
+                            0,
+                            Math.min(
+                              100,
+                              ((p.parzellenpreis - sliderMin) / (sliderMax - sliderMin)) * 100,
+                            ),
+                          )
+                        : null;
+                    return (
+                      <div className="mt-4 break-inside-avoid">
+                        <div className="mb-1.5 flex justify-between text-[10px] text-muted-foreground">
+                          <span>{chf(sliderMin)}</span>
+                          <span className="font-medium text-foreground">
+                            Residualwert: {chf(residualwert)}
+                          </span>
+                          <span>{chf(sliderMax)}</span>
+                        </div>
+                        <div
+                          className="relative h-5 overflow-hidden rounded-full border"
+                          style={{
+                            background:
+                              "linear-gradient(to right, #ef4444 0%, #f97316 25%, #fbbf24 45%, #d1d5db 50%, #86efac 55%, #22c55e 75%, #16a34a 100%)",
+                          }}
+                        >
+                          <div
+                            className="absolute bottom-0 top-0 w-0.5 bg-white/90"
+                            style={{ left: "50%", transform: "translateX(-50%)" }}
+                          />
+                          {sliderPosition != null && (
+                            <div
+                              className="absolute bottom-0 top-0 flex items-center"
+                              style={{
+                                left: `${sliderPosition}%`,
+                                transform: "translateX(-50%)",
+                              }}
+                            >
+                              <div className="flex h-7 w-3.5 items-center justify-center rounded-sm border border-gray-400 bg-white shadow">
+                                <div className="h-3 w-0.5 rounded bg-gray-600" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-1 flex justify-between text-[9px] text-muted-foreground">
+                          <span>← teurer als Residualwert (unattraktiv)</span>
+                          <span>günstiger als Residualwert (attraktiv) →</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
+
 
                 <p className="text-xs text-muted-foreground">
                   Baukostenkennwerte: CHF {p.kostenOberirdischProM3}.–/m³ oberirdisch, CHF{" "}
