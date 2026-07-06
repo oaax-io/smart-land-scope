@@ -268,54 +268,152 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
       return;
     }
     const toastId = toast.loading("PDF wird generiert…");
+
+    // Off-screen render clone: fixed A4-width so layout is deterministic.
+    const A4_WIDTH_MM = 210;
+    const A4_HEIGHT_MM = 297;
+    const MARGIN_MM = 15;
+    const HEADER_MM = 10;
+    const FOOTER_MM = 10;
+    const USABLE_W_MM = A4_WIDTH_MM - MARGIN_MM * 2;
+    const CONTENT_H_MM = A4_HEIGHT_MM - MARGIN_MM * 2 - HEADER_MM - FOOTER_MM;
+    const MM_TO_PX = 3.7795275591; // 96dpi
+    const RENDER_WIDTH_PX = Math.round(USABLE_W_MM * MM_TO_PX);
+    const CONTENT_H_PX = CONTENT_H_MM * MM_TO_PX;
+
+    // Build off-screen container mirroring the report
+    const holder = document.createElement("div");
+    holder.style.cssText = `position:fixed;left:-10000px;top:0;width:${RENDER_WIDTH_PX}px;background:#ffffff;color:#111;padding:0;z-index:-1;`;
+    const clone = body.cloneNode(true) as HTMLElement;
+    clone.style.cssText = `width:${RENDER_WIDTH_PX}px;background:#ffffff;padding:0;margin:0;border:0;box-shadow:none;`;
+    // Hide print-hide elements in the clone
+    clone.querySelectorAll<HTMLElement>('[data-print-hide],.print\\:hidden').forEach((el) => (el.style.display = "none"));
+    holder.appendChild(clone);
+    document.body.appendChild(holder);
+
     try {
-      // Snapshot at higher resolution for crisp text
-      const canvas = await html2canvas(body, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: body.scrollWidth,
-      });
+      // Wait a tick for layout / fonts
+      await document.fonts?.ready?.catch(() => undefined);
+      await new Promise((r) => setTimeout(r, 50));
+
+      const sections = Array.from(clone.querySelectorAll<HTMLElement>(":scope > section"));
+      const targets: HTMLElement[] = sections.length > 0 ? sections : [clone];
 
       const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10; // mm
-      const usableWidth = pageWidth - margin * 2;
-      const usableHeight = pageHeight - margin * 2;
-
-      // Full image height in mm when rendered at usable width
-      const imgHeightMm = (canvas.height * usableWidth) / canvas.width;
-
-      // Slice canvas into page-sized chunks so no image is cropped mid-line
-      const pageCanvasHeightPx = (usableHeight * canvas.width) / usableWidth;
-      let renderedPx = 0;
-      let pageIndex = 0;
-      while (renderedPx < canvas.height) {
-        const sliceHeight = Math.min(pageCanvasHeightPx, canvas.height - renderedPx);
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = sliceHeight;
-        const ctx = sliceCanvas.getContext("2d");
-        if (!ctx) throw new Error("Canvas-Kontext nicht verfügbar");
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-        ctx.drawImage(
-          canvas,
-          0, renderedPx, canvas.width, sliceHeight,
-          0, 0, canvas.width, sliceHeight,
-        );
-        const imgData = sliceCanvas.toDataURL("image/jpeg", 0.92);
-        const sliceHeightMm = (sliceHeight * usableWidth) / canvas.width;
-        if (pageIndex > 0) pdf.addPage();
-        pdf.addImage(imgData, "JPEG", margin, margin, usableWidth, sliceHeightMm, undefined, "FAST");
-        renderedPx += sliceHeight;
-        pageIndex += 1;
-      }
-      void imgHeightMm;
-
       const projectRef = (a.project_number as string | null) ?? id.slice(0, 8).toUpperCase();
+      const addressTitle = a.address ?? "Grundstücksanalyse";
+
+      type PageSlice = { dataUrl: string; heightMm: number };
+      const pages: PageSlice[][] = []; // pages[i] = list of blocks stacked on page i
+      let currentPage: PageSlice[] = [];
+      let currentUsedMm = 0;
+
+      const pushBlock = (dataUrl: string, heightMm: number) => {
+        if (currentUsedMm > 0 && currentUsedMm + heightMm > CONTENT_H_MM + 0.5) {
+          pages.push(currentPage);
+          currentPage = [];
+          currentUsedMm = 0;
+        }
+        currentPage.push({ dataUrl, heightMm });
+        currentUsedMm += heightMm + 2; // small gap between blocks
+      };
+
+      for (let i = 0; i < targets.length; i++) {
+        const el = targets[i];
+        const isTitle = i === 0 && sections.length > 0;
+        // Force-page-break sections that had break-after-page in original
+        const forcesBreakBefore = isTitle ? false : el.classList.contains("break-before-page");
+        if (forcesBreakBefore && currentUsedMm > 0) {
+          pages.push(currentPage);
+          currentPage = [];
+          currentUsedMm = 0;
+        }
+
+        const canvas = await html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          windowWidth: RENDER_WIDTH_PX,
+        });
+        const totalHeightMm = (canvas.height * USABLE_W_MM) / canvas.width;
+
+        if (totalHeightMm <= CONTENT_H_MM) {
+          pushBlock(canvas.toDataURL("image/jpeg", 0.92), totalHeightMm);
+        } else {
+          // Slice this section across multiple pages
+          const pxPerMm = canvas.width / USABLE_W_MM;
+          const remainingOnCurrent = Math.max(0, CONTENT_H_MM - currentUsedMm);
+          let cursorPx = 0;
+          const firstSliceMm = remainingOnCurrent > 20 ? remainingOnCurrent : 0;
+          if (firstSliceMm > 0) {
+            const slicePx = Math.min(canvas.height, Math.floor(firstSliceMm * pxPerMm));
+            const c = document.createElement("canvas");
+            c.width = canvas.width; c.height = slicePx;
+            const ctx = c.getContext("2d")!;
+            ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(canvas, 0, 0, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+            pushBlock(c.toDataURL("image/jpeg", 0.92), (slicePx * USABLE_W_MM) / canvas.width);
+            cursorPx = slicePx;
+          }
+          while (cursorPx < canvas.height) {
+            if (currentUsedMm > 0) { pages.push(currentPage); currentPage = []; currentUsedMm = 0; }
+            const slicePx = Math.min(canvas.height - cursorPx, Math.floor(CONTENT_H_MM * pxPerMm));
+            const c = document.createElement("canvas");
+            c.width = canvas.width; c.height = slicePx;
+            const ctx = c.getContext("2d")!;
+            ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(canvas, 0, cursorPx, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+            pushBlock(c.toDataURL("image/jpeg", 0.92), (slicePx * USABLE_W_MM) / canvas.width);
+            cursorPx += slicePx;
+          }
+        }
+
+        // Force page-break after title & TOC (original had break-after-page on first two)
+        if (el.classList.contains("break-after-page") && currentUsedMm > 0) {
+          pages.push(currentPage);
+          currentPage = [];
+          currentUsedMm = 0;
+        }
+      }
+      if (currentPage.length > 0) pages.push(currentPage);
+
+      // Emit pages with header + footer + page numbers (skip on title page = 1)
+      pages.forEach((blocks, pageIdx) => {
+        if (pageIdx > 0) pdf.addPage();
+        const pageNum = pageIdx + 1;
+        const totalPages = pages.length;
+
+        if (pageIdx > 0) {
+          // Header
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(8);
+          pdf.setTextColor(120);
+          pdf.text(`Machbarkeitsstudie · ${addressTitle}`, MARGIN_MM, MARGIN_MM + 4);
+          pdf.text(`Projekt ${projectRef}`, A4_WIDTH_MM - MARGIN_MM, MARGIN_MM + 4, { align: "right" });
+          pdf.setDrawColor(220);
+          pdf.setLineWidth(0.2);
+          pdf.line(MARGIN_MM, MARGIN_MM + HEADER_MM - 2, A4_WIDTH_MM - MARGIN_MM, MARGIN_MM + HEADER_MM - 2);
+        }
+
+        // Content blocks stacked
+        let y = MARGIN_MM + (pageIdx > 0 ? HEADER_MM : 0);
+        blocks.forEach((b) => {
+          pdf.addImage(b.dataUrl, "JPEG", MARGIN_MM, y, USABLE_W_MM, b.heightMm, undefined, "FAST");
+          y += b.heightMm + 2;
+        });
+
+        // Footer
+        if (pageIdx > 0) {
+          pdf.setDrawColor(220);
+          pdf.line(MARGIN_MM, A4_HEIGHT_MM - MARGIN_MM - FOOTER_MM + 2, A4_WIDTH_MM - MARGIN_MM, A4_HEIGHT_MM - MARGIN_MM - FOOTER_MM + 2);
+          pdf.setFontSize(8);
+          pdf.setTextColor(120);
+          pdf.text("SmarTerra · Property Intelligence", MARGIN_MM, A4_HEIGHT_MM - MARGIN_MM - 2);
+          pdf.text(`Seite ${pageNum} / ${totalPages}`, A4_WIDTH_MM - MARGIN_MM, A4_HEIGHT_MM - MARGIN_MM - 2, { align: "right" });
+        }
+      });
+
       const safeAddr = (a.address ?? "Grundstueck").replace(/[^\w\-]+/g, "-");
       pdf.save(`Machbarkeitsstudie-${projectRef}-${safeAddr}.pdf`);
       toast.success("PDF heruntergeladen", { id: toastId });
@@ -325,6 +423,8 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
         id: toastId,
         description: e instanceof Error ? e.message : String(e),
       });
+    } finally {
+      holder.remove();
     }
   };
 
