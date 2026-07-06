@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/dokumentation")({
   component: DocsPage,
 });
 
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.7.0";
 const APP_STAGE = "Beta";
 
 type Change = {
@@ -37,6 +37,21 @@ type Release = {
 };
 
 const RELEASES: Release[] = [
+  {
+    version: "1.7.0",
+    date: "2026-07-06",
+    title: "Bericht-Sync, Residualwert-Grafik & echter PDF-Download",
+    changes: [
+      { type: "Neu", text: "Kapitel 7 'Wirtschaftlichkeit' im Bericht wird aus neuer Tabelle `analysis_wirtschaft` geladen — Projekt-Tab und Bericht-Tab zeigen exakt dieselben Zahlen (Baukosten, NWF-Faktor 0.65, Bandbreite, Renditeziel, Parzellenpreis)" },
+      { type: "Neu", text: "Residualwert-Bandbreiten-Grafik im Bericht: horizontaler Farbverlauf (rot→grün) mit vertikalem Marker am Parzellenpreis und Legende 'teurer/günstiger als Residualwert'" },
+      { type: "Neu", text: "Vollwertiger PDF-Download (html2canvas + jsPDF) statt Druckdialog: sektionsweises Rendering im A4-Layout, saubere Seitenumbrüche ohne Überlappung, Kopfzeile (Titel + Projektnummer), Fusszeile mit Seitennummerierung 'Seite x / y'" },
+      { type: "Neu", text: "Zentrale Zonenplan-Daten für Luzern (Zone 2803 Zentrumszone Rüsstal): Fassadenhöhe, Lärmempfindlichkeitsstufe, Parkplatzpflicht und Spielflächen aus `regulation_extractions` — keine manuelle Nacherfassung mehr" },
+      { type: "Verbessert", text: "Rechtliche Grundlagen fallen auf `building_coverage_ratio` zurück, wenn `utilization_ratio` fehlt — WA11 Luzern zeigt jetzt ÜZ 0.2 statt '–'" },
+      { type: "Verbessert", text: "`analyze-knowledge` patcht offizielle LU-Zonenplan-Werte automatisch in laufende Analysen und respektiert vorhandene KI-Werte" },
+      { type: "Verbessert", text: "Numerische Bericht-Felder filtern leere/0-Werte strikter (`asPositiveNum`), damit keine irreführenden Nullen erscheinen" },
+      { type: "Behoben", text: "Kapitel 7 'Wirtschaftlichkeit' und 'Grobkostenschätzung' waren im Bericht-Body unsichtbar (nur im Inhaltsverzeichnis gelistet)" },
+    ],
+  },
   {
     version: "1.6.0",
     date: "2026-07-03",
