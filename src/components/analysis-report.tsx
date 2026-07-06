@@ -653,6 +653,14 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
             ];
             return (
               <div className="space-y-4 break-inside-avoid">
+                {mode === "quick" && (
+                  <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                    <strong>Schnellschätzung</strong> auf Basis der Baurechts-Kennwerte
+                    (Grundstück {Math.round(grundstueck)} m² · ÜZ {uez} · max. Höhe {maxH} m ·
+                    Geschosshöhe {gH} m). Genauigkeit ±25–35%. Für präzise Werte im Projekt-Tab
+                    Geschossflächen erfassen.
+                  </p>
+                )}
                 <div className="grid grid-cols-3 gap-3">
                   {(
                     [
