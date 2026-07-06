@@ -761,7 +761,64 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                     Der bereinigte Wert berücksichtigt einen Risikoabschlag von{" "}
                     {p.risikoabschlagProzent}% für Unsicherheiten in Bau- und Marktpreisen.
                   </p>
+
+                  {/* Visuelle Preis-Bandbreite */}
+                  {(() => {
+                    const sliderMin = residualwert * (1 - p.sliderBandbreite / 100);
+                    const sliderMax = residualwert * (1 + p.sliderBandbreite / 100);
+                    const sliderPosition =
+                      p.parzellenpreis != null && sliderMax !== sliderMin
+                        ? Math.max(
+                            0,
+                            Math.min(
+                              100,
+                              ((p.parzellenpreis - sliderMin) / (sliderMax - sliderMin)) * 100,
+                            ),
+                          )
+                        : null;
+                    return (
+                      <div className="mt-4 break-inside-avoid">
+                        <div className="mb-1.5 flex justify-between text-[10px] text-muted-foreground">
+                          <span>{chf(sliderMin)}</span>
+                          <span className="font-medium text-foreground">
+                            Residualwert: {chf(residualwert)}
+                          </span>
+                          <span>{chf(sliderMax)}</span>
+                        </div>
+                        <div
+                          className="relative h-5 overflow-hidden rounded-full border"
+                          style={{
+                            background:
+                              "linear-gradient(to right, #ef4444 0%, #f97316 25%, #fbbf24 45%, #d1d5db 50%, #86efac 55%, #22c55e 75%, #16a34a 100%)",
+                          }}
+                        >
+                          <div
+                            className="absolute bottom-0 top-0 w-0.5 bg-white/90"
+                            style={{ left: "50%", transform: "translateX(-50%)" }}
+                          />
+                          {sliderPosition != null && (
+                            <div
+                              className="absolute bottom-0 top-0 flex items-center"
+                              style={{
+                                left: `${sliderPosition}%`,
+                                transform: "translateX(-50%)",
+                              }}
+                            >
+                              <div className="flex h-7 w-3.5 items-center justify-center rounded-sm border border-gray-400 bg-white shadow">
+                                <div className="h-3 w-0.5 rounded bg-gray-600" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-1 flex justify-between text-[9px] text-muted-foreground">
+                          <span>← teurer als Residualwert (unattraktiv)</span>
+                          <span>günstiger als Residualwert (attraktiv) →</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
+
 
                 <p className="text-xs text-muted-foreground">
                   Baukostenkennwerte: CHF {p.kostenOberirdischProM3}.–/m³ oberirdisch, CHF{" "}
