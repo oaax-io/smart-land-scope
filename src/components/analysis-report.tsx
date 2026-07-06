@@ -212,27 +212,73 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     return `<!doctype html><html><head><meta charset="utf-8"><title>Machbarkeitsstudie</title><style>${styles}</style></head><body>${body.outerHTML}</body></html>`;
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
+    const body = document.getElementById(domId);
+    if (!body) {
+      toast.error("Bericht-Inhalt nicht gefunden");
+      return;
+    }
+    const toastId = toast.loading("PDF wird generiert…");
     try {
-      const html = buildReportHtml();
-      const w = window.open("", "_blank");
-      if (!w) {
-        toast.error("Popup blockiert", { description: "Bitte Popups für diese Seite erlauben." });
-        return;
+      // Snapshot at higher resolution for crisp text
+      const canvas = await html2canvas(body, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: body.scrollWidth,
+      });
+
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10; // mm
+      const usableWidth = pageWidth - margin * 2;
+      const usableHeight = pageHeight - margin * 2;
+
+      // Full image height in mm when rendered at usable width
+      const imgHeightMm = (canvas.height * usableWidth) / canvas.width;
+
+      // Slice canvas into page-sized chunks so no image is cropped mid-line
+      const pageCanvasHeightPx = (usableHeight * canvas.width) / usableWidth;
+      let renderedPx = 0;
+      let pageIndex = 0;
+      while (renderedPx < canvas.height) {
+        const sliceHeight = Math.min(pageCanvasHeightPx, canvas.height - renderedPx);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceHeight;
+        const ctx = sliceCanvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas-Kontext nicht verfügbar");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+        ctx.drawImage(
+          canvas,
+          0, renderedPx, canvas.width, sliceHeight,
+          0, 0, canvas.width, sliceHeight,
+        );
+        const imgData = sliceCanvas.toDataURL("image/jpeg", 0.92);
+        const sliceHeightMm = (sliceHeight * usableWidth) / canvas.width;
+        if (pageIndex > 0) pdf.addPage();
+        pdf.addImage(imgData, "JPEG", margin, margin, usableWidth, sliceHeightMm, undefined, "FAST");
+        renderedPx += sliceHeight;
+        pageIndex += 1;
       }
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-      const trigger = () => {
-        try { w.focus(); w.print(); } catch (e) { console.error(e); }
-      };
-      if (w.document.readyState === "complete") setTimeout(trigger, 300);
-      else w.addEventListener("load", () => setTimeout(trigger, 300));
+      void imgHeightMm;
+
+      const projectRef = (a.project_number as string | null) ?? id.slice(0, 8).toUpperCase();
+      const safeAddr = (a.address ?? "Grundstueck").replace(/[^\w\-]+/g, "-");
+      pdf.save(`Machbarkeitsstudie-${projectRef}-${safeAddr}.pdf`);
+      toast.success("PDF heruntergeladen", { id: toastId });
     } catch (e) {
       console.error(e);
-      toast.error("PDF-Export fehlgeschlagen", { description: e instanceof Error ? e.message : String(e) });
+      toast.error("PDF-Export fehlgeschlagen", {
+        id: toastId,
+        description: e instanceof Error ? e.message : String(e),
+      });
     }
   };
+
 
   const exportWord = () => {
     try {
