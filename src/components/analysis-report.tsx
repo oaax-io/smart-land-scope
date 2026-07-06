@@ -525,19 +525,38 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
 
         <Section title="7. Wirtschaftlichkeit & Grobkostenschätzung">
           {(() => {
-            const totalBgf = floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0);
-            const totalVol = floors.reduce(
+            const floorsBgf = floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0);
+            const floorsVol = floors.reduce(
               (s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0),
               0,
             );
-            if (totalBgf === 0) {
+            const hasFloors = floorsBgf > 0;
+
+            // Fallback-Schnellschätzung wenn keine Geschossflächen erfasst
+            const grundstueck = Number(a.area_size ?? 0);
+            const uez = Number(a.building_coverage_ratio ?? a.utilization_ratio ?? 0);
+            const maxH = Number(a.max_height ?? 0);
+            const gH = 3.0;
+            const bebauteFlaeche = grundstueck * uez;
+            const vollgeschosse = gH > 0 ? Math.floor(maxH / gH) : 0;
+            const quickBgfOber = bebauteFlaeche * vollgeschosse;
+            const quickUgFlaeche = bebauteFlaeche * 1.3;
+            const quickBgf = quickBgfOber + quickUgFlaeche;
+            const quickVol = quickBgfOber * gH + quickUgFlaeche * gH;
+            const canQuick = grundstueck > 0 && uez > 0 && maxH > 0;
+
+            if (!hasFloors && !canQuick) {
               return (
                 <p className="text-sm italic text-muted-foreground">
-                  Noch keine Geschossdaten im Projekt-Tab erfasst. Volumen- und Kostenberechnung
-                  nicht möglich.
+                  Keine Geschossdaten und keine Baurechts-Kennwerte (Grundstückfläche, ÜZ,
+                  Gebäudehöhe) verfügbar — Wirtschaftlichkeit kann nicht berechnet werden.
                 </p>
               );
             }
+
+            const totalBgf = hasFloors ? floorsBgf : quickBgf;
+            const totalVol = hasFloors ? floorsVol : quickVol;
+            const mode: "detail" | "quick" = hasFloors ? "detail" : "quick";
             const p = {
               kostenOberirdischProM3: Number(wirtschaft?.kosten_oberirdisch_pro_m3 ?? 950),
               kostenUGProM3: Number(wirtschaft?.kosten_ug_pro_m3 ?? 550),
@@ -557,15 +576,15 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                 wirtschaft?.aussenflaeche_anrechnungsfaktor ?? 0.35,
               ),
             };
-            // UG-Volumen aus Geschossen (floor_index < 0), Fallback 25%
-            const volOberirdisch = floors
+            // Volumen-Split: Detail = aus Floors, Quick = aus Schnellschätzung
+            const volOberFromFloors = floors
               .filter((f) => (Number(f.floor_index) ?? 0) >= 0)
               .reduce((s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0), 0);
-            const volUGReal = floors
+            const volUGFromFloors = floors
               .filter((f) => (Number(f.floor_index) ?? 0) < 0)
               .reduce((s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0), 0);
-            const volUG = volUGReal > 0 ? volUGReal : totalVol * 0.25;
-            const volOber = volOberirdisch > 0 ? volOberirdisch : totalVol;
+            const volOber = mode === "quick" ? quickBgfOber * gH : volOberFromFloors > 0 ? volOberFromFloors : totalVol;
+            const volUG = mode === "quick" ? quickUgFlaeche * gH : volUGFromFloors > 0 ? volUGFromFloors : totalVol * 0.25;
             const bkp2Oberirdisch = volOber * p.kostenOberirdischProM3;
             const bkp2UG = volUG * p.kostenUGProM3;
             const bkp2Total = bkp2Oberirdisch + bkp2UG;
@@ -634,6 +653,14 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
             ];
             return (
               <div className="space-y-4 break-inside-avoid">
+                {mode === "quick" && (
+                  <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                    <strong>Schnellschätzung</strong> auf Basis der Baurechts-Kennwerte
+                    (Grundstück {Math.round(grundstueck)} m² · ÜZ {uez} · max. Höhe {maxH} m ·
+                    Geschosshöhe {gH} m). Genauigkeit ±25–35%. Für präzise Werte im Projekt-Tab
+                    Geschossflächen erfassen.
+                  </p>
+                )}
                 <div className="grid grid-cols-3 gap-3">
                   {(
                     [
