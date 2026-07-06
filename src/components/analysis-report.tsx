@@ -577,6 +577,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
               aussenflaecheAnrechnungsfaktor: Number(
                 wirtschaft?.aussenflaeche_anrechnungsfaktor ?? 0.35,
               ),
+              sliderBandbreite: Number(wirtschaft?.slider_bandbreite ?? 20),
             };
             // Volumen-Split: Detail = aus Floors, Quick = aus Schnellschätzung
             const volOberFromFloors = floors
