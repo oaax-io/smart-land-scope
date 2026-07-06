@@ -546,16 +546,92 @@ export function WirtschaftlichkeitCard({
     bkp6MinPct: 5,
     bkp6MaxPct: 8,
     marktpreisProM2: 8500,
-    nwfFaktorPct: 65, // Schweizer Richtwert (Emmen-Beispiel: 58%)
+    nwfFaktorPct: 65,
+    risikoabschlagProzent: 15,
+    aussenflaecheM2: 0,
+    aussenflaecheAnrechnungsfaktorPct: 35,
   });
   const [params, setParams] = useState(inputs);
   const [parzellenpreis, setParzellenpreis] = useState<number | null>(null);
   const [sliderBandbreite, setSliderBandbreite] = useState<number>(20);
+  const hydratedRef = useRef(false);
+
+  // Persistente Parameter aus DB laden
+  const { data: savedParams } = useQuery({
+    queryKey: ["wirtschaft-params", analysis.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_wirtschaft")
+        .select("*")
+        .eq("analysis_id", analysis.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (!savedParams || hydratedRef.current) return;
+    hydratedRef.current = true;
+    setInputs({
+      kostenOberirdischProM3: Number(savedParams.kosten_oberirdisch_pro_m3),
+      kostenUGProM3: Number(savedParams.kosten_ug_pro_m3),
+      siaMinPct: Number(savedParams.sia_honorare_min),
+      siaMaxPct: Number(savedParams.sia_honorare_max),
+      bkp5MinPct: Number(savedParams.bkp5_min),
+      bkp5MaxPct: Number(savedParams.bkp5_max),
+      bkp6MinPct: Number(savedParams.bkp6_min),
+      bkp6MaxPct: Number(savedParams.bkp6_max),
+      marktpreisProM2: Number(savedParams.marktpreis_pro_m2),
+      nwfFaktorPct: Math.round(Number(savedParams.nwf_faktor) * 100),
+      risikoabschlagProzent: Number(savedParams.risikoabschlag_prozent),
+      aussenflaecheM2: Number(savedParams.aussenflaeche_m2),
+      aussenflaecheAnrechnungsfaktorPct: Math.round(
+        Number(savedParams.aussenflaeche_anrechnungsfaktor) * 100,
+      ),
+    });
+    setParzellenpreis(
+      savedParams.parzellenpreis != null ? Number(savedParams.parzellenpreis) : null,
+    );
+    setSliderBandbreite(Number(savedParams.slider_bandbreite));
+  }, [savedParams]);
 
   useEffect(() => {
     const t = setTimeout(() => setParams(inputs), 500);
     return () => clearTimeout(t);
   }, [inputs]);
+
+  // Debounced Persist an DB (nach Hydration)
+  const qc2 = useQueryClient();
+  useEffect(() => {
+    if (!hydratedRef.current && savedParams === undefined) return;
+    const t = setTimeout(async () => {
+      await supabase.from("analysis_wirtschaft").upsert(
+        {
+          analysis_id: analysis.id,
+          organization_id: analysis.organization_id,
+          kosten_oberirdisch_pro_m3: inputs.kostenOberirdischProM3,
+          kosten_ug_pro_m3: inputs.kostenUGProM3,
+          sia_honorare_min: inputs.siaMinPct,
+          sia_honorare_max: inputs.siaMaxPct,
+          bkp5_min: inputs.bkp5MinPct,
+          bkp5_max: inputs.bkp5MaxPct,
+          bkp6_min: inputs.bkp6MinPct,
+          bkp6_max: inputs.bkp6MaxPct,
+          marktpreis_pro_m2: inputs.marktpreisProM2,
+          nwf_faktor: inputs.nwfFaktorPct / 100,
+          risikoabschlag_prozent: inputs.risikoabschlagProzent,
+          aussenflaeche_m2: inputs.aussenflaecheM2,
+          aussenflaeche_anrechnungsfaktor: inputs.aussenflaecheAnrechnungsfaktorPct / 100,
+          parzellenpreis: parzellenpreis,
+          slider_bandbreite: sliderBandbreite,
+        },
+        { onConflict: "analysis_id" },
+      );
+      hydratedRef.current = true;
+      qc2.invalidateQueries({ queryKey: ["wirtschaft-report", analysis.id] });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [inputs, parzellenpreis, sliderBandbreite, analysis.id, analysis.organization_id, savedParams, qc2]);
 
   const setI = (key: keyof typeof inputs, value: number) =>
     setInputs((p) => ({ ...p, [key]: Number.isFinite(value) ? value : 0 }));
@@ -800,10 +876,25 @@ export function WirtschaftlichkeitCard({
               <ParamRow label="Marktpreis NWF (CHF/m²)">
                 <NumInput keyName="marktpreisProM2" />
               </ParamRow>
+              <ParamRow label="Aussenfläche (m²)">
+                <NumInput keyName="aussenflaecheM2" />
+              </ParamRow>
+              <ParamRow label="Aussen-Anrechnung (%)">
+                <div className="flex items-center gap-1">
+                  <NumInput keyName="aussenflaecheAnrechnungsfaktorPct" className="w-20" />
+                  <span className="text-xs text-muted-foreground">%</span>
+                </div>
+              </ParamRow>
             </ParamSection>
 
-            <ParamSection title="Slider">
-              <ParamRow label="Bandbreite ±%">
+            <ParamSection title="Risiko & Slider">
+              <ParamRow label="Risikoabschlag (%)">
+                <div className="flex items-center gap-1">
+                  <NumInput keyName="risikoabschlagProzent" className="w-20" />
+                  <span className="text-xs text-muted-foreground">%</span>
+                </div>
+              </ParamRow>
+              <ParamRow label="Slider-Bandbreite ±%">
                 <Input
                   type="number"
                   className="h-8 w-20 text-right"
