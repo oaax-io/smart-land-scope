@@ -31,10 +31,12 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
     const zone = await queryLuZonePlan(analysis.lat as number, analysis.lng as number);
     if (!zone) return { ok: false as const, reason: "no_zone_found" as const };
 
+    const effectiveHeight = zone.heightMax ?? zone.facadeHeightMax;
     const specialProvisions = [
       zone.bzrArticle ? `BZR Art. ${zone.bzrArticle}` : null,
       zone.bzrFurther,
       zone.buildingType ? `Bauweise: ${zone.buildingType}` : null,
+      zone.facadeHeightMax ? `Max. Fassadenhöhe: ${zone.facadeHeightMax} m` : null,
       zone.buildingLength ? `Max. Gebäudelänge: ${zone.buildingLength} m` : null,
       zone.greenAreaRatio ? `Grünflächenziffer: ${zone.greenAreaRatio}` : null,
       zone.residentialShareMax != null
@@ -61,10 +63,13 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
     // leere Zonenplan-Felder überschrieben werden.
     const patch: Record<string, unknown> = {};
     if (zoneName != null) patch.zone = zoneName;
+    if (zone.zoneMunicipalityLabel != null) patch.detected_zone_precise = zone.zoneMunicipalityLabel;
+    patch.detected_zone_source = "Amtlicher Zonenplan Kanton Luzern";
+    patch.regulation_basis = "Amtlicher Zonenplan Kanton Luzern (ZPGNDNTZ) / Bau- und Zonenreglement Luzern";
     if (zone.az != null) patch.utilization_ratio = zone.az;
     if (zone.uezMax != null) patch.building_coverage_ratio = zone.uezMax;
     if (zone.floors != null) patch.max_floors = zone.floors;
-    if (zone.heightMax != null) patch.max_height = zone.heightMax;
+    if (effectiveHeight != null) patch.max_height = effectiveHeight;
     if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
     if (specialProvisions != null) patch.special_provisions = specialProvisions;
     if (zone.geometry != null) patch.parcel_geometry = zone.geometry as unknown as Json;
