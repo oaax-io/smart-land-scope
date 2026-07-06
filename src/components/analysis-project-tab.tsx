@@ -876,10 +876,25 @@ export function WirtschaftlichkeitCard({
               <ParamRow label="Marktpreis NWF (CHF/m²)">
                 <NumInput keyName="marktpreisProM2" />
               </ParamRow>
+              <ParamRow label="Aussenfläche (m²)">
+                <NumInput keyName="aussenflaecheM2" />
+              </ParamRow>
+              <ParamRow label="Aussen-Anrechnung (%)">
+                <div className="flex items-center gap-1">
+                  <NumInput keyName="aussenflaecheAnrechnungsfaktorPct" className="w-20" />
+                  <span className="text-xs text-muted-foreground">%</span>
+                </div>
+              </ParamRow>
             </ParamSection>
 
-            <ParamSection title="Slider">
-              <ParamRow label="Bandbreite ±%">
+            <ParamSection title="Risiko & Slider">
+              <ParamRow label="Risikoabschlag (%)">
+                <div className="flex items-center gap-1">
+                  <NumInput keyName="risikoabschlagProzent" className="w-20" />
+                  <span className="text-xs text-muted-foreground">%</span>
+                </div>
+              </ParamRow>
+              <ParamRow label="Slider-Bandbreite ±%">
                 <Input
                   type="number"
                   className="h-8 w-20 text-right"
