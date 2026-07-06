@@ -629,6 +629,90 @@ export type Database = {
           },
         ]
       }
+      analysis_wirtschaft: {
+        Row: {
+          analysis_id: string
+          aussenflaeche_anrechnungsfaktor: number
+          aussenflaeche_m2: number
+          bkp5_max: number
+          bkp5_min: number
+          bkp6_max: number
+          bkp6_min: number
+          created_at: string
+          id: string
+          kosten_oberirdisch_pro_m3: number
+          kosten_ug_pro_m3: number
+          marktpreis_pro_m2: number
+          nwf_faktor: number
+          organization_id: string
+          parzellenpreis: number | null
+          risikoabschlag_prozent: number
+          sia_honorare_max: number
+          sia_honorare_min: number
+          slider_bandbreite: number
+          updated_at: string
+        }
+        Insert: {
+          analysis_id: string
+          aussenflaeche_anrechnungsfaktor?: number
+          aussenflaeche_m2?: number
+          bkp5_max?: number
+          bkp5_min?: number
+          bkp6_max?: number
+          bkp6_min?: number
+          created_at?: string
+          id?: string
+          kosten_oberirdisch_pro_m3?: number
+          kosten_ug_pro_m3?: number
+          marktpreis_pro_m2?: number
+          nwf_faktor?: number
+          organization_id: string
+          parzellenpreis?: number | null
+          risikoabschlag_prozent?: number
+          sia_honorare_max?: number
+          sia_honorare_min?: number
+          slider_bandbreite?: number
+          updated_at?: string
+        }
+        Update: {
+          analysis_id?: string
+          aussenflaeche_anrechnungsfaktor?: number
+          aussenflaeche_m2?: number
+          bkp5_max?: number
+          bkp5_min?: number
+          bkp6_max?: number
+          bkp6_min?: number
+          created_at?: string
+          id?: string
+          kosten_oberirdisch_pro_m3?: number
+          kosten_ug_pro_m3?: number
+          marktpreis_pro_m2?: number
+          nwf_faktor?: number
+          organization_id?: string
+          parzellenpreis?: number | null
+          risikoabschlag_prozent?: number
+          sia_honorare_max?: number
+          sia_honorare_min?: number
+          slider_bandbreite?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_wirtschaft_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: true
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_wirtschaft_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       background_jobs: {
         Row: {
           created_at: string
