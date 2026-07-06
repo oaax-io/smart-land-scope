@@ -556,7 +556,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
           </div>
         </Section>
 
-        <Section title="9. Risiken">
+        <Section title="10. Risiken">
           {risks.length === 0 ? (
             <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
               Keine spezifischen Risiken erfasst.
