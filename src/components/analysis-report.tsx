@@ -539,20 +539,34 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
               );
             }
             const p = {
-              kostenOberirdischProM3: 950,
-              kostenUGProM3: 550,
-              ugAnteil: 0.25,
-              siaHonorareMin: 12,
-              siaHonorareMax: 15,
-              bkp5Min: 3,
-              bkp5Max: 5,
-              bkp6Min: 5,
-              bkp6Max: 8,
-              nwfFaktor: 0.8,
-              marktpreisProM2: 8500,
+              kostenOberirdischProM3: Number(wirtschaft?.kosten_oberirdisch_pro_m3 ?? 950),
+              kostenUGProM3: Number(wirtschaft?.kosten_ug_pro_m3 ?? 550),
+              siaHonorareMin: Number(wirtschaft?.sia_honorare_min ?? 12),
+              siaHonorareMax: Number(wirtschaft?.sia_honorare_max ?? 15),
+              bkp5Min: Number(wirtschaft?.bkp5_min ?? 3),
+              bkp5Max: Number(wirtschaft?.bkp5_max ?? 5),
+              bkp6Min: Number(wirtschaft?.bkp6_min ?? 5),
+              bkp6Max: Number(wirtschaft?.bkp6_max ?? 8),
+              nwfFaktor: Number(wirtschaft?.nwf_faktor ?? 0.65),
+              marktpreisProM2: Number(wirtschaft?.marktpreis_pro_m2 ?? 8500),
+              parzellenpreis:
+                wirtschaft?.parzellenpreis != null ? Number(wirtschaft.parzellenpreis) : null,
+              risikoabschlagProzent: Number(wirtschaft?.risikoabschlag_prozent ?? 15),
+              aussenflaecheM2: Number(wirtschaft?.aussenflaeche_m2 ?? 0),
+              aussenflaecheAnrechnungsfaktor: Number(
+                wirtschaft?.aussenflaeche_anrechnungsfaktor ?? 0.35,
+              ),
             };
-            const volUG = totalVol * p.ugAnteil;
-            const bkp2Oberirdisch = totalVol * p.kostenOberirdischProM3;
+            // UG-Volumen aus Geschossen (floor_index < 0), Fallback 25%
+            const volOberirdisch = floors
+              .filter((f) => (Number(f.floor_index) ?? 0) >= 0)
+              .reduce((s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0), 0);
+            const volUGReal = floors
+              .filter((f) => (Number(f.floor_index) ?? 0) < 0)
+              .reduce((s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0), 0);
+            const volUG = volUGReal > 0 ? volUGReal : totalVol * 0.25;
+            const volOber = volOberirdisch > 0 ? volOberirdisch : totalVol;
+            const bkp2Oberirdisch = volOber * p.kostenOberirdischProM3;
             const bkp2UG = volUG * p.kostenUGProM3;
             const bkp2Total = bkp2Oberirdisch + bkp2UG;
             const siaMin = bkp2Total * (p.siaHonorareMin / 100);
@@ -564,25 +578,59 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
             const totalMin = bkp2Total + siaMin + bkp5Min + bkp6Min;
             const totalMax = bkp2Total + siaMax + bkp5Max + bkp6Max;
             const nwf = totalBgf * p.nwfFaktor;
+            const aussenErloes = p.aussenflaecheM2 * p.aussenflaecheAnrechnungsfaktor * p.marktpreisProM2;
             const erloes = nwf * p.marktpreisProM2;
-            const margeMin = erloes - totalMax;
-            const margeMax = erloes - totalMin;
-            const ratioMin = totalMax > 0 ? erloes / totalMax : 0;
-            const ratioMax = totalMin > 0 ? erloes / totalMin : 0;
+            const erloesMitAussenflaeche = erloes + aussenErloes;
+            const margeMin = erloesMitAussenflaeche - totalMax;
+            const margeMax = erloesMitAussenflaeche - totalMin;
+            const ratioMin = totalMax > 0 ? erloesMitAussenflaeche / totalMax : 0;
+            const ratioMax = totalMin > 0 ? erloesMitAussenflaeche / totalMin : 0;
+            const residualwert = erloesMitAussenflaeche - (totalMin + totalMax) / 2;
+            const residualwertBereinigt = residualwert * (1 - p.risikoabschlagProzent / 100);
+            const grundstueckM2 = Number(a.area_size ?? 0);
+            const residualwertProM2 = grundstueckM2 > 0 ? residualwert / grundstueckM2 : null;
             const rows: Array<[string, string, string, boolean?]> = [
               ["BKP2 Baukosten oberirdisch", chf(bkp2Oberirdisch), "—"],
               ["BKP2 Baukosten Untergeschoss", chf(bkp2UG), "—"],
-              ["BKP2 Total Baukosten", chf(bkp2Total), "—", true],
+              ["BKP2 Total", chf(bkp2Total), "—", true],
               [`SIA-Honorare (${p.siaHonorareMin}–${p.siaHonorareMax}%)`, chf(siaMin), chf(siaMax)],
               [`BKP5 Nebenkosten (${p.bkp5Min}–${p.bkp5Max}%)`, chf(bkp5Min), chf(bkp5Max)],
               [`BKP6 Reserve (${p.bkp6Min}–${p.bkp6Max}%)`, chf(bkp6Min), chf(bkp6Max)],
               ["Total Baukosten", chf(totalMin), chf(totalMax), true],
-              ["Nettowohnfläche", `${Math.round(nwf)} m²`, "—"],
-              [`Marktpreis (${chf(p.marktpreisProM2)}/m²)`, "—", "—"],
-              ["Geschätzter Erlös", chf(erloes), "—"],
-              ["Marge (Erlös – Baukosten)", chf(margeMin), chf(margeMax), true],
-              ["Residualwert (Erlös − Ø Baukosten)", chf(erloes - (totalMin + totalMax) / 2), "—", true],
+              ["Nettowohnfläche (NWF)", `${Math.round(nwf)} m²`, "—"],
+              ...(p.aussenflaecheM2 > 0
+                ? ([[
+                    `Aussenflächen (${Math.round(p.aussenflaecheAnrechnungsfaktor * 100)}% von ${Math.round(p.aussenflaecheM2)} m²)`,
+                    chf(aussenErloes),
+                    "—",
+                  ]] as [string, string, string][])
+                : []),
+              [`Marktpreis ${chf(p.marktpreisProM2)}/m²`, "—", "—"],
+              ["Geschätzter Erlös", chf(erloesMitAussenflaeche), "—"],
+              ["Marge", chf(margeMin), chf(margeMax), true],
               ["Erlös / Kosten Ratio", ratioMin.toFixed(2), ratioMax.toFixed(2), true],
+              ["Residualwert (unbereinigt)", chf(residualwert), "—", true],
+              [
+                `Risikoabschlag (−${p.risikoabschlagProzent}%)`,
+                chf(-(residualwert * p.risikoabschlagProzent) / 100),
+                "—",
+              ],
+              ["Residualwert bereinigt", chf(residualwertBereinigt), "—", true],
+              ...(residualwertProM2 != null
+                ? ([[
+                    "Residualwert / m² Grundstück",
+                    `${chf(residualwertProM2)}/m²`,
+                    "—",
+                  ]] as [string, string, string][])
+                : []),
+              ...(p.parzellenpreis != null && residualwertBereinigt !== 0
+                ? ([[
+                    "Angebotspreis Parzelle",
+                    chf(p.parzellenpreis),
+                    `${(((p.parzellenpreis - residualwertBereinigt) / residualwertBereinigt) * 100).toFixed(1)}%`,
+                    true,
+                  ]] as [string, string, string, boolean][])
+                : []),
             ];
             return (
               <div className="space-y-4 break-inside-avoid">
