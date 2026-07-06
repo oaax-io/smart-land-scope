@@ -115,11 +115,13 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
         .maybeSingle();
       if (!extr?.zones) return null;
       const zones = extr.zones as Array<{ code?: string; name?: string; [key: string]: unknown }>;
-      const zKey = (a?.zone ?? "").toLowerCase();
+      const candidates = [a?.zone, a?.zone_override, a?.detected_zone_precise]
+        .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+        .map((v) => v.trim().toLowerCase());
       const match = zones.find(
-        (z) => z.code?.toLowerCase() === zKey || z.name?.toLowerCase().includes(zKey),
+        (z) => candidates.some((key) => z.code?.toLowerCase() === key || z.name?.toLowerCase().includes(key)),
       );
-      return match ?? zones[0] ?? null;
+      return match ?? null;
     },
   });
 
@@ -160,6 +162,53 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
   const risks: Risk[] = Array.isArray(a.risks) ? (a.risks as unknown as Risk[]) : [];
   const usages: string[] = Array.isArray(a.usage_type) ? (a.usage_type as string[]) : [];
   const restrictions: string[] = Array.isArray(a.restrictions) ? (a.restrictions as string[]) : [];
+  const asNum = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim() !== "") {
+      const n = Number(value.replace(",", "."));
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  };
+  const asPositiveNum = (value: unknown): number | null => {
+    const n = asNum(value);
+    return n != null && n > 0 ? n : null;
+  };
+  const asStr = (value: unknown): string | null =>
+    typeof value === "string" && value.trim() ? value.trim() : null;
+  const zd = (zoneData ?? {}) as Record<string, unknown>;
+  const analysisSetbacks = (a.setbacks && typeof a.setbacks === "object" ? a.setbacks : {}) as Record<string, unknown>;
+  const legalZoneData = {
+    ...zd,
+    code: asStr(zd.code) ?? (a.zone as string | null) ?? (a.zone_override as string | null) ?? null,
+    name: asStr(zd.name) ?? (a.detected_zone_precise as string | null) ?? (a.detected_zone as string | null) ?? null,
+    max_floors: asPositiveNum(zd.max_floors) ?? asPositiveNum(a.max_floors),
+    max_height_m: asPositiveNum(zd.max_height_m),
+    max_facade_height_m: asPositiveNum(zd.max_facade_height_m) ?? asPositiveNum(zd.max_height_valley_m) ?? asPositiveNum(a.max_height),
+    max_height_valley_m: asPositiveNum(zd.max_height_valley_m),
+    utilization_ratio: asPositiveNum(zd.utilization_ratio) ?? asPositiveNum(a.utilization_ratio),
+    building_coverage_ratio: asPositiveNum(zd.building_coverage_ratio) ?? asPositiveNum(a.building_coverage_ratio),
+    building_mass_ratio: asPositiveNum(zd.building_mass_ratio),
+    open_space_ratio: asPositiveNum(zd.open_space_ratio),
+    setback_small_m: asPositiveNum(zd.setback_small_m),
+    setback_large_m: asPositiveNum(zd.setback_large_m),
+    setback_note: asStr(zd.setback_note) ?? asStr(analysisSetbacks.notes),
+    max_building_length_m: asPositiveNum(zd.max_building_length_m) ?? asPositiveNum(zd.building_length_m),
+    max_facade_length_m: asPositiveNum(zd.max_facade_length_m),
+    height_bonus_m: asPositiveNum(zd.height_bonus_m),
+    attic_floor_counted: typeof zd.attic_floor_counted === "boolean" ? zd.attic_floor_counted : null,
+    basement_counted: typeof zd.basement_counted === "boolean" ? zd.basement_counted : null,
+    building_type: asStr(zd.building_type) ?? asStr(zd.construction_type),
+    noise_sensitivity: asStr(zd.noise_sensitivity) ?? (a.noise_zone as string | null),
+    transit_quality: asStr(zd.transit_quality),
+    play_area_m2_per_apt: asPositiveNum(zd.play_area_m2_per_apt),
+    play_area_requirement: asStr(zd.play_area_requirement),
+    parking_rate: asStr(zd.parking_rate),
+    parking_note: asStr(zd.parking_note),
+    article_reference: asStr(zd.article_reference) ?? (a.regulation_basis as string | null),
+    source_label: asStr(zd.source_label),
+  };
+  const hasLegalZoneData = Boolean(legalZoneData.code || legalZoneData.name);
 
   const summary =
     a.ai_summary ||
@@ -379,9 +428,9 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
         </Section>
 
         <Section title="1. Rechtliche Grundlagen">
-          {zoneData ? (
+          {hasLegalZoneData ? (
             <RechtlicheGrundlagenTable
-              zone={zoneData}
+              zone={legalZoneData}
               municipalityName={a.municipality}
               cantonCode={a.canton}
               grundstueckflaeche={a.area_size as number | null}

@@ -199,7 +199,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
     const { data: analysis, error: fetchErr } = await supabase
       .from("analyses")
       .select(
-        "id, address, postal_code, municipality, canton, parcel_number, area_size, detected_zone, zone_override, lat, lng",
+        "id, address, postal_code, municipality, canton, parcel_number, area_size, detected_zone, zone_override, lat, lng, building_coverage_ratio, max_height, max_floors, utilization_ratio, noise_zone, detected_zone_precise, detected_zone_source, regulation_basis, special_provisions",
       )
       .eq("id", data.analysisId)
       .maybeSingle();
@@ -264,11 +264,15 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
 
       // 2b) LU-spezifisch: rechtsverbindliche Zonenplandaten vom Kanton Luzern laden
       let luZoneInfo: string | null = null;
+      let luPatch: Record<string, unknown> = {};
+      let luEffectiveZone: string | null = null;
+      let luEffectiveHeight: number | null = null;
       if (analysis.canton === "LU" && analysis.lat != null && analysis.lng != null) {
         try {
           const { queryLuZonePlan } = await import("@/lib/swiss-geo");
           const zone = await queryLuZonePlan(analysis.lat as number, analysis.lng as number);
           if (zone) {
+            luEffectiveHeight = zone.heightMax ?? zone.facadeHeightMax;
             luZoneInfo = [
               `RECHTSVERBINDLICHE ZONENPLANDATEN (Kanton Luzern, ZPGNDNTZ, Quelle: public.geo.lu.ch):`,
               `Zone: ${[zone.zoneCode, zone.zoneLabel].filter(Boolean).join(" — ")}`,
@@ -291,12 +295,27 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
             // durch leere Zonenplan-Felder überschrieben werden.
             const patch: Record<string, unknown> = {};
             const zoneName = zone.zoneCode ?? zone.zoneMunicipalityLabel ?? zone.zoneLabel;
+            luEffectiveZone = zoneName ?? null;
             if (zoneName != null) patch.zone = zoneName;
+            if (zone.zoneMunicipalityLabel != null) patch.detected_zone_precise = zone.zoneMunicipalityLabel;
+            patch.detected_zone_source = "Amtlicher Zonenplan Kanton Luzern";
+            patch.regulation_basis = "Amtlicher Zonenplan Kanton Luzern (ZPGNDNTZ) / Bau- und Zonenreglement Luzern";
             if (zone.az != null) patch.utilization_ratio = zone.az;
             if (zone.uezMax != null) patch.building_coverage_ratio = zone.uezMax;
             if (zone.floors != null) patch.max_floors = zone.floors;
-            if (zone.heightMax != null) patch.max_height = zone.heightMax;
+            if (luEffectiveHeight != null) patch.max_height = luEffectiveHeight;
             if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
+            const specialParts = [
+              zone.bzrArticle ? `BZR Art. ${zone.bzrArticle}` : null,
+              zone.bzrFurther,
+              zone.buildingType ? `Bauweise: ${zone.buildingType}` : null,
+              zone.facadeHeightMax ? `Max. Fassadenhöhe: ${zone.facadeHeightMax} m` : null,
+              zone.buildingLength ? `Max. Gebäudelänge: ${zone.buildingLength} m` : null,
+              zone.greenAreaRatio ? `Grünflächenziffer: ${zone.greenAreaRatio}` : null,
+              ...zone.overlays.map((o) => `Überlagerung: ${o.label}`),
+            ].filter(Boolean).join(" | ");
+            if (specialParts) patch.special_provisions = specialParts;
+            luPatch = patch;
             if (Object.keys(patch).length > 0) {
               await supabase.from("analyses").update(patch as never).eq("id", analysis.id);
             }
@@ -482,6 +501,13 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
         console.warn("[knowledge-analysis] AI JSON parse failed, using normalized fallback", parseError);
       }
       const object = normalizeKnowledgeAnalysis(parsedResult);
+      if (luPatch.zone != null) object.zone = String(luPatch.zone);
+      if (typeof luPatch.utilization_ratio === "number") object.utilization_ratio = luPatch.utilization_ratio;
+      if (typeof luPatch.building_coverage_ratio === "number") object.building_coverage_ratio = luPatch.building_coverage_ratio;
+      if (typeof luPatch.max_floors === "number") object.max_floors = luPatch.max_floors;
+      if (luEffectiveHeight != null) object.max_height_m = luEffectiveHeight;
+      if (typeof luPatch.noise_zone === "string") object.noise_zone = luPatch.noise_zone;
+      if (typeof luPatch.special_provisions === "string") object.special_provisions = luPatch.special_provisions;
 
       // Deterministische Fallback-Berechnungen für das Wohnungspotenzial.
       // Auch wenn die KI die Zahlen nicht liefert: sobald wir Fläche + AZ
@@ -505,7 +531,7 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
           analyzed_at: new Date().toISOString(),
           error_message: null,
           feasibility: object.feasibility,
-          zone: object.zone,
+          zone: luEffectiveZone ?? object.zone,
           usage_type: object.usage_types,
           max_floors: clamp(Math.round(object.max_floors), 0, 50),
           max_height: clamp(object.max_height_m, 0, 300),
