@@ -121,7 +121,13 @@ const DEFAULT_FLOORS: Array<Omit<Floor, "id" | "volume_m3">> = [
   { floor_index: 1, floor_label: "1. Obergeschoss", gross_area_m2: null, floor_height_m: 2.85 },
 ];
 
-export function FloorCalculatorCard({ analysis }: { analysis: AnalysisLite }) {
+export function FloorCalculatorCard({
+  analysis,
+  onCalcChange,
+}: {
+  analysis: AnalysisLite;
+  onCalcChange?: (bgfM2: number, volumenM3: number) => void;
+}) {
   const qc = useQueryClient();
   const { data: floors = [], refetch: refetchFloors } = useQuery({
     queryKey: ["analysis-floors", analysis.id],
