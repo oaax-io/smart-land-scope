@@ -35,7 +35,7 @@ import { SwissMap } from "@/components/swiss-map";
 import { LegalDisclaimer } from "@/components/legal-disclaimer";
 import { OEREBTopicsTable } from "@/components/oereb-topics-table";
 import { loadOEREBData } from "@/lib/oereb.functions";
-import { ProjectDataCard, FloorCalculatorCard, DocumentUploadsCard } from "@/components/analysis-project-tab";
+import { ProjectDataCard, FloorCalculatorCard, WirtschaftlichkeitCard, DocumentUploadsCard } from "@/components/analysis-project-tab";
 import { EasementsPanel } from "@/components/easements-panel";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
 import { AnalysisReport } from "@/components/analysis-report";
