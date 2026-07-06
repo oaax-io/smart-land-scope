@@ -21,6 +21,10 @@ type AnalysisLite = {
   floor_area: number | null;
   living_area: number | null;
   unit_count: number | null;
+  area_size?: number | null;
+  building_coverage_ratio?: number | null;
+  utilization_ratio?: number | null;
+  max_height?: number | null;
 };
 
 /* ---------------- Project Data Card ---------------- */
