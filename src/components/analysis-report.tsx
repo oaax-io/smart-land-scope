@@ -178,7 +178,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     ["4", "Lage / Situation"],
     ["5", "Wohnungsanalyse"],
     ["6", "Gebäudevolumen"],
-    ["7", "Wirtschaftlichkeit"],
+    ["7", "Wirtschaftlichkeit & Grobkostenschätzung"],
     ["8", "Baurechtliche Analyse"],
     ["9", "Entwicklungspotenzial"],
     ["10", "Risiken"],
