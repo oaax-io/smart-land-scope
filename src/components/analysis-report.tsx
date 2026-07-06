@@ -523,7 +523,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
           </p>
         </Section>
 
-        <Section title="7. Wirtschaftlichkeit">
+        <Section title="7. Wirtschaftlichkeit & Grobkostenschätzung">
           {(() => {
             const totalBgf = floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0);
             const totalVol = floors.reduce(
