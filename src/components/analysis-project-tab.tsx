@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Building, Calculator, Download, FileUp, Loader2, Plus, Save, Trash2, UploadCloud,
+  Building, Calculator, Download, FileUp, Loader2, Plus, Save, Trash2, TrendingUp, UploadCloud,
 } from "lucide-react";
 
 type AnalysisLite = {
