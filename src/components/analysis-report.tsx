@@ -164,9 +164,10 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     ["4", "Lage / Situation"],
     ["5", "Wohnungsanalyse"],
     ["6", "Gebäudevolumen"],
-    ["7", "Baurechtliche Analyse"],
-    ["8", "Entwicklungspotenzial"],
-    ["9", "Risiken"],
+    ["7", "Wirtschaftlichkeit"],
+    ["8", "Baurechtliche Analyse"],
+    ["9", "Entwicklungspotenzial"],
+    ["10", "Risiken"],
   ];
   if (hasSituation) toc.push(["A1", "Situation (Beilagen)"]);
   if (hasGrundriss) toc.push(["A2", "Grundrisse (Beilagen)"]);
