@@ -726,6 +726,177 @@ export function WirtschaftlichkeitCard({
             </p>
           </div>
         </div>
+
+        {/* Residualwert & Preis-Regler */}
+        <div className="mt-6 border-t pt-4">
+          <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <TrendingUp className="h-4 w-4 text-secondary" />
+            Residualwert der Parzelle
+          </h4>
+
+          <div className="mb-4 rounded-lg border bg-muted/30 p-4">
+            <div className="flex items-baseline justify-between gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  Residualwert = Erlös − Ø Baukosten
+                </p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">
+                  {residualwert.toLocaleString("de-CH", {
+                    style: "currency",
+                    currency: "CHF",
+                    maximumFractionDigits: 0,
+                  })}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Maximaler wirtschaftlich vertretbarer Parzellenpreis
+                </p>
+              </div>
+              <Badge
+                variant="outline"
+                className={
+                  residualwert > 0
+                    ? "border-emerald-400 text-emerald-700"
+                    : "border-red-400 text-red-700"
+                }
+              >
+                {residualwert > 0 ? "Projekt wirtschaftlich" : "Projekt unrentabel"}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <label className="w-52 shrink-0 text-sm text-muted-foreground">
+              Effektiver Angebotspreis (CHF)
+            </label>
+            <Input
+              type="number"
+              placeholder="z. B. 850000"
+              className="h-9 max-w-48"
+              value={parzellenpreis ?? ""}
+              onChange={(e) =>
+                setParzellenpreis(e.target.value === "" ? null : Number(e.target.value))
+              }
+            />
+            {abweichungChf != null && (
+              <span
+                className={`text-sm font-medium ${
+                  abweichungChf > 0 ? "text-red-600" : "text-emerald-600"
+                }`}
+              >
+                {abweichungChf > 0 ? "+" : ""}
+                {abweichungChf.toLocaleString("de-CH", {
+                  style: "currency",
+                  currency: "CHF",
+                  maximumFractionDigits: 0,
+                })}
+                {abweichungProzent != null && (
+                  <>
+                    {" "}
+                    ({abweichungProzent > 0 ? "+" : ""}
+                    {abweichungProzent.toFixed(1)}%)
+                  </>
+                )}
+              </span>
+            )}
+            <div className="ml-auto flex items-center gap-2">
+              <label className="text-xs text-muted-foreground">Bandbreite ±%</label>
+              <Input
+                type="number"
+                className="h-8 w-20 text-right"
+                value={sliderBandbreite}
+                onChange={(e) => setSliderBandbreite(Number(e.target.value) || 20)}
+              />
+            </div>
+          </div>
+
+          {/* Preis-Regler */}
+          <div className="mt-2">
+            <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
+              <span>
+                {sliderMin.toLocaleString("de-CH", {
+                  style: "currency",
+                  currency: "CHF",
+                  maximumFractionDigits: 0,
+                })}
+              </span>
+              <span className="font-medium text-foreground">
+                Residualwert:{" "}
+                {residualwert.toLocaleString("de-CH", {
+                  style: "currency",
+                  currency: "CHF",
+                  maximumFractionDigits: 0,
+                })}
+              </span>
+              <span>
+                {sliderMax.toLocaleString("de-CH", {
+                  style: "currency",
+                  currency: "CHF",
+                  maximumFractionDigits: 0,
+                })}
+              </span>
+            </div>
+
+            <div
+              className="relative h-6 overflow-hidden rounded-full"
+              style={{
+                background:
+                  "linear-gradient(to right, #ef4444 0%, #f97316 25%, #fbbf24 45%, #d1d5db 50%, #86efac 55%, #22c55e 75%, #16a34a 100%)",
+              }}
+            >
+              <div
+                className="absolute bottom-0 top-0 w-0.5 bg-white/90"
+                style={{ left: "50%", transform: "translateX(-50%)" }}
+              />
+              {parzellenpreis != null && (
+                <div
+                  className="absolute bottom-0 top-0 flex items-center transition-all duration-300"
+                  style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}
+                >
+                  <div className="flex h-8 w-4 items-center justify-center rounded-sm border border-gray-300 bg-white shadow-md">
+                    <div className="h-4 w-0.5 rounded bg-gray-500" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+              <span>← Teurer als Residualwert (unattraktiv)</span>
+              <span>Günstiger als Residualwert (attraktiv) →</span>
+            </div>
+
+            {parzellenpreis != null && abweichungChf != null && (
+              <div
+                className={`mt-3 rounded-lg border p-3 text-sm ${
+                  abweichungChf <= 0
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-red-200 bg-red-50 text-red-800"
+                }`}
+              >
+                {abweichungChf <= 0 ? (
+                  <>
+                    <span className="font-semibold">Attraktives Investment: </span>
+                    Der Angebotspreis liegt{" "}
+                    {Math.abs(abweichungProzent ?? 0).toFixed(1)}% unter dem Residualwert — das
+                    Projekt hat einen Puffer von{" "}
+                    {Math.abs(abweichungChf).toLocaleString("de-CH", {
+                      style: "currency",
+                      currency: "CHF",
+                      maximumFractionDigits: 0,
+                    })}
+                    .
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold">Wirtschaftlichkeit gefährdet: </span>
+                    Der Angebotspreis liegt{" "}
+                    {Math.abs(abweichungProzent ?? 0).toFixed(1)}% über dem Residualwert —
+                    Nachverhandlung oder Kostenoptimierung empfohlen.
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
