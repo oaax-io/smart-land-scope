@@ -570,6 +570,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
               [`Marktpreis (${chf(p.marktpreisProM2)}/m²)`, "—", "—"],
               ["Geschätzter Erlös", chf(erloes), "—"],
               ["Marge (Erlös – Baukosten)", chf(margeMin), chf(margeMax), true],
+              ["Residualwert (Erlös − Ø Baukosten)", chf(erloes - (totalMin + totalMax) / 2), "—", true],
               ["Erlös / Kosten Ratio", ratioMin.toFixed(2), ratioMax.toFixed(2), true],
             ];
             return (
