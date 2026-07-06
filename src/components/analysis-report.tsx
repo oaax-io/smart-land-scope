@@ -576,15 +576,15 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                 wirtschaft?.aussenflaeche_anrechnungsfaktor ?? 0.35,
               ),
             };
-            // UG-Volumen aus Geschossen (floor_index < 0), Fallback 25%
-            const volOberirdisch = floors
+            // Volumen-Split: Detail = aus Floors, Quick = aus Schnellschätzung
+            const volOberFromFloors = floors
               .filter((f) => (Number(f.floor_index) ?? 0) >= 0)
               .reduce((s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0), 0);
-            const volUGReal = floors
+            const volUGFromFloors = floors
               .filter((f) => (Number(f.floor_index) ?? 0) < 0)
               .reduce((s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0), 0);
-            const volUG = volUGReal > 0 ? volUGReal : totalVol * 0.25;
-            const volOber = volOberirdisch > 0 ? volOberirdisch : totalVol;
+            const volOber = mode === "quick" ? quickBgfOber * gH : volOberFromFloors > 0 ? volOberFromFloors : totalVol;
+            const volUG = mode === "quick" ? quickUgFlaeche * gH : volUGFromFloors > 0 ? volUGFromFloors : totalVol * 0.25;
             const bkp2Oberirdisch = volOber * p.kostenOberirdischProM3;
             const bkp2UG = volUG * p.kostenUGProM3;
             const bkp2Total = bkp2Oberirdisch + bkp2UG;
