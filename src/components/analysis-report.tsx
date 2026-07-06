@@ -525,19 +525,38 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
 
         <Section title="7. Wirtschaftlichkeit & Grobkostenschätzung">
           {(() => {
-            const totalBgf = floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0);
-            const totalVol = floors.reduce(
+            const floorsBgf = floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0);
+            const floorsVol = floors.reduce(
               (s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0),
               0,
             );
-            if (totalBgf === 0) {
+            const hasFloors = floorsBgf > 0;
+
+            // Fallback-Schnellschätzung wenn keine Geschossflächen erfasst
+            const grundstueck = Number(a.area_size ?? 0);
+            const uez = Number(a.building_coverage_ratio ?? a.utilization_ratio ?? 0);
+            const maxH = Number(a.max_height ?? 0);
+            const gH = 3.0;
+            const bebauteFlaeche = grundstueck * uez;
+            const vollgeschosse = gH > 0 ? Math.floor(maxH / gH) : 0;
+            const quickBgfOber = bebauteFlaeche * vollgeschosse;
+            const quickUgFlaeche = bebauteFlaeche * 1.3;
+            const quickBgf = quickBgfOber + quickUgFlaeche;
+            const quickVol = quickBgfOber * gH + quickUgFlaeche * gH;
+            const canQuick = grundstueck > 0 && uez > 0 && maxH > 0;
+
+            if (!hasFloors && !canQuick) {
               return (
                 <p className="text-sm italic text-muted-foreground">
-                  Noch keine Geschossdaten im Projekt-Tab erfasst. Volumen- und Kostenberechnung
-                  nicht möglich.
+                  Keine Geschossdaten und keine Baurechts-Kennwerte (Grundstückfläche, ÜZ,
+                  Gebäudehöhe) verfügbar — Wirtschaftlichkeit kann nicht berechnet werden.
                 </p>
               );
             }
+
+            const totalBgf = hasFloors ? floorsBgf : quickBgf;
+            const totalVol = hasFloors ? floorsVol : quickVol;
+            const mode: "detail" | "quick" = hasFloors ? "detail" : "quick";
             const p = {
               kostenOberirdischProM3: Number(wirtschaft?.kosten_oberirdisch_pro_m3 ?? 950),
               kostenUGProM3: Number(wirtschaft?.kosten_ug_pro_m3 ?? 550),
