@@ -530,7 +530,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
           )}
         </Section>
 
-        <Section title="8. Entwicklungspotenzial">
+        <Section title="9. Entwicklungspotenzial">
           <div className="flex flex-wrap items-center gap-6">
             <div className="flex items-baseline gap-2">
               <span className="font-display text-5xl font-bold text-primary">{score.score}</span>
