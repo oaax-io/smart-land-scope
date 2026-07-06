@@ -509,7 +509,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
           </p>
         </Section>
 
-        <Section title="7. Baurechtliche Analyse">
+        <Section title="8. Baurechtliche Analyse">
           <DataGrid
             rows={[
               ["Zone", a.zone ?? "—"],
