@@ -178,7 +178,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     ["4", "Lage / Situation"],
     ["5", "Wohnungsanalyse"],
     ["6", "Gebäudevolumen"],
-    ["7", "Wirtschaftlichkeit"],
+    ["7", "Wirtschaftlichkeit & Grobkostenschätzung"],
     ["8", "Baurechtliche Analyse"],
     ["9", "Entwicklungspotenzial"],
     ["10", "Risiken"],
@@ -523,7 +523,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
           </p>
         </Section>
 
-        <Section title="7. Wirtschaftlichkeit">
+        <Section title="7. Wirtschaftlichkeit & Grobkostenschätzung">
           {(() => {
             const totalBgf = floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0);
             const totalVol = floors.reduce(
@@ -667,6 +667,71 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                     ))}
                   </tbody>
                 </table>
+
+
+                <div className="rounded-lg border bg-muted/30 p-4 break-inside-avoid">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Residualwert der Parzelle
+                  </p>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Residualwert (Erlös − Ø Baukosten)
+                      </p>
+                      <p className="mt-0.5 text-xl font-bold tabular-nums">{chf(residualwert)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Bereinigt (−{p.risikoabschlagProzent}% Risikoabschlag)
+                      </p>
+                      <p
+                        className={`mt-0.5 text-xl font-bold tabular-nums ${
+                          residualwertBereinigt > 0 ? "text-emerald-700" : "text-red-700"
+                        }`}
+                      >
+                        {chf(residualwertBereinigt)}
+                      </p>
+                    </div>
+                    {residualwertProM2 != null && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Pro m² Grundstück</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                          {chf(residualwertProM2)}/m²
+                        </p>
+                      </div>
+                    )}
+                    {p.parzellenpreis != null && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Effektiver Angebotspreis</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                          {chf(p.parzellenpreis)}
+                          {residualwertBereinigt !== 0 && (
+                            <span
+                              className={`ml-2 text-xs font-medium ${
+                                p.parzellenpreis - residualwertBereinigt > 0
+                                  ? "text-red-700"
+                                  : "text-emerald-700"
+                              }`}
+                            >
+                              {p.parzellenpreis - residualwertBereinigt > 0 ? "+" : ""}
+                              {(
+                                ((p.parzellenpreis - residualwertBereinigt) /
+                                  residualwertBereinigt) *
+                                100
+                              ).toFixed(1)}
+                              %
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Der Residualwert ist der maximal wirtschaftlich vertretbare Parzellenpreis.
+                    Der bereinigte Wert berücksichtigt einen Risikoabschlag von{" "}
+                    {p.risikoabschlagProzent}% für Unsicherheiten in Bau- und Marktpreisen.
+                  </p>
+                </div>
 
                 <p className="text-xs text-muted-foreground">
                   Baukostenkennwerte: CHF {p.kostenOberirdischProM3}.–/m³ oberirdisch, CHF{" "}
