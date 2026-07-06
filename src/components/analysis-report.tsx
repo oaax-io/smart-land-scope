@@ -509,6 +509,114 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
           </p>
         </Section>
 
+        <Section title="7. Wirtschaftlichkeit">
+          {(() => {
+            const totalBgf = floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0);
+            const totalVol = floors.reduce(
+              (s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0),
+              0,
+            );
+            if (totalBgf === 0) {
+              return (
+                <p className="text-sm italic text-muted-foreground">
+                  Noch keine Geschossdaten im Projekt-Tab erfasst. Volumen- und Kostenberechnung
+                  nicht möglich.
+                </p>
+              );
+            }
+            const p = {
+              kostenOberirdischProM3: 950,
+              kostenUGProM3: 550,
+              ugAnteil: 0.25,
+              siaHonorareMin: 12,
+              siaHonorareMax: 15,
+              bkp5Min: 3,
+              bkp5Max: 5,
+              bkp6Min: 5,
+              bkp6Max: 8,
+              nwfFaktor: 0.8,
+              marktpreisProM2: 8500,
+            };
+            const volUG = totalVol * p.ugAnteil;
+            const bkp2Oberirdisch = totalVol * p.kostenOberirdischProM3;
+            const bkp2UG = volUG * p.kostenUGProM3;
+            const bkp2Total = bkp2Oberirdisch + bkp2UG;
+            const siaMin = bkp2Total * (p.siaHonorareMin / 100);
+            const siaMax = bkp2Total * (p.siaHonorareMax / 100);
+            const bkp5Min = bkp2Total * (p.bkp5Min / 100);
+            const bkp5Max = bkp2Total * (p.bkp5Max / 100);
+            const bkp6Min = bkp2Total * (p.bkp6Min / 100);
+            const bkp6Max = bkp2Total * (p.bkp6Max / 100);
+            const totalMin = bkp2Total + siaMin + bkp5Min + bkp6Min;
+            const totalMax = bkp2Total + siaMax + bkp5Max + bkp6Max;
+            const nwf = totalBgf * p.nwfFaktor;
+            const erloes = nwf * p.marktpreisProM2;
+            const margeMin = erloes - totalMax;
+            const margeMax = erloes - totalMin;
+            const ratioMin = totalMax > 0 ? erloes / totalMax : 0;
+            const ratioMax = totalMin > 0 ? erloes / totalMin : 0;
+            const rows: Array<[string, string, string, boolean?]> = [
+              ["BKP2 Baukosten oberirdisch", chf(bkp2Oberirdisch), "—"],
+              ["BKP2 Baukosten Untergeschoss", chf(bkp2UG), "—"],
+              ["BKP2 Total Baukosten", chf(bkp2Total), "—", true],
+              [`SIA-Honorare (${p.siaHonorareMin}–${p.siaHonorareMax}%)`, chf(siaMin), chf(siaMax)],
+              [`BKP5 Nebenkosten (${p.bkp5Min}–${p.bkp5Max}%)`, chf(bkp5Min), chf(bkp5Max)],
+              [`BKP6 Reserve (${p.bkp6Min}–${p.bkp6Max}%)`, chf(bkp6Min), chf(bkp6Max)],
+              ["Total Baukosten", chf(totalMin), chf(totalMax), true],
+              ["Nettowohnfläche", `${Math.round(nwf)} m²`, "—"],
+              [`Marktpreis (${chf(p.marktpreisProM2)}/m²)`, "—", "—"],
+              ["Geschätzter Erlös", chf(erloes), "—"],
+              ["Marge (Erlös – Baukosten)", chf(margeMin), chf(margeMax), true],
+              ["Erlös / Kosten Ratio", ratioMin.toFixed(2), ratioMax.toFixed(2), true],
+            ];
+            return (
+              <div className="space-y-4 break-inside-avoid">
+                <div className="grid grid-cols-3 gap-3">
+                  {(
+                    [
+                      ["BGF total", `${Math.round(totalBgf)} m²`],
+                      ["Volumen oberirdisch", `${Math.round(totalVol)} m³`],
+                      ["Nettowohnfläche (NWF)", `${Math.round(nwf)} m²`],
+                    ] as const
+                  ).map(([label, value]) => (
+                    <div key={label} className="rounded-lg border bg-muted/30 p-3 text-center">
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className="mt-0.5 text-lg font-bold">{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <table className="w-full overflow-hidden rounded-lg border text-sm break-inside-avoid">
+                  <thead>
+                    <tr className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                      <th className="px-4 py-2 text-left">Position</th>
+                      <th className="px-4 py-2 text-right">Minimum</th>
+                      <th className="px-4 py-2 text-right">Maximum</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(([label, min, max, bold], i) => (
+                      <tr key={label} className={i % 2 ? "bg-muted/20" : ""}>
+                        <td className={`px-4 py-2 ${bold ? "font-semibold" : ""}`}>{label}</td>
+                        <td className={`px-4 py-2 text-right ${bold ? "font-semibold" : ""}`}>{min}</td>
+                        <td className={`px-4 py-2 text-right ${bold ? "font-semibold" : ""}`}>{max}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <p className="text-xs text-muted-foreground">
+                  Baukostenkennwerte: CHF {p.kostenOberirdischProM3}.–/m³ oberirdisch, CHF{" "}
+                  {p.kostenUGProM3}.–/m³ UG (Quelle: SIA 416 / kantonale Richtwerte). Marktpreis{" "}
+                  {chf(p.marktpreisProM2)}/m² NWF ist ein Platzhalter — vor Baueingabe durch
+                  aktuelle Marktanalyse ersetzen.
+                </p>
+              </div>
+            );
+          })()}
+        </Section>
+
+
         <Section title="8. Baurechtliche Analyse">
           <DataGrid
             rows={[
