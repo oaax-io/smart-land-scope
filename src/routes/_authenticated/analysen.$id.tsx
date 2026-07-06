@@ -550,6 +550,21 @@ function AnalysisDetailPage() {
               living_area: (analysis.living_area as number | null) ?? null,
               unit_count: (analysis.unit_count as number | null) ?? null,
             }}
+            onCalcChange={handleCalcChange}
+          />
+          <WirtschaftlichkeitCard
+            analysis={{
+              id: analysis.id as string,
+              organization_id: analysis.organization_id as string,
+              project_number: null,
+              client_name: null,
+              project_manager: null,
+              floor_area: (analysis.floor_area as number | null) ?? null,
+              living_area: (analysis.living_area as number | null) ?? null,
+              unit_count: (analysis.unit_count as number | null) ?? null,
+            }}
+            bgfM2={calcData.bgfM2}
+            volumenM3={calcData.volumenM3}
           />
           <DocumentUploadsCard
             analysisId={analysis.id as string}
