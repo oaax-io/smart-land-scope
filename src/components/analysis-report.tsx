@@ -306,7 +306,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
       {showToolbar && (
         <div className="mb-4 flex flex-wrap items-center justify-end gap-2 print:hidden">
           <Button variant="outline" size="sm" onClick={exportPdf}>
-            <Printer className="mr-2 h-4 w-4" />PDF exportieren
+            <FileDown className="mr-2 h-4 w-4" />PDF herunterladen
           </Button>
           <Button size="sm" onClick={exportWord}>
             <Download className="mr-2 h-4 w-4" />Word exportieren
