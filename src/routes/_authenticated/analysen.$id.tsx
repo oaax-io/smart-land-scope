@@ -98,6 +98,11 @@ function AnalysisDetailPage() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const analyzeFn = useServerFn(runKnowledgeAnalysis);
+  const [calcData, setCalcData] = useState({ bgfM2: 0, volumenM3: 0 });
+  const handleCalcChange = useCallback(
+    (bgfM2: number, volumenM3: number) => setCalcData({ bgfM2, volumenM3 }),
+    [],
+  );
 
   const { data: analysis, isLoading } = useQuery({
     queryKey: ["analysis", id],
