@@ -26,6 +26,7 @@ async function handle({ request }: { request: Request }) {
   }
 
   try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Active LU job?
     const { data: job } = await supabaseAdmin
       .from("background_jobs")
