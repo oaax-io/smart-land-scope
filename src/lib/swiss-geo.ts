@@ -638,6 +638,44 @@ function luDate(v: unknown): string | null {
   return s;
 }
 
+function isLuGrundnutzungResult(result: { layerName?: unknown }): boolean {
+  const name = typeof result.layerName === "string" ? result.layerName.toLowerCase() : "";
+  return name.includes("grundnutzung") || name.includes("zpgndntz");
+}
+
+function isLuInForce(attrs: Record<string, unknown>): boolean {
+  const legalStatus = luStr(luAttr(attrs, "Rechtsstatus", "RECHTSTAT"));
+  const legalCode = Number(luAttr(attrs, "RECHTSTAT"));
+  if (legalStatus) return /kraft/i.test(legalStatus);
+  if (Number.isFinite(legalCode)) return legalCode === 4;
+  return true;
+}
+
+function luRegulationValueScore(attrs: Record<string, unknown>): number {
+  const metricKeys = [
+    ["Überbauungsziffer 1 (maximal)", "UEZ1_MAX"],
+    ["Überbauungsziffer 1 (minimal)", "UEZ1_MIN"],
+    ["Ausnützungsziffer (nach altem PBG)", "AZ"],
+    ["Geschosszahl (nach altem PBG)", "GESCHOSSZAHL"],
+    ["Gesamthöhe (maximal) [m]", "GESHOE_MAX"],
+    ["Fassadenhöhe (maximal) [m]", "FAHOE_MAX"],
+    ["Gebäudelänge [m]", "GEBLAENGE"],
+    ["Gebäudebreite [m]", "GEBBREITE"],
+    ["Grünflächenziffer", "GRUENFLZI"],
+  ];
+  const metricScore = metricKeys.reduce((score, keys) => score + (luNum(luAttr(attrs, ...keys)) != null ? 10 : 0), 0);
+  const label = [
+    luStr(luAttr(attrs, "Zonentyp Kanton", "ZONTYP_KT_BEZ")),
+    luStr(luAttr(attrs, "Bezeichnung Zonentyp Gemeinde", "ZONTYP_BEZ")),
+    luStr(luAttr(attrs, "Zonentyp Planungs- und Baugesetz")),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const genericPenalty = /übriges gebiet|uebriges gebiet|reserve|freihalte|wald|gewässer|gewaesser/.test(label) ? -5 : 0;
+  return metricScore + genericPenalty;
+}
+
 /**
  * Fragt den offiziellen Luzerner Zonenplan (ZONPLANX_COL_V3_MP) per WGS84-Koordinate ab.
  * Liefert Grundnutzung + Überlagerungen. Nur für Kanton LU sinnvoll.
@@ -667,14 +705,17 @@ export async function queryLuZonePlan(lat: number, lng: number): Promise<LuZoneP
   const json = await res.json().catch(() => null);
   if (!json?.results?.length) return null;
 
-  // Grundnutzung = Basisfeature (Layer 19 / "Grundnutzung").
+  // Grundnutzung = Basisfeature. Die LU-Identify-Antwort kann mehrere
+  // Grundnutzungen liefern; wir bevorzugen die rechtskräftige Zone mit den
+  // tatsächlich ausgefüllten Bauparametern statt generischer "Übriges Gebiet"-Treffer.
   const results = json.results as any[];
+  const baseCandidates = results
+    .filter(isLuGrundnutzungResult)
+    .filter((r) => isLuInForce(r.attributes ?? {}));
   const base =
-    results.find(
-      (r) =>
-        r.layerName?.toLowerCase?.().includes("grundnutzung") ||
-        r.layerName?.includes?.("ZPGNDNTZ"),
-    ) ?? results[0];
+    [...baseCandidates].sort(
+      (left, right) => luRegulationValueScore(right.attributes ?? {}) - luRegulationValueScore(left.attributes ?? {}),
+    )[0] ?? results[0];
   if (!base) return null;
 
   const a: Record<string, unknown> = base.attributes ?? {};
@@ -698,7 +739,7 @@ export async function queryLuZonePlan(lat: number, lng: number): Promise<LuZoneP
   }
 
   const overlays: LuZoneOverlay[] = results
-    .filter((r) => r !== base)
+    .filter((r) => r !== base && !isLuGrundnutzungResult(r))
     .map((r) => {
       const oa: Record<string, unknown> = r.attributes ?? {};
       const label =

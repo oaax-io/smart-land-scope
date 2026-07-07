@@ -224,24 +224,34 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
       }
     : null;
   const officialLuZoneData = liveLuZoneData ?? storedLuZonePlan ?? {};
+  const usesOfficialLuZoneData = a.canton === "LU" && Boolean(liveLuZoneData || storedLuZonePlan || shouldRefreshLuZonePlan);
+  const zoneMetric = (officialValue: unknown, ...fallbackValues: unknown[]) => {
+    const official = asPositiveNum(officialValue);
+    if (usesOfficialLuZoneData) return official;
+    for (const value of fallbackValues) {
+      const n = asPositiveNum(value);
+      if (n != null) return n;
+    }
+    return null;
+  };
   const legalZoneData = {
     ...zd,
     code: asStr(officialLuZoneData.code) ?? asStr(zd.code) ?? (a.zone as string | null) ?? (a.zone_override as string | null) ?? null,
     name: asStr(officialLuZoneData.name) ?? asStr(zd.name) ?? (a.detected_zone_precise as string | null) ?? (a.detected_zone as string | null) ?? null,
-    max_floors: asPositiveNum(officialLuZoneData.max_floors) ?? asPositiveNum(zd.max_floors) ?? asPositiveNum(a.max_floors),
-    max_height_m: asPositiveNum(officialLuZoneData.max_height_m) ?? asPositiveNum(zd.max_height_m) ?? asPositiveNum(a.max_height),
-    max_facade_height_m: asPositiveNum(officialLuZoneData.max_facade_height_m) ?? asPositiveNum(zd.max_facade_height_m) ?? asPositiveNum(zd.max_height_valley_m),
-    max_height_valley_m: asPositiveNum(zd.max_height_valley_m),
-    utilization_ratio: asPositiveNum(officialLuZoneData.utilization_ratio) ?? asPositiveNum(zd.utilization_ratio) ?? asPositiveNum(a.utilization_ratio),
-    building_coverage_ratio: asPositiveNum(officialLuZoneData.building_coverage_ratio) ?? asPositiveNum(zd.building_coverage_ratio) ?? asPositiveNum(a.building_coverage_ratio),
+    max_floors: zoneMetric(officialLuZoneData.max_floors, zd.max_floors, a.max_floors),
+    max_height_m: zoneMetric(officialLuZoneData.max_height_m, zd.max_height_m, a.max_height),
+    max_facade_height_m: zoneMetric(officialLuZoneData.max_facade_height_m, zd.max_facade_height_m, zd.max_height_valley_m),
+    max_height_valley_m: zoneMetric(officialLuZoneData.max_height_valley_m, zd.max_height_valley_m),
+    utilization_ratio: zoneMetric(officialLuZoneData.utilization_ratio, zd.utilization_ratio, a.utilization_ratio),
+    building_coverage_ratio: zoneMetric(officialLuZoneData.building_coverage_ratio, zd.building_coverage_ratio, a.building_coverage_ratio),
     building_mass_ratio: asPositiveNum(zd.building_mass_ratio),
-    open_space_ratio: asPositiveNum(officialLuZoneData.open_space_ratio) ?? asPositiveNum(zd.open_space_ratio),
+    open_space_ratio: zoneMetric(officialLuZoneData.open_space_ratio, zd.open_space_ratio),
     setback_small_m: asPositiveNum(zd.setback_small_m),
     setback_large_m: asPositiveNum(zd.setback_large_m),
     setback_note: asStr(zd.setback_note) ?? asStr(analysisSetbacks.notes),
-    max_building_length_m: asPositiveNum(officialLuZoneData.max_building_length_m) ?? asPositiveNum(zd.max_building_length_m) ?? asPositiveNum(zd.building_length_m),
-    max_building_width_m: asPositiveNum(officialLuZoneData.max_building_width_m) ?? asPositiveNum(zd.max_building_width_m) ?? asPositiveNum(zd.building_width_m),
-    max_facade_length_m: asPositiveNum(zd.max_facade_length_m),
+    max_building_length_m: zoneMetric(officialLuZoneData.max_building_length_m, zd.max_building_length_m, zd.building_length_m),
+    max_building_width_m: zoneMetric(officialLuZoneData.max_building_width_m, zd.max_building_width_m, zd.building_width_m),
+    max_facade_length_m: zoneMetric(officialLuZoneData.max_facade_length_m, zd.max_facade_length_m),
     height_bonus_m: asPositiveNum(zd.height_bonus_m),
     attic_floor_counted: typeof zd.attic_floor_counted === "boolean" ? zd.attic_floor_counted : null,
     basement_counted: typeof zd.basement_counted === "boolean" ? zd.basement_counted : null,
@@ -1076,8 +1086,8 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
 
         <Section title="8. Baurechtliche Analyse">
           {(() => {
-            const facadeH = legalZoneData.max_facade_height_m ?? asPositiveNum(a.max_height);
-            const totalH = legalZoneData.max_height_m ?? asPositiveNum(a.max_height);
+            const facadeH = legalZoneData.max_facade_height_m;
+            const totalH = legalZoneData.max_height_m;
             const source = legalZoneData.source_label ?? (a.canton === "LU" ? "Amtlicher Zonenplan Kanton Luzern" : null);
             return (
               <>
@@ -1085,14 +1095,14 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                   rows={[
                     ["Zone", legalZoneData.code ?? a.zone ?? "—"],
                     ["Zulässige Nutzungen", usages.length ? usages.join(", ") : "—"],
-                    ["Max. Geschossigkeit", formatFloors(legalZoneData.max_floors ?? a.max_floors)],
+                    ["Max. Geschossigkeit", formatFloors(legalZoneData.max_floors)],
                     ["Max. Gesamthöhe", formatMeters(totalH)],
                     ["Max. Fassadenhöhe", formatMeters(facadeH)],
                     ["Max. Gebäudelänge", formatMeters(legalZoneData.max_building_length_m)],
                     ["Max. Gebäudebreite", formatMeters(legalZoneData.max_building_width_m)],
                     ["Max. Fassadenlänge", formatMeters(legalZoneData.max_facade_length_m)],
-                    ["Ausnützungsziffer (AZ)", formatRatio(legalZoneData.utilization_ratio ?? asPositiveNum(a.utilization_ratio), 3)],
-                    ["Überbauungsziffer (ÜZ)", formatRatio(legalZoneData.building_coverage_ratio ?? asPositiveNum(a.building_coverage_ratio), 3)],
+                    ["Ausnützungsziffer (AZ)", formatRatio(legalZoneData.utilization_ratio, 3)],
+                    ["Überbauungsziffer (ÜZ)", formatRatio(legalZoneData.building_coverage_ratio, 3)],
                     ["Grünflächenziffer (GFZ)", formatRatio(legalZoneData.open_space_ratio, 3)],
                   ]}
                 />

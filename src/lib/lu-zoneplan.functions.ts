@@ -31,7 +31,7 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
     const zone = await queryLuZonePlan(analysis.lat as number, analysis.lng as number);
     if (!zone) return { ok: false as const, reason: "no_zone_found" as const };
 
-    const effectiveHeight = zone.heightMax ?? zone.facadeHeightMax;
+    const effectiveHeight = zone.heightMax;
     const specialProvisions = [
       zone.bzrArticle ? `BZR Art. ${zone.bzrArticle}` : null,
       zone.bzrFurther,
