@@ -1074,16 +1074,43 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
 
 
         <Section title="8. Baurechtliche Analyse">
-          <DataGrid
-            rows={[
-              ["Zone", a.zone ?? "—"],
-              ["Zulässige Nutzungen", usages.length ? usages.join(", ") : "—"],
-              ["Max. Geschossigkeit", a.max_floors ? `${a.max_floors} Vollgeschosse` : "—"],
-              ["Max. Gebäudehöhe", a.max_height ? `${a.max_height} m` : "—"],
-              ["Ausnützungsziffer", a.utilization_ratio?.toString() ?? "—"],
-              ["Überbauungsziffer", a.building_coverage_ratio?.toString() ?? "—"],
-            ]}
-          />
+          {(() => {
+            const fmtM = (n: number | null | undefined) =>
+              n != null && Number.isFinite(n) ? `${n.toLocaleString("de-CH", { maximumFractionDigits: 2 })} m` : "—";
+            const fmtNum = (n: number | null | undefined, digits = 2) =>
+              n != null && Number.isFinite(n) ? n.toLocaleString("de-CH", { maximumFractionDigits: digits }) : "—";
+            const facadeH = legalZoneData.max_facade_height_m ?? asPositiveNum(a.max_height);
+            const totalH = legalZoneData.max_height_m ?? asPositiveNum(a.max_height);
+            const bLen = legalZoneData.max_building_length_m;
+            const bWid = legalZoneData.max_building_width_m;
+            const fLen = legalZoneData.max_facade_length_m;
+            const source = legalZoneData.source_label ?? (a.canton === "LU" ? "Amtlicher Zonenplan Kanton Luzern" : null);
+            return (
+              <>
+                <DataGrid
+                  rows={[
+                    ["Zone", legalZoneData.code ?? a.zone ?? "—"],
+                    ["Zulässige Nutzungen", usages.length ? usages.join(", ") : "—"],
+                    ["Max. Geschossigkeit", legalZoneData.max_floors ? `${legalZoneData.max_floors} Vollgeschosse` : (a.max_floors ? `${a.max_floors} Vollgeschosse` : "—")],
+                    ["Max. Gesamthöhe", fmtM(totalH)],
+                    ["Max. Fassadenhöhe", fmtM(facadeH)],
+                    ["Max. Gebäudelänge", fmtM(bLen)],
+                    ["Max. Gebäudebreite", fmtM(bWid)],
+                    ["Max. Fassadenlänge", fmtM(fLen)],
+                    ["Ausnützungsziffer (AZ)", fmtNum(legalZoneData.utilization_ratio ?? asPositiveNum(a.utilization_ratio), 3)],
+                    ["Überbauungsziffer (ÜZ)", fmtNum(legalZoneData.building_coverage_ratio ?? asPositiveNum(a.building_coverage_ratio), 3)],
+                    ["Grünflächenziffer (GFZ)", fmtNum(legalZoneData.open_space_ratio, 3)],
+                  ]}
+                />
+                {source && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Quelle: {source}
+                    {legalZoneData.article_reference ? ` · ${legalZoneData.article_reference}` : ""}
+                  </p>
+                )}
+              </>
+            );
+          })()}
           {restrictions.length > 0 && (
             <div className="mt-4">
               <p className="mb-2 text-sm font-semibold">Relevante Vorschriften</p>
