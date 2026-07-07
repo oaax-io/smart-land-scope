@@ -111,7 +111,7 @@ async function handle({ request }: { request: Request }) {
   }
 }
 
-async function pickNextLuDocument(): Promise<string | null> {
+async function pickNextLuDocument(supabaseAdmin: any): Promise<string | null> {
   const { data: docs } = await supabaseAdmin
     .from("regulation_documents")
     .select("id, municipalities!inner(cantons!inner(code))")
