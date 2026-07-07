@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { runExtraction } from "@/lib/regulation-extract.server";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 /**
  * Cron tick: processes ONE pending LU document per invocation.
