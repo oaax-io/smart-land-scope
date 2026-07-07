@@ -564,7 +564,7 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
             rule_count: rules?.length ?? 0,
             sources: object.sources,
             ...(luOfficialRegulation ? { lu_zone_plan: luOfficialRegulation } : {}),
-          },
+          } as Json,
           ai_answer: object,
         })
         .eq("id", analysis.id);
