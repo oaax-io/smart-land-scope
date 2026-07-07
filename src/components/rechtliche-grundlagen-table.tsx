@@ -49,16 +49,27 @@ const CANTONAL_BASIS: Record<string, string> = {
   SG: "sGS 731.1 – Planungs- und Baugesetz (PBG) – Kanton St. Gallen",
 };
 
-function fmt(value: unknown, suffix = ""): string {
+/**
+ * Fallback-Formatter für boolesche/String-Zellen. Numerische Werte MÜSSEN
+ * über die Einheiten-Helper aus `@/lib/format-units` gehen, damit alle
+ * Berichtsteile identisch aussehen.
+ */
+function fmt(value: unknown): string {
   if (value == null || value === "") return "–";
   if (typeof value === "boolean") return value ? "Ja" : "Nein";
-  return `${value}${suffix}`;
+  return String(value);
 }
 
-function valueOrNote(value: unknown, note?: string | null, suffix = ""): string {
-  if (value != null && value !== "") return fmt(value, suffix);
+/**
+ * Zeigt einen numerischen Wert mit Einheit; fällt bei fehlendem Wert auf
+ * einen erklärenden Hinweistext zurück.
+ */
+function meterOrNote(value: unknown, note?: string | null): string {
+  const parsed = parseNumeric(value as never);
+  if (parsed != null) return formatMeters(parsed);
   return note?.trim() || "–";
 }
+
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
