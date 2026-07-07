@@ -14,6 +14,7 @@ import { OEREBTopicsTable } from "@/components/oereb-topics-table";
 import { SwissMap } from "@/components/swiss-map";
 import { loadOEREBData } from "@/lib/oereb.functions";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
+import { formatFloors, formatMeters, formatRatio } from "@/lib/format-units";
 
 type Risk = { category?: string; title: string; description: string; severity?: string };
 
@@ -1075,15 +1076,8 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
 
         <Section title="8. Baurechtliche Analyse">
           {(() => {
-            const fmtM = (n: number | null | undefined) =>
-              n != null && Number.isFinite(n) ? `${n.toLocaleString("de-CH", { maximumFractionDigits: 2 })} m` : "—";
-            const fmtNum = (n: number | null | undefined, digits = 2) =>
-              n != null && Number.isFinite(n) ? n.toLocaleString("de-CH", { maximumFractionDigits: digits }) : "—";
             const facadeH = legalZoneData.max_facade_height_m ?? asPositiveNum(a.max_height);
             const totalH = legalZoneData.max_height_m ?? asPositiveNum(a.max_height);
-            const bLen = legalZoneData.max_building_length_m;
-            const bWid = legalZoneData.max_building_width_m;
-            const fLen = legalZoneData.max_facade_length_m;
             const source = legalZoneData.source_label ?? (a.canton === "LU" ? "Amtlicher Zonenplan Kanton Luzern" : null);
             return (
               <>
@@ -1091,15 +1085,15 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                   rows={[
                     ["Zone", legalZoneData.code ?? a.zone ?? "—"],
                     ["Zulässige Nutzungen", usages.length ? usages.join(", ") : "—"],
-                    ["Max. Geschossigkeit", legalZoneData.max_floors ? `${legalZoneData.max_floors} Vollgeschosse` : (a.max_floors ? `${a.max_floors} Vollgeschosse` : "—")],
-                    ["Max. Gesamthöhe", fmtM(totalH)],
-                    ["Max. Fassadenhöhe", fmtM(facadeH)],
-                    ["Max. Gebäudelänge", fmtM(bLen)],
-                    ["Max. Gebäudebreite", fmtM(bWid)],
-                    ["Max. Fassadenlänge", fmtM(fLen)],
-                    ["Ausnützungsziffer (AZ)", fmtNum(legalZoneData.utilization_ratio ?? asPositiveNum(a.utilization_ratio), 3)],
-                    ["Überbauungsziffer (ÜZ)", fmtNum(legalZoneData.building_coverage_ratio ?? asPositiveNum(a.building_coverage_ratio), 3)],
-                    ["Grünflächenziffer (GFZ)", fmtNum(legalZoneData.open_space_ratio, 3)],
+                    ["Max. Geschossigkeit", formatFloors(legalZoneData.max_floors ?? a.max_floors)],
+                    ["Max. Gesamthöhe", formatMeters(totalH)],
+                    ["Max. Fassadenhöhe", formatMeters(facadeH)],
+                    ["Max. Gebäudelänge", formatMeters(legalZoneData.max_building_length_m)],
+                    ["Max. Gebäudebreite", formatMeters(legalZoneData.max_building_width_m)],
+                    ["Max. Fassadenlänge", formatMeters(legalZoneData.max_facade_length_m)],
+                    ["Ausnützungsziffer (AZ)", formatRatio(legalZoneData.utilization_ratio ?? asPositiveNum(a.utilization_ratio), 3)],
+                    ["Überbauungsziffer (ÜZ)", formatRatio(legalZoneData.building_coverage_ratio ?? asPositiveNum(a.building_coverage_ratio), 3)],
+                    ["Grünflächenziffer (GFZ)", formatRatio(legalZoneData.open_space_ratio, 3)],
                   ]}
                 />
                 {source && (
@@ -1111,6 +1105,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
               </>
             );
           })()}
+
           {restrictions.length > 0 && (
             <div className="mt-4">
               <p className="mb-2 text-sm font-semibold">Relevante Vorschriften</p>
