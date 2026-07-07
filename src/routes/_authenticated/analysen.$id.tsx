@@ -40,6 +40,7 @@ import { ProjectDataCard, FloorCalculatorCard, WirtschaftlichkeitCard, DocumentU
 import { EasementsPanel } from "@/components/easements-panel";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
 import { AnalysisReport } from "@/components/analysis-report";
+import { formatFloors, formatMeters, formatRatio } from "@/lib/format-units";
 
 
 
@@ -86,6 +87,11 @@ const RISK_CATEGORY: Record<string, string> = {
   sonstiges: "Sonstiges",
 };
 
+function positiveNum(value: unknown): number | null {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value.replace(",", ".")) : null;
+  return n != null && Number.isFinite(n) && n > 0 ? n : null;
+}
+
 type Risk = {
   category: keyof typeof RISK_CATEGORY;
   title: string;
@@ -126,13 +132,13 @@ function AnalysisDetailPage() {
 
   const loadLuZoneFn = useServerFn(loadLuZonePlanForAnalysis);
   const { data: zoneResult, isFetching: zoneLoading } = useQuery({
-    queryKey: ["lu-zone", id, analysis?.lat, analysis?.lng],
+    queryKey: ["lu-zone", id, analysis?.lat, analysis?.lng, "official-zone-v2"],
     enabled:
       !!analysis?.id &&
       analysis?.canton === "LU" &&
       analysis?.lat != null &&
       analysis?.lng != null,
-    staleTime: 1000 * 60 * 60 * 24,
+    staleTime: 1000 * 60 * 10,
     queryFn: async () => {
       const res = await loadLuZoneFn({ data: { analysisId: id } });
       queryClient.invalidateQueries({ queryKey: ["analysis", id] });
@@ -299,11 +305,13 @@ function AnalysisDetailPage() {
           {(() => {
             const luZone = zoneResult && zoneResult.ok === true ? zoneResult.zone : null;
             const zoneColor = luZone ? zoneCategoryColor(luZone.zoneCategory) : null;
-            // Prefer authoritative LU value; fall back to AI. Show BOTH AZ and ÜZ always.
-            const az = luZone?.az ?? (analysis.utilization_ratio as number | null);
-            const uez = luZone?.uezMax ?? (analysis.building_coverage_ratio as number | null);
-            const floors = luZone?.floors ?? (analysis.max_floors as number | null);
-            const height = luZone?.heightMax ?? (analysis.max_height as number | null);
+            const isLu = analysis.canton === "LU";
+            // Für LU nur amtliche Werte anzeigen; alte KI-/Fallback-Spalten dürfen fehlende Werte nicht ersetzen.
+            const az = isLu ? luZone?.az ?? null : positiveNum(analysis.utilization_ratio);
+            const uez = isLu ? luZone?.uezMax ?? null : positiveNum(analysis.building_coverage_ratio);
+            const floors = isLu ? luZone?.floors ?? null : positiveNum(analysis.max_floors);
+            const height = isLu ? luZone?.heightMax ?? luZone?.facadeHeightMax ?? null : positiveNum(analysis.max_height);
+            const heightLabel = isLu && luZone?.heightMax == null && luZone?.facadeHeightMax != null ? "Max. Fassadenhöhe" : "Max. Höhe";
             const azTooltip = az == null
               ? "Für diese Zone ist keine Ausnützungsziffer festgelegt (typisch für Neu-PBG-Zonen)."
               : undefined;
@@ -313,14 +321,14 @@ function AnalysisDetailPage() {
             return (
               <div className="grid gap-4 md:grid-cols-5">
                 <ZoneKpiCard
-                  zone={analysis.zone ?? luZone?.zoneCode ?? "—"}
+                  zone={luZone?.zoneCode ?? analysis.zone ?? "—"}
                   label={luZone?.zoneMunicipalityLabel ?? luZone?.zoneLabel ?? luZone?.zoneCategory ?? null}
                   color={zoneColor}
                 />
-                <KpiCard label="Ausnützungsziffer (AZ)" value={az != null ? az.toString() : "—"} tooltip={azTooltip} />
-                <KpiCard label="Überbauungsziffer (ÜZ)" value={uez != null ? uez.toString() : "—"} tooltip={uezTooltip} />
-                <KpiCard label="Max. Geschosse" value={floors != null ? floors.toString() : "—"} />
-                <KpiCard label="Max. Höhe" value={height != null ? `${height} m` : "—"} />
+                <KpiCard label="Ausnützungsziffer (AZ)" value={formatRatio(az, 3)} tooltip={azTooltip} />
+                <KpiCard label="Überbauungsziffer (ÜZ)" value={formatRatio(uez, 3)} tooltip={uezTooltip} />
+                <KpiCard label="Max. Geschosse" value={formatFloors(floors)} />
+                <KpiCard label={heightLabel} value={formatMeters(height)} />
               </div>
             );
           })()}
@@ -998,8 +1006,8 @@ function LuZonePlanCard({
 
   const rowsAlt: [string, string][] = z
     ? ([
-        ["Ausnützungsziffer (AZ)", z.az != null ? z.az.toString() : "—"],
-        ["Geschosszahl", z.floors ? `${z.floors} Vollgeschosse` : "—"],
+        ["Ausnützungsziffer (AZ)", formatRatio(z.az, 3)],
+        ["Geschosszahl", formatFloors(z.floors)],
         [
           "Wohnanteil",
           z.residentialShareMax != null
@@ -1021,14 +1029,14 @@ function LuZonePlanCard({
 
   const rowsNeu: [string, string][] = z
     ? ([
-        ["Überbauungsziffer (ÜZ) max.", z.uezMax != null ? z.uezMax.toString() : "—"],
-        ["Überbauungsziffer (ÜZ) min.", z.uezMin != null ? z.uezMin.toString() : "—"],
-        ["Gesamthöhe max.", z.heightMax ? `${z.heightMax} m` : "—"],
-        ["Fassadenhöhe max.", z.facadeHeightMax ? `${z.facadeHeightMax} m` : "—"],
-        ["Traufhöhe", z.eavesHeight ? `${z.eavesHeight} m` : "—"],
-        ["Gebäudelänge max.", z.buildingLength ? `${z.buildingLength} m` : "—"],
-        ["Gebäudebreite max.", z.buildingWidth ? `${z.buildingWidth} m` : "—"],
-        ["Grünflächenziffer", z.greenAreaRatio != null ? z.greenAreaRatio.toString() : "—"],
+        ["Überbauungsziffer (ÜZ) max.", formatRatio(z.uezMax, 3)],
+        ["Überbauungsziffer (ÜZ) min.", formatRatio(z.uezMin, 3)],
+        ["Gesamthöhe max.", formatMeters(z.heightMax)],
+        ["Fassadenhöhe max.", formatMeters(z.facadeHeightMax)],
+        ["Traufhöhe", formatMeters(z.eavesHeight)],
+        ["Gebäudelänge max.", formatMeters(z.buildingLength)],
+        ["Gebäudebreite max.", formatMeters(z.buildingWidth)],
+        ["Grünflächenziffer", formatRatio(z.greenAreaRatio, 3)],
       ] as [string, string][])
     : [];
 

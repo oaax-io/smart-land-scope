@@ -306,10 +306,10 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
             if (zone.zoneMunicipalityLabel != null) patch.detected_zone_precise = zone.zoneMunicipalityLabel;
             patch.detected_zone_source = "Amtlicher Zonenplan Kanton Luzern";
             patch.regulation_basis = "Amtlicher Zonenplan Kanton Luzern (ZPGNDNTZ) / Bau- und Zonenreglement Luzern";
-            if (zone.az != null) patch.utilization_ratio = zone.az;
-            if (zone.uezMax != null) patch.building_coverage_ratio = zone.uezMax;
-            if (zone.floors != null) patch.max_floors = zone.floors;
-            if (luEffectiveHeight != null) patch.max_height = luEffectiveHeight;
+            patch.utilization_ratio = zone.az;
+            patch.building_coverage_ratio = zone.uezMax;
+            patch.max_floors = zone.floors;
+            patch.max_height = luEffectiveHeight;
             if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
             const specialParts = [
               zone.bzrArticle ? `BZR Art. ${zone.bzrArticle}` : null,
@@ -509,10 +509,17 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
       }
       const object = normalizeKnowledgeAnalysis(parsedResult);
       if (luPatch.zone != null) object.zone = String(luPatch.zone);
-      if (typeof luPatch.utilization_ratio === "number") object.utilization_ratio = luPatch.utilization_ratio;
-      if (typeof luPatch.building_coverage_ratio === "number") object.building_coverage_ratio = luPatch.building_coverage_ratio;
-      if (typeof luPatch.max_floors === "number") object.max_floors = luPatch.max_floors;
-      if (luEffectiveHeight != null) object.max_height_m = luEffectiveHeight;
+      if (luOfficialRegulation) {
+        object.utilization_ratio = typeof luPatch.utilization_ratio === "number" ? luPatch.utilization_ratio : 0;
+        object.building_coverage_ratio = typeof luPatch.building_coverage_ratio === "number" ? luPatch.building_coverage_ratio : null;
+        object.max_floors = typeof luPatch.max_floors === "number" ? luPatch.max_floors : 0;
+        object.max_height_m = luEffectiveHeight ?? 0;
+      } else {
+        if (typeof luPatch.utilization_ratio === "number") object.utilization_ratio = luPatch.utilization_ratio;
+        if (typeof luPatch.building_coverage_ratio === "number") object.building_coverage_ratio = luPatch.building_coverage_ratio;
+        if (typeof luPatch.max_floors === "number") object.max_floors = luPatch.max_floors;
+        if (luEffectiveHeight != null) object.max_height_m = luEffectiveHeight;
+      }
       if (typeof luPatch.noise_zone === "string") object.noise_zone = luPatch.noise_zone;
       if (typeof luPatch.special_provisions === "string") object.special_provisions = luPatch.special_provisions;
 
@@ -541,10 +548,13 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
           feasibility: object.feasibility,
           zone: luEffectiveZone ?? object.zone,
           usage_type: object.usage_types,
-          max_floors: clamp(Math.round(object.max_floors), 0, 50),
-          max_height: clamp(object.max_height_m, 0, 300),
-          utilization_ratio: clamp(object.utilization_ratio, 0, 10),
-          building_coverage_ratio: object.building_coverage_ratio,
+          max_floors: object.max_floors > 0 ? clamp(Math.round(object.max_floors), 0, 50) : null,
+          max_height: object.max_height_m > 0 ? clamp(object.max_height_m, 0, 300) : null,
+          utilization_ratio: object.utilization_ratio > 0 ? clamp(object.utilization_ratio, 0, 10) : null,
+          building_coverage_ratio:
+            object.building_coverage_ratio != null && object.building_coverage_ratio > 0
+              ? object.building_coverage_ratio
+              : null,
           setbacks: object.setbacks as Json | null,
           special_provisions: object.special_provisions,
           noise_zone: object.noise_zone,

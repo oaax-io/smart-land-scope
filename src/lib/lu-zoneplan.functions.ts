@@ -67,10 +67,10 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
     if (zone.zoneMunicipalityLabel != null) patch.detected_zone_precise = zone.zoneMunicipalityLabel;
     patch.detected_zone_source = "Amtlicher Zonenplan Kanton Luzern";
     patch.regulation_basis = "Amtlicher Zonenplan Kanton Luzern (ZPGNDNTZ) / Bau- und Zonenreglement Luzern";
-    if (zone.az != null) patch.utilization_ratio = zone.az;
-    if (zone.uezMax != null) patch.building_coverage_ratio = zone.uezMax;
-    if (zone.floors != null) patch.max_floors = zone.floors;
-    if (effectiveHeight != null) patch.max_height = effectiveHeight;
+    patch.utilization_ratio = zone.az;
+    patch.building_coverage_ratio = zone.uezMax;
+    patch.max_floors = zone.floors;
+    patch.max_height = effectiveHeight;
     if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
     if (specialProvisions != null) patch.special_provisions = specialProvisions;
     if (zone.geometry != null) patch.parcel_geometry = zone.geometry as unknown as Json;
