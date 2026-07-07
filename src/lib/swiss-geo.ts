@@ -571,6 +571,41 @@ export type LuZonePlanResult = {
   source: "lu_wfs";
 };
 
+export function luZonePlanToRegulationRecord(zone: LuZonePlanResult): Record<string, unknown> {
+  return {
+    source: zone.source,
+    source_label: "Amtlicher Zonenplan Kanton Luzern (ZONPLANX_COL_V3_MP)",
+    code: zone.zoneCode,
+    name: zone.zoneMunicipalityLabel ?? zone.zoneLabel,
+    zone_label: zone.zoneLabel,
+    zone_municipality_label: zone.zoneMunicipalityLabel,
+    zone_category: zone.zoneCategory,
+    legal_status: zone.legalStatus,
+    utilization_ratio: zone.az,
+    building_coverage_ratio: zone.uezMax,
+    building_coverage_ratio_min: zone.uezMin,
+    max_floors: zone.floors,
+    max_height_m: zone.heightMax,
+    min_height_m: zone.heightMin,
+    max_facade_height_m: zone.facadeHeightMax,
+    min_facade_height_m: zone.facadeHeightMin,
+    eaves_height_m: zone.eavesHeight,
+    max_building_length_m: zone.buildingLength,
+    max_building_width_m: zone.buildingWidth,
+    open_space_ratio: zone.greenAreaRatio,
+    residential_share_max: zone.residentialShareMax,
+    residential_share_min: zone.residentialShareMin,
+    commercial_share_max: zone.commercialShareMax,
+    commercial_share_min: zone.commercialShareMin,
+    noise_sensitivity: zone.noiseClass,
+    building_type: zone.buildingType,
+    article_reference: zone.bzrArticle ? `BZR Art. ${zone.bzrArticle}` : null,
+    bzr_further: zone.bzrFurther,
+    valid_from: zone.validFrom,
+    overlays: zone.overlays,
+  };
+}
+
 /** Liest ein Attribut aus der LU-Antwort — akzeptiert deutsche Langnamen (aktuell) und alte Kurzcodes (fallback). */
 function luAttr(attrs: Record<string, unknown>, ...keys: string[]): unknown {
   for (const k of keys) {

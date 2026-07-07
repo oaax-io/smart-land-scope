@@ -16,6 +16,7 @@ type Zone = {
   setback_large_m?: number | null;
   setback_note?: string | null;
   max_building_length_m?: number | null;
+  max_building_width_m?: number | null;
   max_facade_length_m?: number | null;
   height_bonus_m?: number | null;
   attic_floor_counted?: boolean | null;
@@ -175,6 +176,7 @@ export function RechtlicheGrundlagenTable({
           />
           <Row label="Mehrhöhenzuschlag" value={fmt(zone.height_bonus_m, " m")} />
           <Row label="Max. Gebäudelänge" value={fmt(zone.max_building_length_m, " m")} />
+          <Row label="Max. Gebäudebreite" value={fmt(zone.max_building_width_m, " m")} />
           <Row label="Max. Fassadenlänge" value={fmt(zone.max_facade_length_m, " m")} />
         </Group>
 

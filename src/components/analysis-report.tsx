@@ -13,6 +13,7 @@ import { RechtlicheGrundlagenTable } from "@/components/rechtliche-grundlagen-ta
 import { OEREBTopicsTable } from "@/components/oereb-topics-table";
 import { SwissMap } from "@/components/swiss-map";
 import { loadOEREBData } from "@/lib/oereb.functions";
+import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
 
 type Risk = { category?: string; title: string; description: string; severity?: string };
 
@@ -27,6 +28,7 @@ type Props = {
 export function AnalysisReport({ analysisId, showToolbar = true, domId = "report-body" }: Props) {
   const id = analysisId;
   const loadOereb = useServerFn(loadOEREBData);
+  const loadLuZonePlan = useServerFn(loadLuZonePlanForAnalysis);
 
   const { data: a, isLoading } = useQuery({
     queryKey: ["analysis", id, "report"],
@@ -73,6 +75,28 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     staleTime: 1000 * 60 * 30,
     enabled: !!a?.lat && !!a?.lng,
     queryFn: async () => loadOereb({ data: { analysisId: id } }),
+  });
+  const analysisExtractedData =
+    a?.extracted_data && typeof a.extracted_data === "object" && !Array.isArray(a.extracted_data)
+      ? (a.extracted_data as Record<string, unknown>)
+      : {};
+  const storedLuZonePlan =
+    analysisExtractedData.lu_zone_plan && typeof analysisExtractedData.lu_zone_plan === "object" && !Array.isArray(analysisExtractedData.lu_zone_plan)
+      ? (analysisExtractedData.lu_zone_plan as Record<string, unknown>)
+      : null;
+  const shouldRefreshLuZonePlan =
+    a?.canton === "LU" &&
+    a.lat != null &&
+    a.lng != null &&
+    (!storedLuZonePlan ||
+      storedLuZonePlan.max_facade_height_m == null ||
+      storedLuZonePlan.max_building_length_m == null ||
+      storedLuZonePlan.max_building_width_m == null);
+  const { data: liveLuZonePlan } = useQuery({
+    queryKey: ["lu-zone-plan", id, "report"],
+    enabled: shouldRefreshLuZonePlan,
+    staleTime: 1000 * 60 * 60,
+    queryFn: async () => loadLuZonePlan({ data: { analysisId: id } }),
   });
   const { data: easements = [] } = useQuery({
     queryKey: ["easements", id, "report"],
@@ -178,35 +202,57 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     typeof value === "string" && value.trim() ? value.trim() : null;
   const zd = (zoneData ?? {}) as Record<string, unknown>;
   const analysisSetbacks = (a.setbacks && typeof a.setbacks === "object" ? a.setbacks : {}) as Record<string, unknown>;
+  const liveLuZone = liveLuZonePlan?.ok ? liveLuZonePlan.zone : null;
+  const liveLuZoneData: Record<string, unknown> | null = liveLuZone
+    ? {
+        code: liveLuZone.zoneCode,
+        name: liveLuZone.zoneMunicipalityLabel ?? liveLuZone.zoneLabel,
+        zone_label: liveLuZone.zoneLabel,
+        utilization_ratio: liveLuZone.az,
+        building_coverage_ratio: liveLuZone.uezMax,
+        max_floors: liveLuZone.floors,
+        max_height_m: liveLuZone.heightMax,
+        max_facade_height_m: liveLuZone.facadeHeightMax,
+        max_building_length_m: liveLuZone.buildingLength,
+        max_building_width_m: liveLuZone.buildingWidth,
+        open_space_ratio: liveLuZone.greenAreaRatio,
+        noise_sensitivity: liveLuZone.noiseClass,
+        building_type: liveLuZone.buildingType,
+        article_reference: liveLuZone.bzrArticle ? `BZR Art. ${liveLuZone.bzrArticle}` : null,
+        source_label: "Amtlicher Zonenplan Kanton Luzern",
+      }
+    : null;
+  const officialLuZoneData = liveLuZoneData ?? storedLuZonePlan ?? {};
   const legalZoneData = {
     ...zd,
-    code: asStr(zd.code) ?? (a.zone as string | null) ?? (a.zone_override as string | null) ?? null,
-    name: asStr(zd.name) ?? (a.detected_zone_precise as string | null) ?? (a.detected_zone as string | null) ?? null,
-    max_floors: asPositiveNum(zd.max_floors) ?? asPositiveNum(a.max_floors),
-    max_height_m: asPositiveNum(zd.max_height_m),
-    max_facade_height_m: asPositiveNum(zd.max_facade_height_m) ?? asPositiveNum(zd.max_height_valley_m) ?? asPositiveNum(a.max_height),
+    code: asStr(officialLuZoneData.code) ?? asStr(zd.code) ?? (a.zone as string | null) ?? (a.zone_override as string | null) ?? null,
+    name: asStr(officialLuZoneData.name) ?? asStr(zd.name) ?? (a.detected_zone_precise as string | null) ?? (a.detected_zone as string | null) ?? null,
+    max_floors: asPositiveNum(officialLuZoneData.max_floors) ?? asPositiveNum(zd.max_floors) ?? asPositiveNum(a.max_floors),
+    max_height_m: asPositiveNum(officialLuZoneData.max_height_m) ?? asPositiveNum(zd.max_height_m) ?? asPositiveNum(a.max_height),
+    max_facade_height_m: asPositiveNum(officialLuZoneData.max_facade_height_m) ?? asPositiveNum(zd.max_facade_height_m) ?? asPositiveNum(zd.max_height_valley_m),
     max_height_valley_m: asPositiveNum(zd.max_height_valley_m),
-    utilization_ratio: asPositiveNum(zd.utilization_ratio) ?? asPositiveNum(a.utilization_ratio),
-    building_coverage_ratio: asPositiveNum(zd.building_coverage_ratio) ?? asPositiveNum(a.building_coverage_ratio),
+    utilization_ratio: asPositiveNum(officialLuZoneData.utilization_ratio) ?? asPositiveNum(zd.utilization_ratio) ?? asPositiveNum(a.utilization_ratio),
+    building_coverage_ratio: asPositiveNum(officialLuZoneData.building_coverage_ratio) ?? asPositiveNum(zd.building_coverage_ratio) ?? asPositiveNum(a.building_coverage_ratio),
     building_mass_ratio: asPositiveNum(zd.building_mass_ratio),
-    open_space_ratio: asPositiveNum(zd.open_space_ratio),
+    open_space_ratio: asPositiveNum(officialLuZoneData.open_space_ratio) ?? asPositiveNum(zd.open_space_ratio),
     setback_small_m: asPositiveNum(zd.setback_small_m),
     setback_large_m: asPositiveNum(zd.setback_large_m),
     setback_note: asStr(zd.setback_note) ?? asStr(analysisSetbacks.notes),
-    max_building_length_m: asPositiveNum(zd.max_building_length_m) ?? asPositiveNum(zd.building_length_m),
+    max_building_length_m: asPositiveNum(officialLuZoneData.max_building_length_m) ?? asPositiveNum(zd.max_building_length_m) ?? asPositiveNum(zd.building_length_m),
+    max_building_width_m: asPositiveNum(officialLuZoneData.max_building_width_m) ?? asPositiveNum(zd.max_building_width_m) ?? asPositiveNum(zd.building_width_m),
     max_facade_length_m: asPositiveNum(zd.max_facade_length_m),
     height_bonus_m: asPositiveNum(zd.height_bonus_m),
     attic_floor_counted: typeof zd.attic_floor_counted === "boolean" ? zd.attic_floor_counted : null,
     basement_counted: typeof zd.basement_counted === "boolean" ? zd.basement_counted : null,
-    building_type: asStr(zd.building_type) ?? asStr(zd.construction_type),
-    noise_sensitivity: asStr(zd.noise_sensitivity) ?? (a.noise_zone as string | null),
+    building_type: asStr(officialLuZoneData.building_type) ?? asStr(zd.building_type) ?? asStr(zd.construction_type),
+    noise_sensitivity: asStr(officialLuZoneData.noise_sensitivity) ?? asStr(zd.noise_sensitivity) ?? (a.noise_zone as string | null),
     transit_quality: asStr(zd.transit_quality),
     play_area_m2_per_apt: asPositiveNum(zd.play_area_m2_per_apt),
     play_area_requirement: asStr(zd.play_area_requirement),
     parking_rate: asStr(zd.parking_rate),
     parking_note: asStr(zd.parking_note),
-    article_reference: asStr(zd.article_reference) ?? (a.regulation_basis as string | null),
-    source_label: asStr(zd.source_label),
+    article_reference: asStr(officialLuZoneData.article_reference) ?? asStr(zd.article_reference) ?? (a.regulation_basis as string | null),
+    source_label: asStr(officialLuZoneData.source_label) ?? asStr(zd.source_label),
   };
   const hasLegalZoneData = Boolean(legalZoneData.code || legalZoneData.name);
 

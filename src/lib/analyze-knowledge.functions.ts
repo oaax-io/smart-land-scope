@@ -199,7 +199,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
     const { data: analysis, error: fetchErr } = await supabase
       .from("analyses")
       .select(
-        "id, address, postal_code, municipality, canton, parcel_number, area_size, detected_zone, zone_override, lat, lng, building_coverage_ratio, max_height, max_floors, utilization_ratio, noise_zone, detected_zone_precise, detected_zone_source, regulation_basis, special_provisions",
+        "id, address, postal_code, municipality, canton, parcel_number, area_size, detected_zone, zone_override, lat, lng, building_coverage_ratio, max_height, max_floors, utilization_ratio, noise_zone, detected_zone_precise, detected_zone_source, regulation_basis, special_provisions, extracted_data",
       )
       .eq("id", data.analysisId)
       .maybeSingle();
@@ -267,12 +267,17 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
       let luPatch: Record<string, unknown> = {};
       let luEffectiveZone: string | null = null;
       let luEffectiveHeight: number | null = null;
+      let luOfficialRegulation: Record<string, unknown> | null = null;
       if (analysis.canton === "LU" && analysis.lat != null && analysis.lng != null) {
         try {
-          const { queryLuZonePlan } = await import("@/lib/swiss-geo");
+          const { luZonePlanToRegulationRecord, queryLuZonePlan } = await import("@/lib/swiss-geo");
           const zone = await queryLuZonePlan(analysis.lat as number, analysis.lng as number);
           if (zone) {
             luEffectiveHeight = zone.heightMax ?? zone.facadeHeightMax;
+            luOfficialRegulation = {
+              ...luZonePlanToRegulationRecord(zone),
+              fetched_at: new Date().toISOString(),
+            };
             luZoneInfo = [
               `RECHTSVERBINDLICHE ZONENPLANDATEN (Kanton Luzern, ZPGNDNTZ, Quelle: public.geo.lu.ch):`,
               `Zone: ${[zone.zoneCode, zone.zoneLabel].filter(Boolean).join(" — ")}`,
@@ -282,6 +287,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
               zone.heightMax != null ? `Gesamthöhe max.: ${zone.heightMax} m` : null,
               zone.facadeHeightMax != null ? `Fassadenhöhe max.: ${zone.facadeHeightMax} m` : null,
               zone.buildingLength != null ? `Gebäudelänge max.: ${zone.buildingLength} m` : null,
+              zone.buildingWidth != null ? `Gebäudebreite max.: ${zone.buildingWidth} m` : null,
               zone.greenAreaRatio != null ? `Grünflächenziffer: ${zone.greenAreaRatio}` : null,
               zone.noiseClass ? `Lärmempfindlichkeitsstufe: ${zone.noiseClass}` : null,
               zone.buildingType ? `Bauweise: ${zone.buildingType}` : null,
@@ -311,6 +317,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
               zone.buildingType ? `Bauweise: ${zone.buildingType}` : null,
               zone.facadeHeightMax ? `Max. Fassadenhöhe: ${zone.facadeHeightMax} m` : null,
               zone.buildingLength ? `Max. Gebäudelänge: ${zone.buildingLength} m` : null,
+              zone.buildingWidth ? `Max. Gebäudebreite: ${zone.buildingWidth} m` : null,
               zone.greenAreaRatio ? `Grünflächenziffer: ${zone.greenAreaRatio}` : null,
               ...zone.overlays.map((o) => `Überlagerung: ${o.label}`),
             ].filter(Boolean).join(" | ");
@@ -443,7 +450,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
         "Beantworte:",
         "1) Was darf gebaut werden? (feasibility, allowed_use in usage_types).",
         luZoneInfo
-          ? `2) Die Zone und Kennzahlen sind bereits aus dem rechtsverbindlichen Zonenplan LU ermittelt (siehe oben). Verwende EXAKT diese Werte für 'zone' (ZONTYP_ABK), 'utilization_ratio' (AZ), 'max_floors' (Geschosszahl) und 'max_height_m' (Gesamthöhe max.). Erstelle die Machbarkeitsbeurteilung auf Basis dieser verbindlichen Werte.`
+          ? `2) Die Zone und Kennzahlen sind bereits aus dem rechtsverbindlichen Zonenplan LU ermittelt (siehe oben). Verwende EXAKT diese Werte für 'zone' (ZONTYP_ABK), 'utilization_ratio' (AZ), 'building_coverage_ratio' (ÜZ), 'max_floors' (Geschosszahl), 'max_height_m' (Gesamthöhe max.) sowie Fassadenhöhe, Gebäudelänge und Gebäudebreite in 'special_provisions'. Erstelle die Machbarkeitsbeurteilung auf Basis dieser verbindlichen Werte.`
           : `2) Ordne das Grundstück einer der oben aufgeführten bekannten Bauzonen zu (falls verfügbar). Verwende zwingend den exakten Zonen-Code aus der Liste (z.B. "W-B", "WO3", "ZP1"). Liefere für diese Zone die konkreten Werte aus der Wissensdatenbank: 'zone' (Code), 'utilization_ratio' (AZ oder ÜZ), 'max_floors' (Vollgeschosse), 'max_height_m'. Lass diese Felder NIEMALS auf 0 / leer wenn die Wissensdatenbank entsprechende Zonenwerte enthält.`,
 
         "3) Berechne das Wohnungspotenzial konkret:",
@@ -524,6 +531,7 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
       }
 
       // 4) Persist
+      const existingExtractedData = asRecord(analysis.extracted_data);
       const { error: updErr } = await supabase
         .from("analyses")
         .update({
@@ -549,11 +557,13 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
           restrictions: object.regulations,
           risks: object.risks.map((r) => ({ ...r, severity: normalizeSeverity(r.severity) })),
           extracted_data: {
+            ...existingExtractedData,
             knowledge_based: true,
             municipality_id: muni.id,
             entry_count: entries?.length ?? 0,
             rule_count: rules?.length ?? 0,
             sources: object.sources,
+            ...(luOfficialRegulation ? { lu_zone_plan: luOfficialRegulation } : {}),
           },
           ai_answer: object,
         })
