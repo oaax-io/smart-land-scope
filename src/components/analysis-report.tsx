@@ -90,11 +90,13 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     a.lat != null &&
     a.lng != null &&
     (!storedLuZonePlan ||
+      storedLuZonePlan.building_coverage_ratio == null ||
+      storedLuZonePlan.max_floors == null ||
       storedLuZonePlan.max_facade_height_m == null ||
       storedLuZonePlan.max_building_length_m == null ||
       storedLuZonePlan.max_building_width_m == null);
   const { data: liveLuZonePlan } = useQuery({
-    queryKey: ["lu-zone-plan", id, "report"],
+    queryKey: ["lu-zone-plan", id, "report", "official-zone-v2"],
     enabled: shouldRefreshLuZonePlan,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => loadLuZonePlan({ data: { analysisId: id } }),
