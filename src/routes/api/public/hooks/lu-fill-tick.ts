@@ -136,24 +136,22 @@ async function pickNextLuDocument(
   const docIds: string[] = (docs ?? []).map((d: any) => d.id);
   if (docIds.length === 0) return null;
 
-  const [{ data: entries }, { data: extractions }] = await Promise.all([
-    supabaseAdmin.from("knowledge_entries").select("source_document").in("source_document", docIds),
-    supabaseAdmin
-      .from("regulation_extractions")
-      .select("document_id, status, zones")
-      .in("document_id", docIds),
-  ]);
-  const withEntries = new Set<string>();
-  (entries ?? []).forEach((e: any) => {
-    if (e.source_document) withEntries.add(e.source_document);
-  });
+  const { data: extractions } = await supabaseAdmin
+    .from("regulation_extractions")
+    .select("document_id, status, zones")
+    .in("document_id", docIds);
   const extractionMap = new Map<string, any>(
     (extractions ?? []).map((e: any) => [e.document_id, e]),
   );
 
   for (const id of docIds) {
     if (alreadyProcessed.has(id)) continue;
-    if (withEntries.has(id)) continue;
+    const { count, error } = await supabaseAdmin
+      .from("knowledge_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("source_document", id);
+    if (error) throw error;
+    if ((count ?? 0) > 0) continue;
     const ex = extractionMap.get(id);
     if (!ex) return id;
     if (ex.status === "processing" || ex.status === "failed" || ex.status === "completed") return id;
