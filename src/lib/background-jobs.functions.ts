@@ -108,21 +108,24 @@ async function countLuPending(supabaseAdmin: any): Promise<number> {
   const docIds: string[] = (docs ?? []).map((d: any) => d.id);
   if (docIds.length === 0) return 0;
 
-  const [{ data: entries }, { data: extractions }] = await Promise.all([
-    supabaseAdmin.from("knowledge_entries").select("source_document").in("source_document", docIds),
-    supabaseAdmin.from("regulation_extractions").select("document_id, status, zones").in("document_id", docIds),
-  ]);
-  const entryCounts = new Map<string, number>();
-  (entries ?? []).forEach((e: any) => {
-    if (!e.source_document) return;
-    entryCounts.set(e.source_document, (entryCounts.get(e.source_document) ?? 0) + 1);
-  });
+  const { data: extractions } = await supabaseAdmin
+    .from("regulation_extractions")
+    .select("document_id, status, zones")
+    .in("document_id", docIds);
   const extractionMap = new Map<string, any>((extractions ?? []).map((e: any) => [e.document_id, e]));
 
-  return docIds.filter((id) => {
-    if ((entryCounts.get(id) ?? 0) > 0) return false;
+  let pending = 0;
+  for (const id of docIds) {
+    const { count, error } = await supabaseAdmin
+      .from("knowledge_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("source_document", id);
+    if (error) throw error;
+    if ((count ?? 0) > 0) continue;
     const ex = extractionMap.get(id);
-    if (!ex) return true;
-    return ex.status === "processing" || ex.status === "failed" || ex.status === "completed";
-  }).length;
+    if (!ex || ex.status === "processing" || ex.status === "failed" || ex.status === "completed") {
+      pending += 1;
+    }
+  }
+  return pending;
 }

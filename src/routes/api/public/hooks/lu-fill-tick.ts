@@ -30,7 +30,7 @@ async function handle({ request }: { request: Request }) {
     // Active LU job?
     const { data: job } = await supabaseAdmin
       .from("background_jobs")
-      .select("id, status, total, done, ok, failed")
+      .select("id, status, total, done, ok, failed, scope")
       .eq("job_type", "lu_fill")
       .in("status", ["queued", "running"])
       .order("created_at", { ascending: false })
@@ -47,7 +47,11 @@ async function handle({ request }: { request: Request }) {
     }
 
     // Find next pending LU document.
-    const docId = await pickNextLuDocument(supabaseAdmin);
+    const jobScope = isRecord(job.scope) ? job.scope : {};
+    const processedIds = Array.isArray(jobScope.processedDocumentIds)
+      ? jobScope.processedDocumentIds.filter((id: unknown): id is string => typeof id === "string")
+      : [];
+    const docId = await pickNextLuDocument(supabaseAdmin, new Set(processedIds));
     if (!docId) {
       await supabaseAdmin
         .from("background_jobs")
@@ -85,6 +89,10 @@ async function handle({ request }: { request: Request }) {
       .maybeSingle();
     const errors = Array.isArray(fresh?.errors) ? [...(fresh!.errors as unknown[])] : [];
     if (errorMsg) errors.push({ documentId: docId, error: errorMsg, at: new Date().toISOString() });
+    const nextScope = {
+      ...jobScope,
+      processedDocumentIds: Array.from(new Set([...processedIds, docId])),
+    };
     const newDone = (fresh?.done ?? 0) + 1;
     const newOk = (fresh?.ok ?? 0) + okDelta;
     const newFailed = (fresh?.failed ?? 0) + failDelta;
@@ -97,6 +105,7 @@ async function handle({ request }: { request: Request }) {
         ok: newOk,
         failed: newFailed,
         errors: errors as any,
+        scope: nextScope,
         status: isComplete ? "completed" : "running",
         finished_at: isComplete ? new Date().toISOString() : null,
         current_label: isComplete ? "Fertig" : `${newDone}/${fresh?.total ?? job.total} verarbeitet`,
@@ -111,7 +120,14 @@ async function handle({ request }: { request: Request }) {
   }
 }
 
-async function pickNextLuDocument(supabaseAdmin: any): Promise<string | null> {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function pickNextLuDocument(
+  supabaseAdmin: any,
+  alreadyProcessed: Set<string>,
+): Promise<string | null> {
   const { data: docs } = await supabaseAdmin
     .from("regulation_documents")
     .select("id, municipalities!inner(cantons!inner(code))")
@@ -120,23 +136,22 @@ async function pickNextLuDocument(supabaseAdmin: any): Promise<string | null> {
   const docIds: string[] = (docs ?? []).map((d: any) => d.id);
   if (docIds.length === 0) return null;
 
-  const [{ data: entries }, { data: extractions }] = await Promise.all([
-    supabaseAdmin.from("knowledge_entries").select("source_document").in("source_document", docIds),
-    supabaseAdmin
-      .from("regulation_extractions")
-      .select("document_id, status, zones")
-      .in("document_id", docIds),
-  ]);
-  const withEntries = new Set<string>();
-  (entries ?? []).forEach((e: any) => {
-    if (e.source_document) withEntries.add(e.source_document);
-  });
+  const { data: extractions } = await supabaseAdmin
+    .from("regulation_extractions")
+    .select("document_id, status, zones")
+    .in("document_id", docIds);
   const extractionMap = new Map<string, any>(
     (extractions ?? []).map((e: any) => [e.document_id, e]),
   );
 
   for (const id of docIds) {
-    if (withEntries.has(id)) continue;
+    if (alreadyProcessed.has(id)) continue;
+    const { count, error } = await supabaseAdmin
+      .from("knowledge_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("source_document", id);
+    if (error) throw error;
+    if ((count ?? 0) > 0) continue;
     const ex = extractionMap.get(id);
     if (!ex) return id;
     if (ex.status === "processing" || ex.status === "failed" || ex.status === "completed") return id;
