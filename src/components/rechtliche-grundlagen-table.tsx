@@ -139,19 +139,15 @@ export function RechtlicheGrundlagenTable({
             <div className="grid grid-cols-3 gap-3 text-center text-sm">
               <div>
                 <div className="text-xs text-muted-foreground">GSF</div>
-                <div className="font-semibold tabular-nums">
-                  {grundstueckflaeche.toLocaleString("de-CH")} m²
-                </div>
+                <div className="font-semibold tabular-nums">{formatSquareMeters(grundstueckflaeche)}</div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">{uzLabel}</div>
-                <div className="font-semibold tabular-nums">{uz ?? "–"}</div>
+                <div className="font-semibold tabular-nums">{formatRatio(uz)}</div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Max. Fläche BZR</div>
-                <div className="font-semibold tabular-nums">
-                  {maxFlaecheBzr != null ? `${maxFlaecheBzr.toLocaleString("de-CH")} m²` : "–"}
-                </div>
+                <div className="font-semibold tabular-nums">{formatSquareMeters(maxFlaecheBzr)}</div>
               </div>
             </div>
           </div>
@@ -168,42 +164,42 @@ export function RechtlicheGrundlagenTable({
             }
           />
           <Row label="Empfindlichkeitsstufe (ES)" value={fmt(zone.noise_sensitivity)} />
-          <Row label="Erschliessungsqualität ÖV" value={valueOrNote(zone.transit_quality, luTransitNote)} />
+          <Row label="Erschliessungsqualität ÖV" value={fmt(zone.transit_quality) !== "–" ? fmt(zone.transit_quality) : (luTransitNote ?? "–")} />
         </Group>
 
         <Group title="Dichte">
-          <Row label="Vollgeschosse" value={fmt(zone.max_floors)} />
+          <Row label="Vollgeschosse" value={formatNumber(zone.max_floors, 1)} />
           <Row label="Anrechenbares Dachgeschoss" value={fmt(zone.attic_floor_counted)} />
           <Row label="Anrechenbares Untergeschoss" value={fmt(zone.basement_counted)} />
-          <Row label="Überbauungsziffer (ÜZ)" value={fmt(zone.building_coverage_ratio)} />
-          <Row label="Baumassenziffer (BMZ)" value={fmt(zone.building_mass_ratio)} />
-          <Row label="Freiflächenziffer (FFZ)" value={fmt(zone.open_space_ratio)} />
+          <Row label="Ausnützungsziffer (AZ)" value={formatRatio(zone.utilization_ratio)} />
+          <Row label="Überbauungsziffer (ÜZ)" value={formatRatio(zone.building_coverage_ratio)} />
+          <Row label="Baumassenziffer (BMZ)" value={formatRatio(zone.building_mass_ratio)} />
+          <Row label="Freiflächenziffer (FFZ)" value={formatRatio(zone.open_space_ratio)} />
           <Row label="Bauweise" value={fmt(zone.building_type)} />
         </Group>
 
         <Group title="Masse">
-          <Row label="Max. Gesamthöhe" value={fmt(zone.max_height_m, " m")} />
+          <Row label="Max. Gesamthöhe" value={formatMeters(zone.max_height_m)} />
           <Row
             label="Max. Fassadenhöhe"
-            value={fmt(zone.max_facade_height_m ?? zone.max_height_valley_m, " m")}
+            value={formatMeters(zone.max_facade_height_m ?? zone.max_height_valley_m)}
           />
-          <Row label="Mehrhöhenzuschlag" value={fmt(zone.height_bonus_m, " m")} />
-          <Row label="Max. Gebäudelänge" value={fmt(zone.max_building_length_m, " m")} />
-          <Row label="Max. Gebäudebreite" value={fmt(zone.max_building_width_m, " m")} />
-          <Row label="Max. Fassadenlänge" value={fmt(zone.max_facade_length_m, " m")} />
+          <Row label="Mehrhöhenzuschlag" value={formatMeters(zone.height_bonus_m)} />
+          <Row label="Max. Gebäudelänge" value={formatMeters(zone.max_building_length_m)} />
+          <Row label="Max. Gebäudebreite" value={formatMeters(zone.max_building_width_m)} />
+          <Row label="Max. Fassadenlänge" value={formatMeters(zone.max_facade_length_m)} />
         </Group>
 
         <Group title="Abstände">
-          <Row label="Grosser Grundabstand" value={valueOrNote(zone.setback_large_m, zone.setback_note ?? luSetbackNote, " m")} />
-          <Row label="Kleiner Grundabstand" value={valueOrNote(zone.setback_small_m, zone.setback_note ?? luSetbackNote, " m")} />
+          <Row label="Grosser Grundabstand" value={meterOrNote(zone.setback_large_m, zone.setback_note ?? luSetbackNote)} />
+          <Row label="Kleiner Grundabstand" value={meterOrNote(zone.setback_small_m, zone.setback_note ?? luSetbackNote)} />
           <Row
             label="Gebäudeabstand"
-            value={valueOrNote(
+            value={meterOrNote(
               zone.setback_small_m != null && zone.setback_large_m != null
                 ? zone.setback_small_m + zone.setback_large_m
                 : null,
               zone.setback_note ?? luSetbackNote,
-              " m",
             )}
           />
         </Group>
@@ -213,15 +209,16 @@ export function RechtlicheGrundlagenTable({
             label="Spiel- und Ruheflächen"
             value={
               zone.play_area_m2_per_apt != null
-                ? `${zone.play_area_m2_per_apt} m² / Wohnung`
+                ? `${formatSquareMeters(zone.play_area_m2_per_apt, 1)} / Wohnung`
                 : zone.play_area_requirement ?? luPlayAreaNote ?? "–"
             }
           />
         </Group>
 
         <Group title="Verkehr">
-          <Row label="Parkierung" value={valueOrNote(zone.parking_rate, zone.parking_note ?? luParkingNote)} />
+          <Row label="Parkierung" value={zone.parking_rate?.trim() || zone.parking_note?.trim() || luParkingNote || "–"} />
         </Group>
+
 
         <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">Kantonale Grundlage:</span> {basis}
