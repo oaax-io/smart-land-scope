@@ -96,7 +96,7 @@ async function handle({ request }: { request: Request }) {
         done: newDone,
         ok: newOk,
         failed: newFailed,
-        errors,
+        errors: errors as any,
         status: isComplete ? "completed" : "running",
         finished_at: isComplete ? new Date().toISOString() : null,
         current_label: isComplete ? "Fertig" : `${newDone}/${fresh?.total ?? job.total} verarbeitet`,

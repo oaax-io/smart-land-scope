@@ -30,6 +30,7 @@ import { Route as AuthenticatedAnalysenIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedFeedbackIdRouteImport } from './routes/_authenticated/feedback.$id'
 import { Route as AuthenticatedAnalysenKarteRouteImport } from './routes/_authenticated/analysen.karte'
 import { Route as AuthenticatedAnalysenIdRouteImport } from './routes/_authenticated/analysen.$id'
+import { Route as ApiPublicHooksLuFillTickRouteImport } from './routes/api/public/hooks/lu-fill-tick'
 import { Route as ApiPublicHooksBzrCheckRouteImport } from './routes/api/public/hooks/bzr-check'
 import { Route as AuthenticatedAnalysenIdBerichtRouteImport } from './routes/_authenticated/analysen.$id.bericht'
 
@@ -142,6 +143,12 @@ const AuthenticatedAnalysenIdRoute = AuthenticatedAnalysenIdRouteImport.update({
   path: '/analysen/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicHooksLuFillTickRoute =
+  ApiPublicHooksLuFillTickRouteImport.update({
+    id: '/api/public/hooks/lu-fill-tick',
+    path: '/api/public/hooks/lu-fill-tick',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksBzrCheckRoute = ApiPublicHooksBzrCheckRouteImport.update({
   id: '/api/public/hooks/bzr-check',
   path: '/api/public/hooks/bzr-check',
@@ -177,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
   '/api/public/hooks/bzr-check': typeof ApiPublicHooksBzrCheckRoute
+  '/api/public/hooks/lu-fill-tick': typeof ApiPublicHooksLuFillTickRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -200,6 +208,7 @@ export interface FileRoutesByTo {
   '/feedback': typeof AuthenticatedFeedbackIndexRoute
   '/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
   '/api/public/hooks/bzr-check': typeof ApiPublicHooksBzrCheckRoute
+  '/api/public/hooks/lu-fill-tick': typeof ApiPublicHooksLuFillTickRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -226,6 +235,7 @@ export interface FileRoutesById {
   '/_authenticated/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/_authenticated/analysen/$id/bericht': typeof AuthenticatedAnalysenIdBerichtRoute
   '/api/public/hooks/bzr-check': typeof ApiPublicHooksBzrCheckRoute
+  '/api/public/hooks/lu-fill-tick': typeof ApiPublicHooksLuFillTickRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/feedback/'
     | '/analysen/$id/bericht'
     | '/api/public/hooks/bzr-check'
+    | '/api/public/hooks/lu-fill-tick'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/feedback'
     | '/analysen/$id/bericht'
     | '/api/public/hooks/bzr-check'
+    | '/api/public/hooks/lu-fill-tick'
   id:
     | '__root__'
     | '/'
@@ -300,6 +312,7 @@ export interface FileRouteTypes {
     | '/_authenticated/feedback/'
     | '/_authenticated/analysen/$id/bericht'
     | '/api/public/hooks/bzr-check'
+    | '/api/public/hooks/lu-fill-tick'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -309,6 +322,7 @@ export interface RootRouteChildren {
   PlatformRoute: typeof PlatformRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicHooksBzrCheckRoute: typeof ApiPublicHooksBzrCheckRoute
+  ApiPublicHooksLuFillTickRoute: typeof ApiPublicHooksLuFillTickRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -460,6 +474,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalysenIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/hooks/lu-fill-tick': {
+      id: '/api/public/hooks/lu-fill-tick'
+      path: '/api/public/hooks/lu-fill-tick'
+      fullPath: '/api/public/hooks/lu-fill-tick'
+      preLoaderRoute: typeof ApiPublicHooksLuFillTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/bzr-check': {
       id: '/api/public/hooks/bzr-check'
       path: '/api/public/hooks/bzr-check'
@@ -549,6 +570,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlatformRoute: PlatformRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicHooksBzrCheckRoute: ApiPublicHooksBzrCheckRoute,
+  ApiPublicHooksLuFillTickRoute: ApiPublicHooksLuFillTickRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
