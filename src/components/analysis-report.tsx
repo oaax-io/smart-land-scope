@@ -788,8 +788,8 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
 
             // Fallback-Schnellschätzung wenn keine Geschossflächen erfasst
             const grundstueck = Number(a.area_size ?? 0);
-            const uez = Number(a.building_coverage_ratio ?? a.utilization_ratio ?? 0);
-            const maxH = Number(a.max_height ?? 0);
+            const uez = Number(legalZoneData.building_coverage_ratio ?? legalZoneData.utilization_ratio ?? 0);
+            const maxH = Number(legalZoneData.max_height_m ?? legalZoneData.max_facade_height_m ?? 0);
             const gH = 3.0;
             const bebauteFlaeche = grundstueck * uez;
             const vollgeschosse = gH > 0 ? Math.floor(maxH / gH) : 0;
