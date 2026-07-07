@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatMeters, formatNumber, formatRatio, formatSquareMeters, parseNumeric } from "@/lib/format-units";
+import { formatFloors, formatMeters, formatRatio, formatSquareMeters, parseNumeric } from "@/lib/format-units";
 
 
 type Zone = {
@@ -168,7 +168,7 @@ export function RechtlicheGrundlagenTable({
         </Group>
 
         <Group title="Dichte">
-          <Row label="Vollgeschosse" value={formatNumber(zone.max_floors, 1)} />
+          <Row label="Vollgeschosse" value={formatFloors(zone.max_floors)} />
           <Row label="Anrechenbares Dachgeschoss" value={fmt(zone.attic_floor_counted)} />
           <Row label="Anrechenbares Untergeschoss" value={fmt(zone.basement_counted)} />
           <Row label="Ausnützungsziffer (AZ)" value={formatRatio(zone.utilization_ratio)} />

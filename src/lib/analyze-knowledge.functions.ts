@@ -273,7 +273,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
           const { luZonePlanToRegulationRecord, queryLuZonePlan } = await import("@/lib/swiss-geo");
           const zone = await queryLuZonePlan(analysis.lat as number, analysis.lng as number);
           if (zone) {
-            luEffectiveHeight = zone.heightMax ?? zone.facadeHeightMax;
+            luEffectiveHeight = zone.heightMax;
             luOfficialRegulation = {
               ...luZonePlanToRegulationRecord(zone),
               fetched_at: new Date().toISOString(),
