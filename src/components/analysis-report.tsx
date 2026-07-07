@@ -14,6 +14,7 @@ import { OEREBTopicsTable } from "@/components/oereb-topics-table";
 import { SwissMap } from "@/components/swiss-map";
 import { loadOEREBData } from "@/lib/oereb.functions";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
+import { formatFloors, formatMeters, formatRatio } from "@/lib/format-units";
 
 type Risk = { category?: string; title: string; description: string; severity?: string };
 
