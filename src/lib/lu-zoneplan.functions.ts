@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { queryLuZonePlan } from "@/lib/swiss-geo";
+import { luZonePlanToRegulationRecord, queryLuZonePlan } from "@/lib/swiss-geo";
 import type { Json } from "@/integrations/supabase/types";
 
 const LuZoneInput = z.object({ analysisId: z.string().uuid() });
@@ -18,7 +18,7 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
 
     const { data: analysis, error } = await supabase
       .from("analyses")
-      .select("id, lat, lng, canton")
+      .select("id, lat, lng, canton, extracted_data")
       .eq("id", data.analysisId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -38,6 +38,7 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
       zone.buildingType ? `Bauweise: ${zone.buildingType}` : null,
       zone.facadeHeightMax ? `Max. Fassadenhöhe: ${zone.facadeHeightMax} m` : null,
       zone.buildingLength ? `Max. Gebäudelänge: ${zone.buildingLength} m` : null,
+      zone.buildingWidth ? `Max. Gebäudebreite: ${zone.buildingWidth} m` : null,
       zone.greenAreaRatio ? `Grünflächenziffer: ${zone.greenAreaRatio}` : null,
       zone.residentialShareMax != null
         ? `Wohnanteil max.: ${Math.round(zone.residentialShareMax * 100)}%`
@@ -73,6 +74,17 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
     if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
     if (specialProvisions != null) patch.special_provisions = specialProvisions;
     if (zone.geometry != null) patch.parcel_geometry = zone.geometry as unknown as Json;
+    const existingExtractedData =
+      analysis.extracted_data && typeof analysis.extracted_data === "object" && !Array.isArray(analysis.extracted_data)
+        ? (analysis.extracted_data as Record<string, unknown>)
+        : {};
+    patch.extracted_data = {
+      ...existingExtractedData,
+      lu_zone_plan: {
+        ...luZonePlanToRegulationRecord(zone),
+        fetched_at: new Date().toISOString(),
+      },
+    } satisfies Json;
 
     if (Object.keys(patch).length > 0) {
       const { error: updateErr } = await supabase
