@@ -47,7 +47,7 @@ async function handle({ request }: { request: Request }) {
     }
 
     // Find next pending LU document.
-    const docId = await pickNextLuDocument();
+    const docId = await pickNextLuDocument(supabaseAdmin);
     if (!docId) {
       await supabaseAdmin
         .from("background_jobs")
