@@ -67,10 +67,10 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
     if (zone.zoneMunicipalityLabel != null) patch.detected_zone_precise = zone.zoneMunicipalityLabel;
     patch.detected_zone_source = "Amtlicher Zonenplan Kanton Luzern";
     patch.regulation_basis = "Amtlicher Zonenplan Kanton Luzern (ZPGNDNTZ) / Bau- und Zonenreglement Luzern";
-    patch.utilization_ratio = zone.az;
-    patch.building_coverage_ratio = zone.uezMax;
-    patch.max_floors = zone.floors;
-    patch.max_height = effectiveHeight;
+    if (zone.az != null) patch.utilization_ratio = zone.az;
+    if (zone.uezMax != null) patch.building_coverage_ratio = zone.uezMax;
+    if (zone.floors != null) patch.max_floors = zone.floors;
+    if (effectiveHeight != null) patch.max_height = effectiveHeight;
     if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
     if (specialProvisions != null) patch.special_provisions = specialProvisions;
     if (zone.geometry != null) patch.parcel_geometry = zone.geometry as unknown as Json;
@@ -130,20 +130,21 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
                 if (c.ueberbauungsziffer != null) patch.building_coverage_ratio = c.ueberbauungsziffer;
                 if (c.vollgeschosse != null && patch.max_floors == null) patch.max_floors = c.vollgeschosse;
                 if (c.gesamthoehe_flach != null && patch.max_height == null) patch.max_height = c.gesamthoehe_flach;
-                if (zoneName == null || zoneName === zone.zoneLabel) patch.zone = c.code;
+                patch.zone = c.code;
                 patch.detected_zone_precise = `${c.code} — ${c.zone ?? zone.zoneMunicipalityLabel ?? ""}`.trim();
                 const conf = Math.round(suggestion.confidence * 100);
                 const note = `BZR-Zone via KI-Vorschlag: ${c.code} (${conf}% Konfidenz). ${suggestion.reasoning}`.trim();
                 patch.special_provisions = patch.special_provisions
                   ? `${patch.special_provisions as string} | ${note}`
                   : note;
-                const ed = patch.extracted_data as Record<string, unknown>;
-                (ed.lu_zone_plan as Record<string, unknown>).bzr_ai_suggestion = {
+                const bzrSuggestion = {
                   code: c.code,
                   confidence: suggestion.confidence,
                   reasoning: suggestion.reasoning,
                   candidate: c,
                 };
+                const ed = patch.extracted_data as Record<string, unknown>;
+                (ed.lu_zone_plan as Record<string, unknown>).bzr_ai_suggestion = bzrSuggestion;
               }
             }
           }

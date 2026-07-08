@@ -323,6 +323,72 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
             ].filter(Boolean).join(" | ");
             if (specialParts) patch.special_provisions = specialParts;
             luPatch = patch;
+
+            if (zone.az == null && zone.uezMax == null && analysis.municipality) {
+              try {
+                const {
+                  groupKnowledgeIntoCandidates,
+                  filterCandidatesByWfs,
+                  suggestBzrCode,
+                } = await import("./lu-bzr-suggest.server");
+                const grouped = groupKnowledgeIntoCandidates((entries ?? []) as { category: string; key: string; value: string | null }[]);
+                const filtered = filterCandidatesByWfs(grouped, zone.facadeHeightMax, zone.buildingType, zone.zoneCategory);
+                const apiKey = process.env.LOVABLE_API_KEY;
+                if (apiKey && filtered.length > 0) {
+                  const suggestion = await suggestBzrCode({
+                    address: analysis.address as string | null,
+                    municipality: analysis.municipality as string | null,
+                    wfsZoneCategory: zone.zoneCategory,
+                    wfsZoneLabel: zone.zoneLabel,
+                    wfsFacadeHeightMax: zone.facadeHeightMax,
+                    wfsBuildingType: zone.buildingType,
+                    wfsNoiseClass: zone.noiseClass,
+                    candidates: filtered,
+                    apiKey,
+                  });
+                  if (suggestion) {
+                    const c = suggestion.candidate;
+                    if (c.ausnuetzungsziffer != null) patch.utilization_ratio = c.ausnuetzungsziffer;
+                    if (c.ueberbauungsziffer != null) patch.building_coverage_ratio = c.ueberbauungsziffer;
+                    if (c.vollgeschosse != null && patch.max_floors == null) patch.max_floors = c.vollgeschosse;
+                    if (c.gesamthoehe_flach != null && patch.max_height == null) patch.max_height = c.gesamthoehe_flach;
+                    patch.zone = c.code;
+                    luEffectiveZone = c.code;
+                    patch.detected_zone_precise = `${c.code} — ${c.zone ?? zone.zoneMunicipalityLabel ?? ""}`.trim();
+                    const conf = Math.round(suggestion.confidence * 100);
+                    const note = `BZR-Zone via KI-Vorschlag: ${c.code} (${conf}% Konfidenz). ${suggestion.reasoning}`.trim();
+                    patch.special_provisions = patch.special_provisions
+                      ? `${patch.special_provisions as string} | ${note}`
+                      : note;
+                    const bzrAiSuggestion = {
+                      code: c.code,
+                      confidence: suggestion.confidence,
+                      reasoning: suggestion.reasoning,
+                      candidate: c,
+                    };
+                    luOfficialRegulation = {
+                      ...luOfficialRegulation,
+                      utilization_ratio: c.ausnuetzungsziffer ?? luOfficialRegulation.utilization_ratio,
+                      building_coverage_ratio: c.ueberbauungsziffer ?? luOfficialRegulation.building_coverage_ratio,
+                      max_floors: c.vollgeschosse ?? luOfficialRegulation.max_floors,
+                      max_height_m: c.gesamthoehe_flach ?? luOfficialRegulation.max_height_m,
+                      bzr_ai_suggestion: bzrAiSuggestion,
+                    };
+                    luZoneInfo = [
+                      luZoneInfo,
+                      `BZR-KI-Vorschlag Stadt Luzern: ${c.code} (${conf}% Konfidenz)`,
+                      c.ausnuetzungsziffer != null ? `BZR Ausnützungsziffer (AZ): ${c.ausnuetzungsziffer}` : null,
+                      c.ueberbauungsziffer != null ? `BZR Überbauungsziffer (ÜZ): ${c.ueberbauungsziffer}` : null,
+                      c.vollgeschosse != null ? `BZR Vollgeschosse: ${c.vollgeschosse}` : null,
+                    ].filter(Boolean).join("\n");
+                  }
+                }
+              } catch (e) {
+                console.warn("[knowledge-analysis] BZR AI suggestion failed", e);
+              }
+            }
+
+            luPatch = patch;
             if (Object.keys(patch).length > 0) {
               await supabase.from("analyses").update(patch as never).eq("id", analysis.id);
             }
@@ -513,7 +579,7 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
         if (typeof luPatch.utilization_ratio === "number") object.utilization_ratio = luPatch.utilization_ratio;
         if (typeof luPatch.building_coverage_ratio === "number") object.building_coverage_ratio = luPatch.building_coverage_ratio;
         if (typeof luPatch.max_floors === "number") object.max_floors = luPatch.max_floors;
-        if (luEffectiveHeight != null) object.max_height_m = luEffectiveHeight;
+        if (typeof luPatch.max_height === "number") object.max_height_m = luPatch.max_height;
       }
       if (typeof luPatch.noise_zone === "string") object.noise_zone = luPatch.noise_zone;
       if (typeof luPatch.special_provisions === "string") object.special_provisions = luPatch.special_provisions;

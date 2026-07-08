@@ -15,8 +15,12 @@ import { SwissMap } from "@/components/swiss-map";
 import { loadOEREBData } from "@/lib/oereb.functions";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
 import { formatFloors, formatMeters, formatRatio } from "@/lib/format-units";
+import type { LuZonePlanResult } from "@/lib/swiss-geo";
 
 type Risk = { category?: string; title: string; description: string; severity?: string };
+type LuZoneLoadResult =
+  | { ok: true; zone: LuZonePlanResult }
+  | { ok: false; reason: "no_coordinates" | "wrong_canton" | "no_zone_found" };
 
 type Props = {
   analysisId: string;
@@ -99,7 +103,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     queryKey: ["lu-zone-plan", id, "report", "official-zone-v2"],
     enabled: shouldRefreshLuZonePlan,
     staleTime: 1000 * 60 * 60,
-    queryFn: async () => loadLuZonePlan({ data: { analysisId: id } }),
+    queryFn: async () => loadLuZonePlan({ data: { analysisId: id } }) as Promise<LuZoneLoadResult>,
   });
   const { data: easements = [] } = useQuery({
     queryKey: ["easements", id, "report"],
@@ -226,10 +230,19 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
       }
     : null;
   const officialLuZoneData = liveLuZoneData ?? storedLuZonePlan ?? {};
+  const bzrAiSuggestion =
+    officialLuZoneData.bzr_ai_suggestion && typeof officialLuZoneData.bzr_ai_suggestion === "object" && !Array.isArray(officialLuZoneData.bzr_ai_suggestion)
+      ? (officialLuZoneData.bzr_ai_suggestion as Record<string, unknown>)
+      : null;
+  const bzrAiCandidate =
+    bzrAiSuggestion?.candidate && typeof bzrAiSuggestion.candidate === "object" && !Array.isArray(bzrAiSuggestion.candidate)
+      ? (bzrAiSuggestion.candidate as Record<string, unknown>)
+      : null;
   const usesOfficialLuZoneData = a.canton === "LU" && Boolean(liveLuZoneData || storedLuZonePlan || shouldRefreshLuZonePlan);
   const zoneMetric = (officialValue: unknown, ...fallbackValues: unknown[]) => {
     const official = asPositiveNum(officialValue);
-    if (usesOfficialLuZoneData) return official;
+    if (official != null) return official;
+    if (usesOfficialLuZoneData && fallbackValues.length === 0) return null;
     for (const value of fallbackValues) {
       const n = asPositiveNum(value);
       if (n != null) return n;
@@ -238,14 +251,14 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
   };
   const legalZoneData = {
     ...zd,
-    code: asStr(officialLuZoneData.code) ?? asStr(zd.code) ?? (a.zone as string | null) ?? (a.zone_override as string | null) ?? null,
-    name: asStr(officialLuZoneData.name) ?? asStr(zd.name) ?? (a.detected_zone_precise as string | null) ?? (a.detected_zone as string | null) ?? null,
-    max_floors: zoneMetric(officialLuZoneData.max_floors, zd.max_floors, a.max_floors),
-    max_height_m: zoneMetric(officialLuZoneData.max_height_m, zd.max_height_m, a.max_height),
+    code: asStr(bzrAiSuggestion?.code) ?? asStr(officialLuZoneData.code) ?? asStr(zd.code) ?? (a.zone as string | null) ?? (a.zone_override as string | null) ?? null,
+    name: asStr(bzrAiCandidate?.zone) ?? asStr(officialLuZoneData.name) ?? asStr(zd.name) ?? (a.detected_zone_precise as string | null) ?? (a.detected_zone as string | null) ?? null,
+    max_floors: zoneMetric(officialLuZoneData.max_floors, bzrAiCandidate?.vollgeschosse, zd.max_floors, a.max_floors),
+    max_height_m: zoneMetric(officialLuZoneData.max_height_m, bzrAiCandidate?.gesamthoehe_flach, zd.max_height_m, a.max_height),
     max_facade_height_m: zoneMetric(officialLuZoneData.max_facade_height_m, zd.max_facade_height_m, zd.max_height_valley_m),
     max_height_valley_m: zoneMetric(officialLuZoneData.max_height_valley_m, zd.max_height_valley_m),
-    utilization_ratio: zoneMetric(officialLuZoneData.utilization_ratio, zd.utilization_ratio, a.utilization_ratio),
-    building_coverage_ratio: zoneMetric(officialLuZoneData.building_coverage_ratio, zd.building_coverage_ratio, a.building_coverage_ratio),
+    utilization_ratio: zoneMetric(officialLuZoneData.utilization_ratio, bzrAiCandidate?.ausnuetzungsziffer, zd.utilization_ratio, a.utilization_ratio),
+    building_coverage_ratio: zoneMetric(officialLuZoneData.building_coverage_ratio, bzrAiCandidate?.ueberbauungsziffer, zd.building_coverage_ratio, a.building_coverage_ratio),
     building_mass_ratio: asPositiveNum(zd.building_mass_ratio),
     open_space_ratio: zoneMetric(officialLuZoneData.open_space_ratio, zd.open_space_ratio),
     setback_small_m: asPositiveNum(zd.setback_small_m),
