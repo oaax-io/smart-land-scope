@@ -79,7 +79,7 @@ export const listLuRegulationsToFill = createServerFn({ method: "GET" })
           .in("source_document", documentIds),
         supabaseAdmin
           .from("regulation_extractions")
-          .select("document_id, status, zones")
+          .select("document_id, status, zones, raw_extraction")
           .in("document_id", documentIds),
       ]);
     if (entriesErr) throw entriesErr;
@@ -98,8 +98,10 @@ export const listLuRegulationsToFill = createServerFn({ method: "GET" })
     return (docs ?? [])
       .filter((doc) => {
         const entryCount = entryCounts.get(doc.id) ?? 0;
-        if (entryCount > 0) return false;
         const extraction = extractionMap.get(doc.id);
+        const raw = extraction?.raw_extraction;
+        const isFallback = raw && typeof raw === "object" && !Array.isArray(raw) && raw.fallback === true;
+        if (entryCount > 0 && !isFallback) return false;
         if (!extraction) return true;
         if (extraction.status === "processing" || extraction.status === "failed") return true;
         return extraction.status === "completed";
