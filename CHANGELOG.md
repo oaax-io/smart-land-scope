@@ -5,6 +5,22 @@ Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0
 
 ## [Unreleased]
 
+## [1.7.0] – 2026-07-08 — KI-BZR-Fallback & Residualwert-Skala
+
+### Hinzugefügt
+- **KI-BZR-Vorschlag Stadt Luzern**: `src/lib/lu-bzr-suggest.server.ts` gruppiert die extrahierten `knowledge_entries` (alt + neu) zu strukturierten `BzrCandidate`s (Code, Zone, ÜZ, AZ, Vollgeschosse, Fassadenhöhe, Bauweise, Länge, …), filtert per WFS-Attributen (Fassadenhöhe, Bauweise, Zonenkategorie wie `WO18x`) und lässt Gemini 2.5 Flash über `ai-gateway.server.ts` den passenden BZR-Code inkl. Confidence auswählen. Adresse und Gemeinde werden dafür in `lu-zoneplan.functions.ts` mitgeladen.
+- **Automatischer Fallback in der Analyse-Pipeline**: `analyze-knowledge.functions.ts` ruft die BZR-Suggestion, wenn die offizielle LU-WFS-Antwort weder AZ noch ÜZ liefert. Ergebnis fliesst in `utilization_ratio`, `building_coverage_ratio`, `max_floors`, `max_height`, `zone`, `detected_zone_precise` und `special_provisions` und wird in `analysen.$id.tsx` sowie im Bericht als KI-Herleitung mit Confidence angezeigt.
+
+### Geändert
+- **Residualwert-Skala umgekehrt** (`analysis-project-tab.tsx`, `analysis-report.tsx`): Der Farbbalken für den effektiven Angebotspreis gegenüber dem Residualwert stellt jetzt rot = günstiger als Residualwert (attraktiv) und grün = über Residualwert (unattraktiv) dar.
+- **Rechtliche-Grundlagen-Anzeige**: `zoneMetric`/`getLuBzrSuggestion` fallen auf KI-BZR-Werte zurück, wenn die offizielle Quelle leer ist; die offizielle Quelle bleibt vorrangig.
+
+### Behoben
+- **AZ/ÜZ wurden auf `0` gesetzt** für LU-Zonen ohne diese Werte (z. B. Zone 1501 „Wohnzone Fassadenhöhe"): `analyze-knowledge.functions.ts` schreibt AZ, ÜZ, Geschosszahl und Gesamthöhe nur noch, wenn tatsächlich Werte vorliegen; leere WFS-Attribute überschreiben keine KI/BZR-Werte mehr.
+- **BZR alt/neu Stadt Luzern** wurden trotz DB-Import in der Analyse nicht sichtbar — die Anzeige greift jetzt auf die neu integrierten BZR-Kandidaten zurück (u. a. Lindenhausstrasse 15c, Parzelle 1791).
+
+
+
 ## [1.6.0] – 2026-07-03 — Automatisierung, Datenqualität & Karten-Legende
 
 ### Hinzugefügt
