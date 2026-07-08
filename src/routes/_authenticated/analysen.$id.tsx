@@ -41,6 +41,7 @@ import { EasementsPanel } from "@/components/easements-panel";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
 import { AnalysisReport } from "@/components/analysis-report";
 import { formatFloors, formatMeters, formatRatio } from "@/lib/format-units";
+import type { LuZonePlanResult } from "@/lib/swiss-geo";
 
 
 
@@ -90,6 +91,46 @@ const RISK_CATEGORY: Record<string, string> = {
 function positiveNum(value: unknown): number | null {
   const n = typeof value === "number" ? value : typeof value === "string" ? Number(value.replace(",", ".")) : null;
   return n != null && Number.isFinite(n) && n > 0 ? n : null;
+}
+
+type LuBzrSuggestionUi = {
+  code: string;
+  zone: string | null;
+  az: number | null;
+  uez: number | null;
+  floors: number | null;
+  height: number | null;
+  facadeHeight: number | null;
+  confidence: number | null;
+  reasoning: string | null;
+};
+
+type LuZoneResult =
+  | { ok: true; zone: LuZonePlanResult }
+  | { ok: false; reason: "no_coordinates" | "wrong_canton" | "no_zone_found" };
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function getLuBzrSuggestion(extractedData: unknown): LuBzrSuggestionUi | null {
+  const root = asObject(extractedData);
+  const zonePlan = asObject(root?.lu_zone_plan);
+  const suggestion = asObject(zonePlan?.bzr_ai_suggestion);
+  const candidate = asObject(suggestion?.candidate);
+  const code = typeof suggestion?.code === "string" ? suggestion.code : typeof candidate?.code === "string" ? candidate.code : null;
+  if (!code || !candidate || !suggestion) return null;
+  return {
+    code,
+    zone: typeof candidate.zone === "string" ? candidate.zone : null,
+    az: positiveNum(candidate.ausnuetzungsziffer),
+    uez: positiveNum(candidate.ueberbauungsziffer),
+    floors: positiveNum(candidate.vollgeschosse),
+    height: positiveNum(candidate.gesamthoehe_flach),
+    facadeHeight: positiveNum(candidate.fassadenhoehe),
+    confidence: positiveNum(suggestion.confidence),
+    reasoning: typeof suggestion.reasoning === "string" ? suggestion.reasoning : null,
+  };
 }
 
 type Risk = {
@@ -169,6 +210,7 @@ function AnalysisDetailPage() {
   const usageTypes: string[] = Array.isArray(analysis.usage_type) ? (analysis.usage_type as string[]) : [];
   const locationLine = [analysis.postal_code, analysis.municipality, analysis.canton ? `(${analysis.canton})` : null]
     .filter(Boolean).join(" ");
+  const luBzrSuggestion = getLuBzrSuggestion(analysis.extracted_data);
 
   if (location.pathname.endsWith(`/analysen/${id}/bericht`)) {
     return <Outlet />;
@@ -208,8 +250,8 @@ function AnalysisDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={async () => {
-                  const r = await loadLuZoneFn({ data: { analysisId: id } });
-                  if ("ok" in r && r.ok) {
+                  const r = await loadLuZoneFn({ data: { analysisId: id } }) as LuZoneResult;
+                  if (r.ok) {
                     toast.success("Zonenplandaten aktualisiert", {
                       description: `Zone: ${r.zone.zoneCode ?? "—"} — ${r.zone.zoneLabel ?? "—"}`,
                     });
@@ -217,7 +259,7 @@ function AnalysisDetailPage() {
                     queryClient.invalidateQueries({ queryKey: ["lu-zone", id] });
                   } else {
                     toast.error("Keine Zone gefunden", {
-                      description: `Grund: ${"reason" in r ? r.reason : "unbekannt"}`,
+                      description: `Grund: ${r.reason}`,
                     });
                   }
                 }}
@@ -304,14 +346,14 @@ function AnalysisDetailPage() {
 
           {(() => {
             const luZone = zoneResult && zoneResult.ok === true ? zoneResult.zone : null;
+            const bzr = luBzrSuggestion;
             const zoneColor = luZone ? zoneCategoryColor(luZone.zoneCategory) : null;
             const isLu = analysis.canton === "LU";
-            // Für LU nur amtliche Werte anzeigen; alte KI-/Fallback-Spalten dürfen fehlende Werte nicht ersetzen.
-            const az = isLu ? luZone?.az ?? null : positiveNum(analysis.utilization_ratio);
-            const uez = isLu ? luZone?.uezMax ?? null : positiveNum(analysis.building_coverage_ratio);
-            const floors = isLu ? luZone?.floors ?? null : positiveNum(analysis.max_floors);
-            const height = isLu ? luZone?.heightMax ?? luZone?.facadeHeightMax ?? null : positiveNum(analysis.max_height);
-            const heightLabel = isLu && luZone?.heightMax == null && luZone?.facadeHeightMax != null ? "Max. Fassadenhöhe" : "Max. Höhe";
+            const az = isLu ? luZone?.az ?? bzr?.az ?? null : positiveNum(analysis.utilization_ratio);
+            const uez = isLu ? luZone?.uezMax ?? bzr?.uez ?? null : positiveNum(analysis.building_coverage_ratio);
+            const floors = isLu ? luZone?.floors ?? bzr?.floors ?? null : positiveNum(analysis.max_floors);
+            const height = isLu ? luZone?.heightMax ?? bzr?.height ?? luZone?.facadeHeightMax ?? bzr?.facadeHeight ?? null : positiveNum(analysis.max_height);
+            const heightLabel = isLu && luZone?.heightMax == null && bzr?.height == null && (luZone?.facadeHeightMax != null || bzr?.facadeHeight != null) ? "Max. Fassadenhöhe" : "Max. Höhe";
             const azTooltip = az == null
               ? "Für diese Zone ist keine Ausnützungsziffer festgelegt (typisch für Neu-PBG-Zonen)."
               : undefined;
@@ -321,8 +363,8 @@ function AnalysisDetailPage() {
             return (
               <div className="grid gap-4 md:grid-cols-5">
                 <ZoneKpiCard
-                  zone={luZone?.zoneCode ?? analysis.zone ?? "—"}
-                  label={luZone?.zoneMunicipalityLabel ?? luZone?.zoneLabel ?? luZone?.zoneCategory ?? null}
+                  zone={bzr?.code ?? luZone?.zoneCode ?? analysis.zone ?? "—"}
+                  label={bzr ? [bzr.zone, "BZR-Vorschlag"].filter(Boolean).join(" · ") : luZone?.zoneMunicipalityLabel ?? luZone?.zoneLabel ?? luZone?.zoneCategory ?? null}
                   color={zoneColor}
                 />
                 <KpiCard label="Ausnützungsziffer (AZ)" value={formatRatio(az, 3)} tooltip={azTooltip} />
@@ -335,7 +377,7 @@ function AnalysisDetailPage() {
 
 
           {analysis.canton === "LU" && (
-            <LuZonePlanCard zoneResult={zoneResult} loading={zoneLoading} />
+            <LuZonePlanCard zoneResult={zoneResult} loading={zoneLoading} bzrSuggestion={luBzrSuggestion} />
           )}
 
           {oerebData?.hasPlanungszone && (
@@ -986,16 +1028,20 @@ function InfoLine({ label, value }: { label: string; value: string }) {
   );
 }
 
-type LuZoneResult = Awaited<ReturnType<typeof loadLuZonePlanForAnalysis>>;
-
 function LuZonePlanCard({
   zoneResult,
   loading,
+  bzrSuggestion,
 }: {
   zoneResult: LuZoneResult | undefined;
   loading: boolean;
+  bzrSuggestion: LuBzrSuggestionUi | null;
 }) {
   const z = zoneResult && zoneResult.ok === true ? zoneResult.zone : null;
+  const withBzrSource = (value: number | null | undefined) => {
+    const formatted = formatRatio(value, 3);
+    return formatted === "—" ? formatted : `${formatted}${bzrSuggestion ? ` (BZR ${bzrSuggestion.code})` : ""}`;
+  };
 
   const zoneHeadline = z
     ? [z.zoneCode, z.zoneMunicipalityLabel ?? z.zoneLabel].filter(Boolean).join(" — ") ||
@@ -1007,7 +1053,7 @@ function LuZonePlanCard({
   const rowsAlt: [string, string][] = z
     ? ([
         ["Ausnützungsziffer (AZ)", formatRatio(z.az, 3)],
-        ["Geschosszahl", formatFloors(z.floors)],
+        ["Geschosszahl", formatFloors(z.floors ?? bzrSuggestion?.floors ?? null)],
         [
           "Wohnanteil",
           z.residentialShareMax != null
@@ -1029,7 +1075,7 @@ function LuZonePlanCard({
 
   const rowsNeu: [string, string][] = z
     ? ([
-        ["Überbauungsziffer (ÜZ) max.", formatRatio(z.uezMax, 3)],
+        ["Überbauungsziffer (ÜZ) max.", z.uezMax != null ? formatRatio(z.uezMax, 3) : withBzrSource(bzrSuggestion?.uez ?? null)],
         ["Überbauungsziffer (ÜZ) min.", formatRatio(z.uezMin, 3)],
         ["Gesamthöhe max.", formatMeters(z.heightMax)],
         ["Fassadenhöhe max.", formatMeters(z.facadeHeightMax)],
@@ -1046,6 +1092,7 @@ function LuZonePlanCard({
         ["Bauweise", z.buildingType ?? "—"],
         ["BZR-Artikel", z.bzrArticle ?? "—"],
         ["Weitere Bestimmungen", z.bzrFurther ?? "—"],
+        ["BZR-Zone Vorschlag", bzrSuggestion ? `${bzrSuggestion.code}${bzrSuggestion.confidence != null ? ` · ${Math.round(bzrSuggestion.confidence * 100)} %` : ""}` : "—"],
         ["Rechtsstatus", z.legalStatus ?? "—"],
         [
           "Inkraftsetzung",
@@ -1131,6 +1178,15 @@ function LuZonePlanCard({
                   ))}
                 </div>
               </div>
+            )}
+
+            {bzrSuggestion?.reasoning && (
+              <Alert>
+                <Sparkles className="h-4 w-4" />
+                <AlertDescription>
+                  BZR-Zuordnung Stadt Luzern: {bzrSuggestion.code}. {bzrSuggestion.reasoning}
+                </AlertDescription>
+              </Alert>
             )}
 
             {z.overlays.length > 0 && (

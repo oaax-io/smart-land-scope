@@ -15,8 +15,12 @@ import { SwissMap } from "@/components/swiss-map";
 import { loadOEREBData } from "@/lib/oereb.functions";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
 import { formatFloors, formatMeters, formatRatio } from "@/lib/format-units";
+import type { LuZonePlanResult } from "@/lib/swiss-geo";
 
 type Risk = { category?: string; title: string; description: string; severity?: string };
+type LuZoneLoadResult =
+  | { ok: true; zone: LuZonePlanResult }
+  | { ok: false; reason: "no_coordinates" | "wrong_canton" | "no_zone_found" };
 
 type Props = {
   analysisId: string;
@@ -99,7 +103,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     queryKey: ["lu-zone-plan", id, "report", "official-zone-v2"],
     enabled: shouldRefreshLuZonePlan,
     staleTime: 1000 * 60 * 60,
-    queryFn: async () => loadLuZonePlan({ data: { analysisId: id } }),
+    queryFn: async () => loadLuZonePlan({ data: { analysisId: id } }) as Promise<LuZoneLoadResult>,
   });
   const { data: easements = [] } = useQuery({
     queryKey: ["easements", id, "report"],
