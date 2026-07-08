@@ -18,7 +18,7 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
 
     const { data: analysis, error } = await supabase
       .from("analyses")
-      .select("id, lat, lng, canton, extracted_data")
+      .select("id, lat, lng, canton, address, municipality, extracted_data")
       .eq("id", data.analysisId)
       .maybeSingle();
     if (error) throw new Error(error.message);
