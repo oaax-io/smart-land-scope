@@ -18,7 +18,7 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
 
     const { data: analysis, error } = await supabase
       .from("analyses")
-      .select("id, lat, lng, canton, extracted_data")
+      .select("id, lat, lng, canton, address, municipality, extracted_data")
       .eq("id", data.analysisId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -85,6 +85,73 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
         fetched_at: new Date().toISOString(),
       },
     } satisfies Json;
+
+    // Wenn AZ und ÜZ vom Kanton NICHT geliefert werden (typisch Stadt Luzern),
+    // versuchen wir per KI-Vorschlag den zutreffenden BZR-Code (WO18x, WA…) aus
+    // den importierten knowledge_entries herzuleiten.
+    if (zone.az == null && zone.uezMax == null && analysis.municipality) {
+      try {
+        const { data: muni } = await supabase
+          .from("municipalities")
+          .select("id, cantons!inner(code)")
+          .ilike("name", analysis.municipality as string)
+          .eq("cantons.code", "LU")
+          .maybeSingle();
+        const municipalityId = (muni as { id?: string } | null)?.id;
+        if (municipalityId) {
+          const { data: rows } = await supabase
+            .from("knowledge_entries")
+            .select("category, key, value")
+            .eq("municipality_id", municipalityId);
+          if (rows && rows.length > 0) {
+            const {
+              groupKnowledgeIntoCandidates,
+              filterCandidatesByWfs,
+              suggestBzrCode,
+            } = await import("./lu-bzr-suggest.server");
+            const grouped = groupKnowledgeIntoCandidates(rows as { category: string; key: string; value: string | null }[]);
+            const filtered = filterCandidatesByWfs(grouped, zone.facadeHeightMax, zone.buildingType, zone.zoneCategory);
+            const apiKey = process.env.LOVABLE_API_KEY;
+            if (apiKey && filtered.length > 0) {
+              const suggestion = await suggestBzrCode({
+                address: analysis.address as string | null,
+                municipality: analysis.municipality as string | null,
+                wfsZoneCategory: zone.zoneCategory,
+                wfsZoneLabel: zone.zoneLabel,
+                wfsFacadeHeightMax: zone.facadeHeightMax,
+                wfsBuildingType: zone.buildingType,
+                wfsNoiseClass: zone.noiseClass,
+                candidates: filtered,
+                apiKey,
+              });
+              if (suggestion) {
+                const c = suggestion.candidate;
+                if (c.ausnuetzungsziffer != null) patch.utilization_ratio = c.ausnuetzungsziffer;
+                if (c.ueberbauungsziffer != null) patch.building_coverage_ratio = c.ueberbauungsziffer;
+                if (c.vollgeschosse != null && patch.max_floors == null) patch.max_floors = c.vollgeschosse;
+                if (c.gesamthoehe_flach != null && patch.max_height == null) patch.max_height = c.gesamthoehe_flach;
+                if (zoneName == null || zoneName === zone.zoneLabel) patch.zone = c.code;
+                patch.detected_zone_precise = `${c.code} — ${c.zone ?? zone.zoneMunicipalityLabel ?? ""}`.trim();
+                const conf = Math.round(suggestion.confidence * 100);
+                const note = `BZR-Zone via KI-Vorschlag: ${c.code} (${conf}% Konfidenz). ${suggestion.reasoning}`.trim();
+                patch.special_provisions = patch.special_provisions
+                  ? `${patch.special_provisions as string} | ${note}`
+                  : note;
+                const ed = patch.extracted_data as Record<string, unknown>;
+                (ed.lu_zone_plan as Record<string, unknown>).bzr_ai_suggestion = {
+                  code: c.code,
+                  confidence: suggestion.confidence,
+                  reasoning: suggestion.reasoning,
+                  candidate: c,
+                };
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[lu-zoneplan] BZR AI suggestion failed", e);
+      }
+    }
 
     if (Object.keys(patch).length > 0) {
       const { error: updateErr } = await supabase
