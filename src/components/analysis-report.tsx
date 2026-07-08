@@ -241,7 +241,8 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
   const usesOfficialLuZoneData = a.canton === "LU" && Boolean(liveLuZoneData || storedLuZonePlan || shouldRefreshLuZonePlan);
   const zoneMetric = (officialValue: unknown, ...fallbackValues: unknown[]) => {
     const official = asPositiveNum(officialValue);
-    if (usesOfficialLuZoneData) return official;
+    if (official != null) return official;
+    if (usesOfficialLuZoneData && fallbackValues.length === 0) return null;
     for (const value of fallbackValues) {
       const n = asPositiveNum(value);
       if (n != null) return n;
