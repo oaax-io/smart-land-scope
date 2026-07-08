@@ -417,11 +417,21 @@ export function FloorCalculatorCard({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button variant="outline" size="sm" onClick={addFloor}>
-            <Plus className="mr-2 h-4 w-4" />Geschoss hinzufügen
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={addFloor}>
+              <Plus className="mr-2 h-4 w-4" />Geschoss hinzufügen
+            </Button>
+            {suggestion && (
+              <Button variant="secondary" size="sm" onClick={applySuggestions} title={suggestion.source}>
+                <Calculator className="mr-2 h-4 w-4" />
+                BGF-Vorschlag übernehmen (≈ {suggestion.footprint} m²/Geschoss)
+              </Button>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
-            Indikative Volumenberechnung – kein Ersatz für ein CAD-Programm.
+            {suggestion
+              ? `Vorschlag basiert auf: ${suggestion.source}`
+              : "Indikative Volumenberechnung – kein Ersatz für ein CAD-Programm."}
           </p>
         </div>
 
