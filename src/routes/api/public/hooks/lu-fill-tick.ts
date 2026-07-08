@@ -138,7 +138,7 @@ async function pickNextLuDocument(
 
   const { data: extractions } = await supabaseAdmin
     .from("regulation_extractions")
-    .select("document_id, status, zones")
+    .select("document_id, status, zones, raw_extraction")
     .in("document_id", docIds);
   const extractionMap = new Map<string, any>(
     (extractions ?? []).map((e: any) => [e.document_id, e]),
@@ -146,13 +146,16 @@ async function pickNextLuDocument(
 
   for (const id of docIds) {
     if (alreadyProcessed.has(id)) continue;
+    const ex = extractionMap.get(id);
+    const raw = ex?.raw_extraction;
+    const isFallback = raw && typeof raw === "object" && !Array.isArray(raw) && raw.fallback === true;
+
     const { count, error } = await supabaseAdmin
       .from("knowledge_entries")
       .select("id", { count: "exact", head: true })
       .eq("source_document", id);
     if (error) throw error;
-    if ((count ?? 0) > 0) continue;
-    const ex = extractionMap.get(id);
+    if ((count ?? 0) > 0 && !isFallback) continue;
     if (!ex) return id;
     if (ex.status === "processing" || ex.status === "failed" || ex.status === "completed") return id;
   }
