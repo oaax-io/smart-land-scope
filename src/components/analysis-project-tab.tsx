@@ -231,6 +231,53 @@ export function FloorCalculatorCard({
     await supabase.from("analysis_floors").delete().eq("id", id);
     refetchFloors();
   };
+
+  // ---- BGF-Vorschlag aus Parzellendaten ----
+  const suggestion = useMemo(() => {
+    const parzelle = Number(analysis.area_size) || 0;
+    if (!parzelle) return null;
+    const normalize = (v: number | null | undefined) => {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n <= 0) return 0;
+      return n > 1 ? n / 100 : n;
+    };
+    const uz = normalize(analysis.building_coverage_ratio);
+    const az = normalize(analysis.utilization_ratio);
+    const nOber = Math.max(1, floors.filter((f) => f.floor_index >= 0).length);
+    let footprint = 0;
+    let source = "";
+    if (uz > 0) {
+      footprint = parzelle * uz;
+      source = `ÜZ ${(uz * 100).toFixed(0)}% × ${Math.round(parzelle)} m²`;
+    } else if (az > 0) {
+      footprint = (parzelle * az) / nOber;
+      source = `AZ ${(az * 100).toFixed(0)}% × ${Math.round(parzelle)} m² / ${nOber} G.`;
+    } else {
+      return null;
+    }
+    return { footprint: Math.round(footprint), source };
+  }, [analysis.area_size, analysis.building_coverage_ratio, analysis.utilization_ratio, floors]);
+
+  const applySuggestions = async () => {
+    if (!suggestion) return;
+    const targets = floors.filter((f) => !f.gross_area_m2 || Number(f.gross_area_m2) <= 0);
+    if (targets.length === 0) {
+      toast.info("Alle Geschosse haben bereits einen BGF-Wert.");
+      return;
+    }
+    await Promise.all(
+      targets.map((f) =>
+        supabase
+          .from("analysis_floors")
+          .update({ gross_area_m2: suggestion.footprint })
+          .eq("id", f.id),
+      ),
+    );
+    toast.success(`${targets.length} Geschoss(e) mit Vorschlag befüllt`, {
+      description: suggestion.source,
+    });
+    refetchFloors();
+  };
   const addUnit = async () => {
     const idx = floors[0]?.floor_index ?? 0;
     await supabase.from("analysis_units").insert({
