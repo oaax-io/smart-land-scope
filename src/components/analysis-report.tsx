@@ -1065,8 +1065,8 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                           )}
                         </div>
                         <div className="mt-1 flex justify-between text-[9px] text-muted-foreground">
-                          <span>← teurer als Residualwert (unattraktiv)</span>
-                          <span>günstiger als Residualwert (attraktiv) →</span>
+                          <span>← günstiger als Residualwert (attraktiv)</span>
+                          <span>teurer als Residualwert (unattraktiv) →</span>
                         </div>
                       </div>
                     );

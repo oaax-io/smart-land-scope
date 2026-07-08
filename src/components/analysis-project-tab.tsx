@@ -1155,8 +1155,8 @@ export function WirtschaftlichkeitCard({
             </div>
 
             <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-              <span>← Teurer als Residualwert (unattraktiv)</span>
-              <span>Günstiger als Residualwert (attraktiv) →</span>
+              <span>← Günstiger als Residualwert (attraktiv)</span>
+              <span>Teurer als Residualwert (unattraktiv) →</span>
             </div>
 
             {parzellenpreis != null && abweichungChf != null && (
