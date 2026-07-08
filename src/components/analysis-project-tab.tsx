@@ -1135,7 +1135,7 @@ export function WirtschaftlichkeitCard({
               className="relative h-6 overflow-hidden rounded-full"
               style={{
                 background:
-                  "linear-gradient(to right, #16a34a 0%, #22c55e 25%, #86efac 45%, #d1d5db 50%, #fbbf24 55%, #f97316 75%, #ef4444 100%)",
+                  "linear-gradient(to right, #ef4444 0%, #f97316 25%, #fbbf24 45%, #d1d5db 50%, #86efac 55%, #22c55e 75%, #16a34a 100%)",
               }}
             >
               <div
