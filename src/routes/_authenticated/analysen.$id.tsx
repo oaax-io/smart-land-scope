@@ -1052,7 +1052,7 @@ function LuZonePlanCard({
 
   const rowsAlt: [string, string][] = z
     ? ([
-        ["Ausnützungsziffer (AZ)", formatRatio(z.az, 3)],
+        ["Ausnützungsziffer (AZ)", z.az != null ? formatRatio(z.az, 3) : withBzrSource(bzrSuggestion?.az ?? null)],
         ["Geschosszahl", formatFloors(z.floors ?? bzrSuggestion?.floors ?? null)],
         [
           "Wohnanteil",
@@ -1077,7 +1077,7 @@ function LuZonePlanCard({
     ? ([
         ["Überbauungsziffer (ÜZ) max.", z.uezMax != null ? formatRatio(z.uezMax, 3) : withBzrSource(bzrSuggestion?.uez ?? null)],
         ["Überbauungsziffer (ÜZ) min.", formatRatio(z.uezMin, 3)],
-        ["Gesamthöhe max.", formatMeters(z.heightMax)],
+        ["Gesamthöhe max.", formatMeters(z.heightMax ?? bzrSuggestion?.height ?? null)],
         ["Fassadenhöhe max.", formatMeters(z.facadeHeightMax)],
         ["Traufhöhe", formatMeters(z.eavesHeight)],
         ["Gebäudelänge max.", formatMeters(z.buildingLength)],
