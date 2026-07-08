@@ -55,6 +55,7 @@ src/
     regulation-extract.server.ts    BZR-Extraktion (erweitertes ZoneSchema)
     background-jobs.functions.ts    Hintergrund-Job-Queue (pg_cron Tick)
     lu-bzr-import.server.ts         Automatischer LU-BZR-Import (Batch-Prozessor + Log)
+    lu-bzr-suggest.server.ts        KI-Fallback: passt WFS-Attribute auf BZR-Kandidaten (Gemini 2.5 Flash)
 ```
 
 ## Kanton-Geodaten
@@ -66,6 +67,7 @@ src/
   - Karte blendet den WMS-Overlay ausschliesslich im Kanton LU ein (über `canton`-Prop).
 - **BZR-Versionsvergleich**: `regulation_snapshots` speichert alte/neue Fassungen; `RegulationComparisonCard` zeigt Änderungen im Detail und Bericht.
 - **Community-Grenzabstände** (`zone_regulations`): Nutzer erfassen Grenzabstände/Parkplatzwerte pro Zone. Verifizierte Einträge (Moderations-Tabelle in `/platform/reglemente`) fliessen in den KI-Prompt.
+- **KI-BZR-Fallback Stadt Luzern**: Fehlen offizielle AZ/ÜZ (typisch bei Neu-PBG-Zonen wie „Wohnzone Fassadenhöhe"), matcht `lu-bzr-suggest.server.ts` die WFS-Attribute (Fassadenhöhe, Bauweise, Zonenkategorie) gegen die extrahierten BZR-Kandidaten und wählt per Gemini 2.5 Flash den passenden Code inkl. Confidence. Ergebnis wird in Analyse-Detail und Bericht ausgewiesen; die offizielle Quelle bleibt vorrangig.
 
 ## Analyse-Module
 
