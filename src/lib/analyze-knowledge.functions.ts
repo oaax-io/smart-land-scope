@@ -306,10 +306,10 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
             if (zone.zoneMunicipalityLabel != null) patch.detected_zone_precise = zone.zoneMunicipalityLabel;
             patch.detected_zone_source = "Amtlicher Zonenplan Kanton Luzern";
             patch.regulation_basis = "Amtlicher Zonenplan Kanton Luzern (ZPGNDNTZ) / Bau- und Zonenreglement Luzern";
-            patch.utilization_ratio = zone.az;
-            patch.building_coverage_ratio = zone.uezMax;
-            patch.max_floors = zone.floors;
-            patch.max_height = luEffectiveHeight;
+            if (zone.az != null) patch.utilization_ratio = zone.az;
+            if (zone.uezMax != null) patch.building_coverage_ratio = zone.uezMax;
+            if (zone.floors != null) patch.max_floors = zone.floors;
+            if (luEffectiveHeight != null) patch.max_height = luEffectiveHeight;
             if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
             const specialParts = [
               zone.bzrArticle ? `BZR Art. ${zone.bzrArticle}` : null,
@@ -509,12 +509,7 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
       }
       const object = normalizeKnowledgeAnalysis(parsedResult);
       if (luPatch.zone != null) object.zone = String(luPatch.zone);
-      if (luOfficialRegulation) {
-        object.utilization_ratio = typeof luPatch.utilization_ratio === "number" ? luPatch.utilization_ratio : 0;
-        object.building_coverage_ratio = typeof luPatch.building_coverage_ratio === "number" ? luPatch.building_coverage_ratio : null;
-        object.max_floors = typeof luPatch.max_floors === "number" ? luPatch.max_floors : 0;
-        object.max_height_m = luEffectiveHeight ?? 0;
-      } else {
+      if (luOfficialRegulation || Object.keys(luPatch).length > 0) {
         if (typeof luPatch.utilization_ratio === "number") object.utilization_ratio = luPatch.utilization_ratio;
         if (typeof luPatch.building_coverage_ratio === "number") object.building_coverage_ratio = luPatch.building_coverage_ratio;
         if (typeof luPatch.max_floors === "number") object.max_floors = luPatch.max_floors;
