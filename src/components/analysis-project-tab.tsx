@@ -360,8 +360,10 @@ export function FloorCalculatorCard({
                     </td>
                     <td className="px-3 py-2">
                       <Input
+                        key={`${f.id}-${f.gross_area_m2 ?? "empty"}`}
                         type="number"
                         defaultValue={f.gross_area_m2 ?? ""}
+                        placeholder={suggestion ? `≈ ${suggestion.footprint}` : ""}
                         className="h-8 text-right"
                         onChange={(e) =>
                           debounceUpdate(f.id, {
