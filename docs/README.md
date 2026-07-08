@@ -55,6 +55,7 @@ src/
     regulation-extract.server.ts    BZR-Extraktion (erweitertes ZoneSchema)
     background-jobs.functions.ts    Hintergrund-Job-Queue (pg_cron Tick)
     lu-bzr-import.server.ts         Automatischer LU-BZR-Import (Batch-Prozessor + Log)
+    lu-bzr-suggest.server.ts        KI-Fallback: passt WFS-Attribute auf BZR-Kandidaten (Gemini 2.5 Flash)
 ```
 
 ## Kanton-Geodaten
