@@ -112,17 +112,19 @@ function RotatingWord() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="relative inline-block overflow-hidden align-baseline">
+    <span className="relative inline-block align-baseline">
       {/* invisible sizer keeps layout stable at the widest word */}
       <span className="invisible whitespace-nowrap">
         {ROTATING_WORDS.reduce((a, b) => (b.length > a.length ? b : a))}
       </span>
-      <span
-        key={i}
-        className="absolute inset-0 whitespace-nowrap bg-gradient-to-r from-secondary via-primary to-secondary bg-clip-text text-transparent animate-fade-in"
-      >
-        {ROTATING_WORDS[i]}
-      </span>
+      {ROTATING_WORDS.map((word, idx) => (
+        <span
+          key={word}
+          className={`absolute left-0 top-0 whitespace-nowrap bg-gradient-to-r from-secondary via-primary to-secondary bg-clip-text text-transparent transition-opacity duration-500 ${idx === i ? "opacity-100" : "opacity-0"}`}
+        >
+          {word}
+        </span>
+      ))}
     </span>
   );
 }
