@@ -349,9 +349,10 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
     const FOOTER_MM = 10;
     const USABLE_W_MM = A4_WIDTH_MM - MARGIN_MM * 2;
     const CONTENT_H_MM = A4_HEIGHT_MM - MARGIN_MM * 2 - HEADER_MM - FOOTER_MM;
+    // Cover page has no header/footer, so it gets the full inner height.
+    const COVER_H_MM = A4_HEIGHT_MM - MARGIN_MM * 2;
     const MM_TO_PX = 3.7795275591; // 96dpi
     const RENDER_WIDTH_PX = Math.round(USABLE_W_MM * MM_TO_PX);
-    const CONTENT_H_PX = CONTENT_H_MM * MM_TO_PX;
 
     // Build off-screen container mirroring the report
     const holder = document.createElement("div");
@@ -379,9 +380,10 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
       const pages: PageSlice[][] = []; // pages[i] = list of blocks stacked on page i
       let currentPage: PageSlice[] = [];
       let currentUsedMm = 0;
+      const budgetForCurrentPage = () => (pages.length === 0 ? COVER_H_MM : CONTENT_H_MM);
 
       const pushBlock = (dataUrl: string, heightMm: number) => {
-        if (currentUsedMm > 0 && currentUsedMm + heightMm > CONTENT_H_MM + 0.5) {
+        if (currentUsedMm > 0 && currentUsedMm + heightMm > budgetForCurrentPage() + 0.5) {
           pages.push(currentPage);
           currentPage = [];
           currentUsedMm = 0;
