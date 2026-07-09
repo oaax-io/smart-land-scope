@@ -781,6 +781,10 @@ export function WirtschaftlichkeitCard({
       volUG = floors
         .filter((f) => (f.floor_index ?? 0) < 0)
         .reduce((s, f) => s + (f.gross_area_m2 || 0) * (f.floor_height_m || 0), 0);
+      if (volOberirdisch + volUG <= 0 && volumenM3 > 0) {
+        volOberirdisch = volumenM3;
+        volUG = 0;
+      }
     } else {
       volOberirdisch = volumenM3;
       volUG = 0;
