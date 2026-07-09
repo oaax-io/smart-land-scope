@@ -540,7 +540,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
         className="rounded-xl border bg-card p-8 text-card-foreground shadow-sm print:border-0 print:shadow-none print:p-0"
       >
         {/* Titelblatt */}
-        <section className="break-after-page mb-10 flex min-h-[260mm] flex-col justify-between">
+        <section className="break-after-page mb-10 flex min-h-[240mm] flex-col justify-between">
           <header className="flex items-start justify-between border-b pb-6">
             <div>
               <p className="font-display text-2xl font-bold">SmarTerra</p>
