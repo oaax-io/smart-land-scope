@@ -115,14 +115,14 @@ function RotatingWord() {
     <span className="relative inline align-baseline">
       {/* invisible sizer keeps layout stable at the widest word */}
       <span className="invisible whitespace-nowrap">
-        {ROTATING_WORDS.reduce((a, b) => (b.length > a.length ? b : a))}
+        {ROTATING_WORDS.reduce((a, b) => (b.length > a.length ? b : a))}.
       </span>
       {ROTATING_WORDS.map((word, idx) => (
         <span
           key={word}
           className={`absolute left-0 top-0 whitespace-nowrap bg-gradient-to-r from-secondary via-primary to-secondary bg-clip-text text-transparent transition-opacity duration-500 ${idx === i ? "opacity-100" : "opacity-0"}`}
         >
-          {word}
+          {word}<span className="text-secondary">.</span>
         </span>
       ))}
     </span>
@@ -255,7 +255,6 @@ function Landing() {
                 <span className="whitespace-nowrap">
                   in <RotatingWord />
                 </span>
-                <span className="text-secondary">.</span>
               </h1>
               <p className="mt-5 text-base text-muted-foreground sm:mt-6 sm:text-lg">
                 Adresse eingeben. SmarTerra kombiniert Zonenplan, BZR, ÖREB und Grundbuch,
