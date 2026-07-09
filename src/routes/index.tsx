@@ -63,7 +63,7 @@ const NAV_LINKS = [
 const FEATURES = [
   { icon: MapPin, title: "Adresse oder Parzelle", text: "Eingabe genügt — Swisstopo, kantonale GIS-Layer und Grundbuchdaten werden automatisch konsolidiert." },
   { icon: BarChart3, title: "Ausnützung & Geschossigkeit", text: "AZ, ÜZ, Fassadenhöhe, Gebäudelänge und -breite direkt aus dem Zonenplan." },
-  { icon: Brain, title: "KI-BZR-Vorschlag", text: "Wenn amtliche Werte fehlen, matcht Gemini 2.5 Flash die richtige BZR-Zone anhand von Adresslage und Bauweise." },
+  { icon: Brain, title: "KI-BZR-Vorschlag", text: "Wenn amtliche Werte fehlen, matcht die KI (Gemini & Claude) die richtige BZR-Zone anhand von Adresslage und Bauweise." },
   { icon: Landmark, title: "ÖREB & Grundbuch", text: "Eigentumsbeschränkungen, Dienstbarkeiten und Belastungen automatisch ausgelesen und aufbereitet." },
   { icon: Calculator, title: "Volumen- & BGF-Rechner", text: "Geschosse werden automatisch vorgeschlagen. BGF pro Geschoss und Gesamtvolumen live berechnet." },
   { icon: TrendingUp, title: "Wirtschaftlichkeit & Residualwert", text: "Kosten, Erlöse und Residualwert der Parzelle inklusive Bandbreiten-Grafik — direkt vergleichbar mit dem Angebotspreis." },
