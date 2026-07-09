@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -103,6 +103,30 @@ const FAQ = [
   { q: "Kann ich Werte manuell überschreiben?", a: "Ja. Alle Vorschläge (BGF pro Geschoss, Angebotspreis, Baukosten) sind editierbar. Der Bericht rechnet live mit den eingegebenen Werten." },
 ];
 
+const ROTATING_WORDS = ["Sekunden", "Minuten", "einem Klick", "Momenten"];
+
+function RotatingWord() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setI((v) => (v + 1) % ROTATING_WORDS.length), 2200);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className="relative inline-block overflow-hidden align-baseline">
+      {/* invisible sizer keeps layout stable at the widest word */}
+      <span className="invisible whitespace-nowrap">
+        {ROTATING_WORDS.reduce((a, b) => (b.length > a.length ? b : a))}
+      </span>
+      <span
+        key={i}
+        className="absolute inset-0 whitespace-nowrap bg-gradient-to-r from-secondary via-primary to-secondary bg-clip-text text-transparent animate-fade-in"
+      >
+        {ROTATING_WORDS[i]}
+      </span>
+    </span>
+  );
+}
+
 function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -191,39 +215,72 @@ function Landing() {
 
       <main>
         {/* Hero */}
-        <section className="mx-auto max-w-7xl px-4 pt-12 pb-16 sm:px-6 sm:pt-20 sm:pb-24 lg:pt-28 lg:pb-32">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground sm:text-xs">
-              <Sparkles className="h-3.5 w-3.5 shrink-0 text-secondary" />
-              <span className="truncate">KI-gestützte Machbarkeitsstudien für die Schweiz</span>
-            </div>
-            <h1 className="mt-6 font-display text-3xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-              Vom Grundstück zur Machbarkeitsstudie — in Sekunden.
-            </h1>
-            <p className="mt-5 text-base text-muted-foreground sm:mt-6 sm:text-lg">
-              Adresse eingeben. SmarTerra kombiniert Zonenplan, BZR, ÖREB und Grundbuch,
-              rechnet Volumen und Wirtschaftlichkeit — und liefert einen PDF-Bericht auf Knopfdruck.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:justify-center">
-              <Button asChild size="lg" className="h-12 w-full px-7 sm:w-auto">
-                <Link to="/auth">
-                  14 Tage gratis testen
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="h-12 w-full px-7 sm:w-auto">
-                <a href="#features">Funktionen entdecken</a>
-              </Button>
-            </div>
+        <section className="relative overflow-hidden">
+          {/* Animated background */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+            <div
+              className="absolute inset-0 opacity-[0.18] animate-grid"
+              style={{
+                backgroundImage:
+                  "linear-gradient(to right, color-mix(in oklab, var(--primary) 22%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, var(--primary) 22%, transparent) 1px, transparent 1px)",
+                backgroundSize: "60px 60px",
+                maskImage:
+                  "radial-gradient(ellipse at center, black 40%, transparent 75%)",
+              }}
+            />
+            <div
+              className="absolute -top-24 -left-24 h-[520px] w-[520px] rounded-full blur-3xl opacity-40 animate-blob"
+              style={{ background: "radial-gradient(circle at 30% 30%, color-mix(in oklab, var(--secondary) 70%, transparent), transparent 65%)" }}
+            />
+            <div
+              className="absolute top-1/3 -right-32 h-[560px] w-[560px] rounded-full blur-3xl opacity-40 animate-blob"
+              style={{ animationDelay: "-6s", background: "radial-gradient(circle at 60% 40%, color-mix(in oklab, var(--primary) 55%, transparent), transparent 65%)" }}
+            />
+            <div
+              className="absolute -bottom-40 left-1/3 h-[480px] w-[480px] rounded-full blur-3xl opacity-30 animate-blob"
+              style={{ animationDelay: "-12s", background: "radial-gradient(circle at 50% 50%, #7FD1AE, transparent 65%)" }}
+            />
+          </div>
 
-            {/* Trust bar */}
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-sm">
-              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-secondary" />Swisstopo-Integration</span>
-              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-secondary" />ÖREB-konform</span>
-              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-secondary" />DSGVO-konform</span>
+          <div className="mx-auto max-w-7xl px-4 pt-12 pb-16 sm:px-6 sm:pt-20 sm:pb-24 lg:pt-28 lg:pb-32">
+            <div className="mx-auto max-w-3xl text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-card/70 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur sm:text-xs">
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-secondary" />
+                <span className="truncate">KI-gestützte Machbarkeitsstudien für die Schweiz</span>
+              </div>
+              <h1 className="mt-6 font-display text-3xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                Vom Grundstück zur Machbarkeitsstudie —{" "}
+                <span className="whitespace-nowrap">
+                  in <RotatingWord />
+                </span>
+                <span className="text-secondary">.</span>
+              </h1>
+              <p className="mt-5 text-base text-muted-foreground sm:mt-6 sm:text-lg">
+                Adresse eingeben. SmarTerra kombiniert Zonenplan, BZR, ÖREB und Grundbuch,
+                rechnet Volumen und Wirtschaftlichkeit — und liefert einen PDF-Bericht auf Knopfdruck.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:justify-center">
+                <Button asChild size="lg" className="h-12 w-full px-7 sm:w-auto">
+                  <Link to="/auth">
+                    14 Tage gratis testen
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="h-12 w-full px-7 sm:w-auto">
+                  <a href="#features">Funktionen entdecken</a>
+                </Button>
+              </div>
+
+              {/* Trust bar */}
+              <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-sm">
+                <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-secondary" />Swisstopo-Integration</span>
+                <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-secondary" />ÖREB-konform</span>
+                <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-secondary" />DSGVO-konform</span>
+              </div>
             </div>
           </div>
         </section>
+
 
         {/* Stats */}
         <section className="border-y border-border/60 bg-card/40">
