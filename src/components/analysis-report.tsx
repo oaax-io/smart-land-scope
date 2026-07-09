@@ -412,12 +412,12 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
         });
         const totalHeightMm = (canvas.height * USABLE_W_MM) / canvas.width;
 
-        if (totalHeightMm <= CONTENT_H_MM) {
+        if (totalHeightMm <= budgetForCurrentPage()) {
           pushBlock(canvas.toDataURL("image/jpeg", 0.92), totalHeightMm);
         } else {
           // Slice this section across multiple pages
           const pxPerMm = canvas.width / USABLE_W_MM;
-          const remainingOnCurrent = Math.max(0, CONTENT_H_MM - currentUsedMm);
+          const remainingOnCurrent = Math.max(0, budgetForCurrentPage() - currentUsedMm);
           let cursorPx = 0;
           const firstSliceMm = remainingOnCurrent > 20 ? remainingOnCurrent : 0;
           if (firstSliceMm > 0) {
