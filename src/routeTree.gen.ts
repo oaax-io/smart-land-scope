@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -34,6 +35,11 @@ import { Route as ApiPublicHooksLuFillTickRouteImport } from './routes/api/publi
 import { Route as ApiPublicHooksBzrCheckRouteImport } from './routes/api/public/hooks/bzr-check'
 import { Route as AuthenticatedAnalysenIdBerichtRouteImport } from './routes/_authenticated/analysen.$id.bericht'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/platform': typeof PlatformRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dokumentation': typeof AuthenticatedDokumentationRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dokumentation': typeof AuthenticatedDokumentationRoute
   '/einstellungen': typeof AuthenticatedEinstellungenRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/platform': typeof PlatformRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dokumentation': typeof AuthenticatedDokumentationRoute
   '/_authenticated/einstellungen': typeof AuthenticatedEinstellungenRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/platform'
     | '/reset-password'
+    | '/sitemap.xml'
     | '/dashboard'
     | '/dokumentation'
     | '/einstellungen'
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/sitemap.xml'
     | '/dashboard'
     | '/dokumentation'
     | '/einstellungen'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/platform'
     | '/reset-password'
+    | '/sitemap.xml'
     | '/_authenticated/dashboard'
     | '/_authenticated/dokumentation'
     | '/_authenticated/einstellungen'
@@ -321,12 +333,20 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   PlatformRoute: typeof PlatformRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiPublicHooksBzrCheckRoute: typeof ApiPublicHooksBzrCheckRoute
   ApiPublicHooksLuFillTickRoute: typeof ApiPublicHooksLuFillTickRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -569,6 +589,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   PlatformRoute: PlatformRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiPublicHooksBzrCheckRoute: ApiPublicHooksBzrCheckRoute,
   ApiPublicHooksLuFillTickRoute: ApiPublicHooksLuFillTickRoute,
 }
