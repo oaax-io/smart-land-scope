@@ -135,7 +135,7 @@ export function FloorCalculatorCard({
   onCalcChange?: (bgfM2: number, volumenM3: number) => void;
 }) {
   const qc = useQueryClient();
-  const { data: floors = [], refetch: refetchFloors } = useQuery({
+  const { data: floors = [], refetch: refetchFloors, isFetched: floorsFetched } = useQuery({
     queryKey: ["analysis-floors", analysis.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -160,24 +160,35 @@ export function FloorCalculatorCard({
     },
   });
 
-  // Seed defaults the first time
+  // Seed defaults the first time (idempotent: rechecks DB, um Duplikate durch Remounts zu vermeiden)
   const seededRef = useRef(false);
   useEffect(() => {
+    if (!floorsFetched) return;
     if (seededRef.current) return;
-    if (floors.length === 0) {
+    if (floors.length > 0) {
       seededRef.current = true;
-      (async () => {
-        await supabase.from("analysis_floors").insert(
-          DEFAULT_FLOORS.map((f) => ({
-            ...f,
-            analysis_id: analysis.id,
-            organization_id: analysis.organization_id,
-          })),
-        );
-        refetchFloors();
-      })();
+      return;
     }
-  }, [floors.length, analysis.id, analysis.organization_id, refetchFloors]);
+    seededRef.current = true;
+    (async () => {
+      const { count } = await supabase
+        .from("analysis_floors")
+        .select("id", { count: "exact", head: true })
+        .eq("analysis_id", analysis.id);
+      if ((count ?? 0) > 0) {
+        refetchFloors();
+        return;
+      }
+      await supabase.from("analysis_floors").insert(
+        DEFAULT_FLOORS.map((f) => ({
+          ...f,
+          analysis_id: analysis.id,
+          organization_id: analysis.organization_id,
+        })),
+      );
+      refetchFloors();
+    })();
+  }, [floorsFetched, floors.length, analysis.id, analysis.organization_id, refetchFloors]);
 
   const totalArea = useMemo(
     () => floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0),
