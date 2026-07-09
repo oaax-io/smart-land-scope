@@ -85,11 +85,11 @@ const DATA_SOURCES = [
   { name: "ÖREB-Kataster", desc: "Eigentumsbeschränkungen aller Themen" },
   { name: "Grundbuch", desc: "Dienstbarkeiten, Belastungen, Eigentümer" },
   { name: "BZR-Reglemente", desc: "Gemeindespezifische Bau- und Zonenreglemente" },
-  { name: "Lovable AI (Gemini)", desc: "Regelextraktion und Zonenzuordnung" },
+  { name: "KI-Modelle (Gemini & Claude)", desc: "Regelextraktion und Zonenzuordnung" },
 ];
 
 const STATS = [
-  { value: "43+", label: "LU Gemeinden mit vollständigen BZR-Daten" },
+  { value: "Schweizweit", label: "Basisdaten für alle Gemeinden" },
   { value: "2 000+", label: "Wissenseinträge zu Zonen & Kennwerten" },
   { value: "< 60s", label: "Von Adresse zur Erstanalyse" },
   { value: "100%", label: "Bericht als PDF exportierbar" },
