@@ -112,7 +112,7 @@ function RotatingWord() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="relative inline-block align-baseline">
+    <span className="relative inline align-baseline">
       {/* invisible sizer keeps layout stable at the widest word */}
       <span className="invisible whitespace-nowrap">
         {ROTATING_WORDS.reduce((a, b) => (b.length > a.length ? b : a))}
