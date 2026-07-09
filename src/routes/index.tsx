@@ -7,7 +7,13 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "SmarTerra — Schweizer Grundstücke in Sekunden analysieren" },
       { name: "description", content: "KI-gestützte SaaS-Plattform für Immobilienentwickler, Investoren und Architekten. Nutzungszonen, Ausnützungsziffer, Entwicklungspotenzial — automatisch." },
+      { property: "og:title", content: "SmarTerra — Schweizer Grundstücke in Sekunden analysieren" },
+      { property: "og:description", content: "KI-gestützte SaaS-Plattform für Immobilienentwickler, Investoren und Architekten." },
+      { property: "og:url", content: "https://smarterra.ch/" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c988ea04-6f6a-4922-8faa-626e5a4fe7e2/id-preview-be4fcc6f--8a88ec10-f9a8-4365-bc56-8862a07ada3d.lovable.app-1781551352846.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c988ea04-6f6a-4922-8faa-626e5a4fe7e2/id-preview-be4fcc6f--8a88ec10-f9a8-4365-bc56-8862a07ada3d.lovable.app-1781551352846.png" },
     ],
+    links: [{ rel: "canonical", href: "https://smarterra.ch/" }],
   }),
   component: Landing,
 });
