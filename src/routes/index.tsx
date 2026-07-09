@@ -103,6 +103,30 @@ const FAQ = [
   { q: "Kann ich Werte manuell überschreiben?", a: "Ja. Alle Vorschläge (BGF pro Geschoss, Angebotspreis, Baukosten) sind editierbar. Der Bericht rechnet live mit den eingegebenen Werten." },
 ];
 
+const ROTATING_WORDS = ["Sekunden", "Minuten", "einem Klick", "Momenten"];
+
+function RotatingWord() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setI((v) => (v + 1) % ROTATING_WORDS.length), 2200);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className="relative inline-block overflow-hidden align-baseline">
+      {/* invisible sizer keeps layout stable at the widest word */}
+      <span className="invisible whitespace-nowrap">
+        {ROTATING_WORDS.reduce((a, b) => (b.length > a.length ? b : a))}
+      </span>
+      <span
+        key={i}
+        className="absolute inset-0 whitespace-nowrap bg-gradient-to-r from-secondary via-primary to-secondary bg-clip-text text-transparent animate-fade-in"
+      >
+        {ROTATING_WORDS[i]}
+      </span>
+    </span>
+  );
+}
+
 function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
 
