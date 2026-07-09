@@ -25,6 +25,7 @@ type AnalysisLite = {
   building_coverage_ratio?: number | null;
   utilization_ratio?: number | null;
   max_height?: number | null;
+  extracted_data?: Record<string, unknown> | null;
 };
 
 /* ---------------- Project Data Card ---------------- */
