@@ -63,7 +63,7 @@ const NAV_LINKS = [
 const FEATURES = [
   { icon: MapPin, title: "Adresse oder Parzelle", text: "Eingabe genügt — Swisstopo, kantonale GIS-Layer und Grundbuchdaten werden automatisch konsolidiert." },
   { icon: BarChart3, title: "Ausnützung & Geschossigkeit", text: "AZ, ÜZ, Fassadenhöhe, Gebäudelänge und -breite direkt aus dem Zonenplan." },
-  { icon: Brain, title: "KI-BZR-Vorschlag", text: "Wenn amtliche Werte fehlen, matcht Gemini 2.5 Flash die richtige BZR-Zone anhand von Adresslage und Bauweise." },
+  { icon: Brain, title: "KI-BZR-Vorschlag", text: "Wenn amtliche Werte fehlen, matcht die KI (Gemini & Claude) die richtige BZR-Zone anhand von Adresslage und Bauweise." },
   { icon: Landmark, title: "ÖREB & Grundbuch", text: "Eigentumsbeschränkungen, Dienstbarkeiten und Belastungen automatisch ausgelesen und aufbereitet." },
   { icon: Calculator, title: "Volumen- & BGF-Rechner", text: "Geschosse werden automatisch vorgeschlagen. BGF pro Geschoss und Gesamtvolumen live berechnet." },
   { icon: TrendingUp, title: "Wirtschaftlichkeit & Residualwert", text: "Kosten, Erlöse und Residualwert der Parzelle inklusive Bandbreiten-Grafik — direkt vergleichbar mit dem Angebotspreis." },
@@ -85,11 +85,11 @@ const DATA_SOURCES = [
   { name: "ÖREB-Kataster", desc: "Eigentumsbeschränkungen aller Themen" },
   { name: "Grundbuch", desc: "Dienstbarkeiten, Belastungen, Eigentümer" },
   { name: "BZR-Reglemente", desc: "Gemeindespezifische Bau- und Zonenreglemente" },
-  { name: "Lovable AI (Gemini)", desc: "Regelextraktion und Zonenzuordnung" },
+  { name: "KI-Modelle (Gemini & Claude)", desc: "Regelextraktion und Zonenzuordnung" },
 ];
 
 const STATS = [
-  { value: "43+", label: "LU Gemeinden mit vollständigen BZR-Daten" },
+  { value: "Schweizweit", label: "Basisdaten für alle Gemeinden" },
   { value: "2 000+", label: "Wissenseinträge zu Zonen & Kennwerten" },
   { value: "< 60s", label: "Von Adresse zur Erstanalyse" },
   { value: "100%", label: "Bericht als PDF exportierbar" },
@@ -97,7 +97,7 @@ const STATS = [
 
 const FAQ = [
   { q: "Für welche Kantone funktioniert SmarTerra bereits?", a: "Basisdaten (Zonen, Adressen, Parzellen) sind schweizweit verfügbar. Tiefe BZR-Extraktion mit KI-Zuordnung ist für den Kanton Luzern flächendeckend integriert; weitere Kantone folgen laufend." },
-  { q: "Was passiert, wenn amtliche Werte fehlen?", a: "SmarTerra erkennt fehlende Kennwerte (z.B. AZ/ÜZ in der Stadt Luzern) und schlägt mittels Gemini 2.5 Flash die passendste BZR-Zone anhand von Adresslage und WFS-Attributen vor — transparent mit Konfidenz-Angabe." },
+  { q: "Was passiert, wenn amtliche Werte fehlen?", a: "SmarTerra erkennt fehlende Kennwerte (z.B. AZ/ÜZ) und schlägt mittels KI (Gemini & Claude) die passendste BZR-Zone anhand von Adresslage und WFS-Attributen vor — transparent mit Konfidenz-Angabe." },
   { q: "Kann ich Berichte als PDF exportieren?", a: "Ja. Der Bericht wird sektionsweise in A4 aufbereitet, inklusive Grafiken (Residualwert-Bandbreite, KPIs), Kopfzeilen und Seitennummerierung — direkt zum Download." },
   { q: "Wie ist der Datenschutz geregelt?", a: "Multi-Tenant-Architektur mit strikter Row-Level Security. Jede Organisation sieht nur eigene Analysen und Projekte." },
   { q: "Kann ich Werte manuell überschreiben?", a: "Ja. Alle Vorschläge (BGF pro Geschoss, Angebotspreis, Baukosten) sind editierbar. Der Bericht rechnet live mit den eingegebenen Werten." },
