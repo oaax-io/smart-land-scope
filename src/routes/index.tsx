@@ -97,7 +97,7 @@ const STATS = [
 
 const FAQ = [
   { q: "Für welche Kantone funktioniert SmarTerra bereits?", a: "Basisdaten (Zonen, Adressen, Parzellen) sind schweizweit verfügbar. Tiefe BZR-Extraktion mit KI-Zuordnung ist für den Kanton Luzern flächendeckend integriert; weitere Kantone folgen laufend." },
-  { q: "Was passiert, wenn amtliche Werte fehlen?", a: "SmarTerra erkennt fehlende Kennwerte (z.B. AZ/ÜZ in der Stadt Luzern) und schlägt mittels Gemini 2.5 Flash die passendste BZR-Zone anhand von Adresslage und WFS-Attributen vor — transparent mit Konfidenz-Angabe." },
+  { q: "Was passiert, wenn amtliche Werte fehlen?", a: "SmarTerra erkennt fehlende Kennwerte (z.B. AZ/ÜZ) und schlägt mittels KI (Gemini & Claude) die passendste BZR-Zone anhand von Adresslage und WFS-Attributen vor — transparent mit Konfidenz-Angabe." },
   { q: "Kann ich Berichte als PDF exportieren?", a: "Ja. Der Bericht wird sektionsweise in A4 aufbereitet, inklusive Grafiken (Residualwert-Bandbreite, KPIs), Kopfzeilen und Seitennummerierung — direkt zum Download." },
   { q: "Wie ist der Datenschutz geregelt?", a: "Multi-Tenant-Architektur mit strikter Row-Level Security. Jede Organisation sieht nur eigene Analysen und Projekte." },
   { q: "Kann ich Werte manuell überschreiben?", a: "Ja. Alle Vorschläge (BGF pro Geschoss, Angebotspreis, Baukosten) sind editierbar. Der Bericht rechnet live mit den eingegebenen Werten." },
