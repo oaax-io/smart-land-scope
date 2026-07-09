@@ -25,6 +25,7 @@ type AnalysisLite = {
   building_coverage_ratio?: number | null;
   utilization_ratio?: number | null;
   max_height?: number | null;
+  extracted_data?: Record<string, unknown> | null;
 };
 
 /* ---------------- Project Data Card ---------------- */
@@ -241,8 +242,28 @@ export function FloorCalculatorCard({
       if (!Number.isFinite(n) || n <= 0) return 0;
       return n > 1 ? n / 100 : n;
     };
-    const uz = normalize(analysis.building_coverage_ratio);
-    const az = normalize(analysis.utilization_ratio);
+    // Fallback: extracted_data.lu_zone_plan (offizielle LU-Werte oder KI-BZR-Vorschlag)
+    const luZonePlan =
+      analysis.extracted_data &&
+      typeof analysis.extracted_data === "object" &&
+      !Array.isArray(analysis.extracted_data) &&
+      "lu_zone_plan" in analysis.extracted_data
+        ? ((analysis.extracted_data as Record<string, unknown>).lu_zone_plan as Record<string, unknown> | null)
+        : null;
+    const bzrCand =
+      luZonePlan && typeof luZonePlan.bzr_ai_suggestion === "object" && luZonePlan.bzr_ai_suggestion !== null
+        ? ((luZonePlan.bzr_ai_suggestion as Record<string, unknown>).candidate as Record<string, unknown> | undefined)
+        : undefined;
+    const uz = normalize(
+      analysis.building_coverage_ratio ??
+        (luZonePlan?.building_coverage_ratio as number | null | undefined) ??
+        (bzrCand?.ueberbauungsziffer as number | null | undefined),
+    );
+    const az = normalize(
+      analysis.utilization_ratio ??
+        (luZonePlan?.utilization_ratio as number | null | undefined) ??
+        (bzrCand?.ausnuetzungsziffer as number | null | undefined),
+    );
     const nOber = Math.max(1, floors.filter((f) => f.floor_index >= 0).length);
     let footprint = 0;
     let source = "";
@@ -256,7 +277,7 @@ export function FloorCalculatorCard({
       return null;
     }
     return { footprint: Math.round(footprint), source };
-  }, [analysis.area_size, analysis.building_coverage_ratio, analysis.utilization_ratio, floors]);
+  }, [analysis.area_size, analysis.building_coverage_ratio, analysis.utilization_ratio, analysis.extracted_data, floors]);
 
   const applySuggestions = async () => {
     if (!suggestion) return;

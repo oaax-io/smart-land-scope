@@ -599,6 +599,11 @@ function AnalysisDetailPage() {
               floor_area: (analysis.floor_area as number | null) ?? null,
               living_area: (analysis.living_area as number | null) ?? null,
               unit_count: (analysis.unit_count as number | null) ?? null,
+              area_size: (analysis.area_size as number | null) ?? null,
+              building_coverage_ratio: (analysis.building_coverage_ratio as number | null) ?? null,
+              utilization_ratio: (analysis.utilization_ratio as number | null) ?? null,
+              max_height: (analysis.max_height as number | null) ?? null,
+              extracted_data: (analysis.extracted_data as Record<string, unknown> | null) ?? null,
             }}
             onCalcChange={handleCalcChange}
           />
