@@ -399,7 +399,7 @@ export function FloorCalculatorCard({
             </thead>
             <tbody>
               {floors.map((f) => {
-                const vol = (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0);
+                const vol = getEffectiveGrossArea(f) * (Number(f.floor_height_m) || 0);
                 return (
                   <tr key={f.id} className="border-t">
                     <td className="px-3 py-2 w-20">
