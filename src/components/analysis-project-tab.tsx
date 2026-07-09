@@ -147,6 +147,14 @@ export function FloorCalculatorCard({
       return data as Floor[];
     },
   });
+  const [draftFloors, setDraftFloors] = useState<Floor[]>([]);
+
+  useEffect(() => {
+    setDraftFloors(floors);
+  }, [floors]);
+
+  const displayFloors = draftFloors.length > 0 ? draftFloors : floors;
+
   const { data: units = [], refetch: refetchUnits } = useQuery({
     queryKey: ["analysis-units", analysis.id],
     queryFn: async () => {
@@ -190,33 +198,21 @@ export function FloorCalculatorCard({
     })();
   }, [floorsFetched, floors.length, analysis.id, analysis.organization_id, refetchFloors]);
 
-  const totalArea = useMemo(
-    () => floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0),
-    [floors],
-  );
-  const totalVolume = useMemo(
-    () =>
-      floors.reduce(
-        (s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0),
-        0,
-      ),
-    [floors],
-  );
-  const totalUnitArea = useMemo(
-    () => units.reduce((s, u) => s + (Number(u.area_m2) || 0), 0),
-    [units],
-  );
-
-  useEffect(() => {
-    onCalcChange?.(totalArea, totalVolume);
-  }, [totalArea, totalVolume, onCalcChange]);
-
   const debouncers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const debounceUpdate = (id: string, patch: Partial<Floor>) => {
+    setDraftFloors((current) => current.map((floor) => (floor.id === id ? { ...floor, ...patch } : floor)));
+    qc.setQueryData<Floor[]>(["analysis-floors", analysis.id], (current) =>
+      current?.map((floor) => (floor.id === id ? { ...floor, ...patch } : floor)) ?? current,
+    );
     if (debouncers.current[id]) clearTimeout(debouncers.current[id]);
     debouncers.current[id] = setTimeout(async () => {
-      await supabase.from("analysis_floors").update(patch).eq("id", id);
+      const { error } = await supabase.from("analysis_floors").update(patch).eq("id", id);
+      if (error) {
+        toast.error("Geschoss konnte nicht gespeichert werden", { description: error.message });
+      }
       refetchFloors();
+      qc.invalidateQueries({ queryKey: ["floors-wirt", analysis.id] });
+      qc.invalidateQueries({ queryKey: ["wirtschaft-report", analysis.id] });
     }, 600);
   };
   const debounceUpdateUnit = (id: string, patch: Partial<Unit>) => {
@@ -275,7 +271,7 @@ export function FloorCalculatorCard({
         (luZonePlan?.utilization_ratio as number | null | undefined) ??
         (bzrCand?.ausnuetzungsziffer as number | null | undefined),
     );
-    const nOber = Math.max(1, floors.filter((f) => f.floor_index >= 0).length);
+    const nOber = Math.max(1, displayFloors.filter((f) => f.floor_index >= 0).length);
     let footprint = 0;
     let source = "";
     if (uz > 0) {
@@ -288,15 +284,46 @@ export function FloorCalculatorCard({
       return null;
     }
     return { footprint: Math.round(footprint), source };
-  }, [analysis.area_size, analysis.building_coverage_ratio, analysis.utilization_ratio, analysis.extracted_data, floors]);
+  }, [analysis.area_size, analysis.building_coverage_ratio, analysis.utilization_ratio, analysis.extracted_data, displayFloors]);
+
+  const getEffectiveGrossArea = (floor: Floor) => {
+    const entered = Number(floor.gross_area_m2);
+    if (Number.isFinite(entered) && entered > 0) return entered;
+    return suggestion?.footprint ?? 0;
+  };
+
+  const totalArea = useMemo(
+    () => displayFloors.reduce((s, f) => s + getEffectiveGrossArea(f), 0),
+    [displayFloors, suggestion],
+  );
+  const totalVolume = useMemo(
+    () =>
+      displayFloors.reduce(
+        (s, f) => s + getEffectiveGrossArea(f) * (Number(f.floor_height_m) || 0),
+        0,
+      ),
+    [displayFloors, suggestion],
+  );
+  const totalUnitArea = useMemo(
+    () => units.reduce((s, u) => s + (Number(u.area_m2) || 0), 0),
+    [units],
+  );
+
+  useEffect(() => {
+    onCalcChange?.(totalArea, totalVolume);
+  }, [totalArea, totalVolume, onCalcChange]);
 
   const applySuggestions = async () => {
     if (!suggestion) return;
-    const targets = floors.filter((f) => !f.gross_area_m2 || Number(f.gross_area_m2) <= 0);
+    const targets = displayFloors.filter((f) => !f.gross_area_m2 || Number(f.gross_area_m2) <= 0);
     if (targets.length === 0) {
       toast.info("Alle Geschosse haben bereits einen BGF-Wert.");
       return;
     }
+    const targetIds = new Set(targets.map((f) => f.id));
+    setDraftFloors((current) =>
+      current.map((floor) => (targetIds.has(floor.id) ? { ...floor, gross_area_m2: suggestion.footprint } : floor)),
+    );
     await Promise.all(
       targets.map((f) =>
         supabase
@@ -309,6 +336,8 @@ export function FloorCalculatorCard({
       description: suggestion.source,
     });
     refetchFloors();
+    qc.invalidateQueries({ queryKey: ["floors-wirt", analysis.id] });
+    qc.invalidateQueries({ queryKey: ["wirtschaft-report", analysis.id] });
   };
   const addUnit = async () => {
     const idx = floors[0]?.floor_index ?? 0;
@@ -752,6 +781,10 @@ export function WirtschaftlichkeitCard({
       volUG = floors
         .filter((f) => (f.floor_index ?? 0) < 0)
         .reduce((s, f) => s + (f.gross_area_m2 || 0) * (f.floor_height_m || 0), 0);
+      if (volOberirdisch + volUG <= 0 && volumenM3 > 0) {
+        volOberirdisch = volumenM3;
+        volUG = 0;
+      }
     } else {
       volOberirdisch = volumenM3;
       volUG = 0;
