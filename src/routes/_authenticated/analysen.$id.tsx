@@ -146,15 +146,8 @@ function AnalysisDetailPage() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const analyzeFn = useServerFn(runKnowledgeAnalysis);
-  const [calcData, setCalcData] = useState({ bgfM2: 0, volumenM3: 0 });
-  const handleCalcChange = useCallback(
-    (floors: FloorInput[]) =>
-      setCalcData({
-        bgfM2: floors.reduce((s, f) => s + (f.bgfM2 ?? 0), 0),
-        volumenM3: floors.reduce((s, f) => s + (f.bgfM2 ?? 0) * (f.heightM ?? 0), 0),
-      }),
-    [],
-  );
+  const [calcFloors, setCalcFloors] = useState<FloorInput[]>([]);
+  const handleCalcChange = useCallback((floors: FloorInput[]) => setCalcFloors(floors), []);
 
   const { data: analysis, isLoading } = useQuery({
     queryKey: ["analysis", id],
@@ -628,8 +621,7 @@ function AnalysisDetailPage() {
               utilization_ratio: (analysis.utilization_ratio as number | null) ?? null,
               max_height: (analysis.max_height as number | null) ?? null,
             }}
-            bgfM2={calcData.bgfM2}
-            volumenM3={calcData.volumenM3}
+            floors={calcFloors}
           />
 
           <DocumentUploadsCard

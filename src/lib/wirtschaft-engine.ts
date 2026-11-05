@@ -55,6 +55,8 @@ export type EngineResult = {
   volUg: number | null;
   bkp1: number | null;
   bkp2: MinMax;
+  /** Gebäudekosten-Anteile (Volumen × Kennwert), null wenn nicht berechenbar. */
+  bkp2Teile: { ober: number | null; ug: number | null };
   honorarAnteil: MinMax;
   bkp4: number | null;
   bkp5: MinMax;
@@ -173,11 +175,13 @@ export function computeWirtschaft(input: EngineInput): EngineResult {
   const hasOber = bgfOber !== null;
   const hasUg = bgfUg !== null;
   let gebaeude: number | null = null;
+  let bkp2Teile: EngineResult["bkp2Teile"] = { ober: null, ug: null };
   if ((hasOber && volOber === null) || (hasUg && volUg === null) || (!hasOber && !hasUg)) {
     gebaeude = null;
     warnings.push("Gebäudevolumen unvollständig – BKP 2 nicht berechenbar");
   } else {
-    gebaeude = (volOber ?? 0) * c.kennwertOberProM3 + (volUg ?? 0) * c.kennwertUgProM3;
+    bkp2Teile = { ober: (volOber ?? 0) * c.kennwertOberProM3, ug: (volUg ?? 0) * c.kennwertUgProM3 };
+    gebaeude = bkp2Teile.ober! + bkp2Teile.ug!;
   }
   const gebFormula = `${fmt(volOber)} m³ × ${fmt(c.kennwertOberProM3)} + ${fmt(volUg ?? 0)} m³ × ${fmt(c.kennwertUgProM3)}`;
 
@@ -312,7 +316,7 @@ export function computeWirtschaft(input: EngineInput): EngineResult {
   t("Marge (max)", "Erlös − Anlagekosten min", marge.max);
 
   return {
-    bgfOber, bgfUg, volOber, volUg, bkp1, bkp2, honorarAnteil, bkp4, bkp5, bkp6, anlagekosten,
+    bgfOber, bgfUg, volOber, volUg, bkp1, bkp2, bkp2Teile, honorarAnteil, bkp4, bkp5, bkp6, anlagekosten,
     nwf, erloes, entwicklergewinn, vermarktung, finanzierung, residualVorNebenkosten,
     residualwertLand, residualwertProM2, ratio, marge, warnings, trace,
   };

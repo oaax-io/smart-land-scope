@@ -631,70 +631,106 @@ export type Database = {
       }
       analysis_wirtschaft: {
         Row: {
+          abbruch_m3: number
+          abbruch_pro_m3: number
           analysis_id: string
           aussenflaeche_anrechnungsfaktor: number
           aussenflaeche_m2: number
+          bkp1_pct: number
           bkp5_max: number
           bkp5_min: number
           bkp6_max: number
           bkp6_min: number
           created_at: string
+          entwicklergewinn_pct: number
+          finanzierung_pct: number
+          grundstuecks_nebenkosten_pct: number
           id: string
+          kennwert_inkl_honorare: boolean
           kosten_oberirdisch_pro_m3: number
           kosten_ug_pro_m3: number
           marktpreis_pro_m2: number
           nwf_faktor: number
           organization_id: string
+          parkplaetze: number
           parzellenpreis: number | null
+          preis_pro_parkplatz: number
           risikoabschlag_prozent: number
           sia_honorare_max: number
           sia_honorare_min: number
+          sicherheitsabschlag_pct: number
           slider_bandbreite: number
+          umgebung_pro_m2: number
           updated_at: string
+          vermarktung_pct: number
         }
         Insert: {
+          abbruch_m3?: number
+          abbruch_pro_m3?: number
           analysis_id: string
           aussenflaeche_anrechnungsfaktor?: number
           aussenflaeche_m2?: number
+          bkp1_pct?: number
           bkp5_max?: number
           bkp5_min?: number
           bkp6_max?: number
           bkp6_min?: number
           created_at?: string
+          entwicklergewinn_pct?: number
+          finanzierung_pct?: number
+          grundstuecks_nebenkosten_pct?: number
           id?: string
+          kennwert_inkl_honorare?: boolean
           kosten_oberirdisch_pro_m3?: number
           kosten_ug_pro_m3?: number
           marktpreis_pro_m2?: number
           nwf_faktor?: number
           organization_id: string
+          parkplaetze?: number
           parzellenpreis?: number | null
+          preis_pro_parkplatz?: number
           risikoabschlag_prozent?: number
           sia_honorare_max?: number
           sia_honorare_min?: number
+          sicherheitsabschlag_pct?: number
           slider_bandbreite?: number
+          umgebung_pro_m2?: number
           updated_at?: string
+          vermarktung_pct?: number
         }
         Update: {
+          abbruch_m3?: number
+          abbruch_pro_m3?: number
           analysis_id?: string
           aussenflaeche_anrechnungsfaktor?: number
           aussenflaeche_m2?: number
+          bkp1_pct?: number
           bkp5_max?: number
           bkp5_min?: number
           bkp6_max?: number
           bkp6_min?: number
           created_at?: string
+          entwicklergewinn_pct?: number
+          finanzierung_pct?: number
+          grundstuecks_nebenkosten_pct?: number
           id?: string
+          kennwert_inkl_honorare?: boolean
           kosten_oberirdisch_pro_m3?: number
           kosten_ug_pro_m3?: number
           marktpreis_pro_m2?: number
           nwf_faktor?: number
           organization_id?: string
+          parkplaetze?: number
           parzellenpreis?: number | null
+          preis_pro_parkplatz?: number
           risikoabschlag_prozent?: number
           sia_honorare_max?: number
           sia_honorare_min?: number
+          sicherheitsabschlag_pct?: number
           slider_bandbreite?: number
+          umgebung_pro_m2?: number
           updated_at?: string
+          vermarktung_pct?: number
         }
         Relationships: [
           {
