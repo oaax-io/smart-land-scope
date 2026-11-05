@@ -16,6 +16,9 @@ import { loadOEREBData } from "@/lib/oereb.functions";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
 import { formatFloors, formatMeters, formatRatio } from "@/lib/format-units";
 import type { LuZonePlanResult } from "@/lib/swiss-geo";
+import { computeWirtschaft } from "@/lib/wirtschaft-engine";
+import { buildEngineInput, defaultWirtschaftMode, zoneSuggestion, type FloorRow, type WirtschaftRow } from "@/lib/wirtschaft-input";
+import { buildWirtschaftRows, fmtChf, fmtNum } from "@/lib/wirtschaft-rows";
 
 type Risk = { category?: string; title: string; description: string; severity?: string };
 type LuZoneLoadResult =
@@ -173,6 +176,10 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Lade Bericht …</div>;
   if (!a) return <div className="p-6 text-sm text-muted-foreground">Analyse nicht gefunden.</div>;
+
+  const wirtMode = defaultWirtschaftMode(floors as FloorRow[]);
+  const wirtInput = buildEngineInput(a, floors as FloorRow[], wirtschaft as WirtschaftRow | null, wirtMode);
+  const wirt = { mode: wirtMode, input: wirtInput, result: computeWirtschaft(wirtInput), zone: zoneSuggestion(a) };
 
   const chf = (n: number) =>
     n.toLocaleString("de-CH", { style: "currency", currency: "CHF", maximumFractionDigits: 0 });
@@ -796,149 +803,42 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
 
         <Section title="7. Wirtschaftlichkeit & Grobkostenschätzung">
           {(() => {
-            const floorsBgf = floors.reduce((s, f) => s + (Number(f.gross_area_m2) || 0), 0);
-            const floorsVol = floors.reduce(
-              (s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0),
-              0,
-            );
-            const hasFloors = floorsBgf > 0;
-
-            // Fallback-Schnellschätzung wenn keine Geschossflächen erfasst
-            const grundstueck = Number(a.area_size ?? 0);
-            const uez = Number(legalZoneData.building_coverage_ratio ?? legalZoneData.utilization_ratio ?? 0);
-            const maxH = Number(legalZoneData.max_height_m ?? legalZoneData.max_facade_height_m ?? 0);
-            const gH = 3.0;
-            const bebauteFlaeche = grundstueck * uez;
-            const vollgeschosse = gH > 0 ? Math.floor(maxH / gH) : 0;
-            const quickBgfOber = bebauteFlaeche * vollgeschosse;
-            const quickUgFlaeche = bebauteFlaeche * 1.3;
-            const quickBgf = quickBgfOber + quickUgFlaeche;
-            const quickVol = quickBgfOber * gH + quickUgFlaeche * gH;
-            const canQuick = grundstueck > 0 && uez > 0 && maxH > 0;
-
-            if (!hasFloors && !canQuick) {
-              return (
-                <p className="text-sm italic text-muted-foreground">
-                  Keine Geschossdaten und keine Baurechts-Kennwerte (Grundstückfläche, ÜZ,
-                  Gebäudehöhe) verfügbar — Wirtschaftlichkeit kann nicht berechnet werden.
-                </p>
-              );
-            }
-
-            const totalBgf = hasFloors ? floorsBgf : quickBgf;
-            const totalVol = hasFloors ? floorsVol : quickVol;
-            const mode: "detail" | "quick" = hasFloors ? "detail" : "quick";
-            const p = {
-              kostenOberirdischProM3: Number(wirtschaft?.kosten_oberirdisch_pro_m3 ?? 950),
-              kostenUGProM3: Number(wirtschaft?.kosten_ug_pro_m3 ?? 550),
-              siaHonorareMin: Number(wirtschaft?.sia_honorare_min ?? 12),
-              siaHonorareMax: Number(wirtschaft?.sia_honorare_max ?? 15),
-              bkp5Min: Number(wirtschaft?.bkp5_min ?? 3),
-              bkp5Max: Number(wirtschaft?.bkp5_max ?? 5),
-              bkp6Min: Number(wirtschaft?.bkp6_min ?? 5),
-              bkp6Max: Number(wirtschaft?.bkp6_max ?? 8),
-              nwfFaktor: Number(wirtschaft?.nwf_faktor ?? 0.65),
-              marktpreisProM2: Number(wirtschaft?.marktpreis_pro_m2 ?? 8500),
-              parzellenpreis:
-                wirtschaft?.parzellenpreis != null ? Number(wirtschaft.parzellenpreis) : null,
-              risikoabschlagProzent: Number(wirtschaft?.risikoabschlag_prozent ?? 15),
-              aussenflaecheM2: Number(wirtschaft?.aussenflaeche_m2 ?? 0),
-              aussenflaecheAnrechnungsfaktor: Number(
-                wirtschaft?.aussenflaeche_anrechnungsfaktor ?? 0.35,
-              ),
-              sliderBandbreite: Number(wirtschaft?.slider_bandbreite ?? 20),
-            };
-            // Volumen-Split: Detail = aus Floors, Quick = aus Schnellschätzung
-            const volOberFromFloors = floors
-              .filter((f) => (Number(f.floor_index) ?? 0) >= 0)
-              .reduce((s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0), 0);
-            const volUGFromFloors = floors
-              .filter((f) => (Number(f.floor_index) ?? 0) < 0)
-              .reduce((s, f) => s + (Number(f.gross_area_m2) || 0) * (Number(f.floor_height_m) || 0), 0);
-            const volOber = mode === "quick" ? quickBgfOber * gH : volOberFromFloors > 0 ? volOberFromFloors : totalVol;
-            const volUG = mode === "quick" ? quickUgFlaeche * gH : volUGFromFloors > 0 ? volUGFromFloors : totalVol * 0.25;
-            const bkp2Oberirdisch = volOber * p.kostenOberirdischProM3;
-            const bkp2UG = volUG * p.kostenUGProM3;
-            const bkp2Total = bkp2Oberirdisch + bkp2UG;
-            const siaMin = bkp2Total * (p.siaHonorareMin / 100);
-            const siaMax = bkp2Total * (p.siaHonorareMax / 100);
-            const bkp5Min = bkp2Total * (p.bkp5Min / 100);
-            const bkp5Max = bkp2Total * (p.bkp5Max / 100);
-            const bkp6Min = bkp2Total * (p.bkp6Min / 100);
-            const bkp6Max = bkp2Total * (p.bkp6Max / 100);
-            const totalMin = bkp2Total + siaMin + bkp5Min + bkp6Min;
-            const totalMax = bkp2Total + siaMax + bkp5Max + bkp6Max;
-            const nwf = totalBgf * p.nwfFaktor;
-            const aussenErloes = p.aussenflaecheM2 * p.aussenflaecheAnrechnungsfaktor * p.marktpreisProM2;
-            const erloes = nwf * p.marktpreisProM2;
-            const erloesMitAussenflaeche = erloes + aussenErloes;
-            const margeMin = erloesMitAussenflaeche - totalMax;
-            const margeMax = erloesMitAussenflaeche - totalMin;
-            const ratioMin = totalMax > 0 ? erloesMitAussenflaeche / totalMax : 0;
-            const ratioMax = totalMin > 0 ? erloesMitAussenflaeche / totalMin : 0;
-            const residualwert = erloesMitAussenflaeche - (totalMin + totalMax) / 2;
-            const residualwertBereinigt = residualwert * (1 - p.risikoabschlagProzent / 100);
-            const grundstueckM2 = Number(a.area_size ?? 0);
-            const residualwertProM2 = grundstueckM2 > 0 ? residualwert / grundstueckM2 : null;
-            const rows: Array<[string, string, string, boolean?]> = [
-              ["BKP2 Baukosten oberirdisch", chf(bkp2Oberirdisch), "—"],
-              ["BKP2 Baukosten Untergeschoss", chf(bkp2UG), "—"],
-              ["BKP2 Total", chf(bkp2Total), "—", true],
-              [`SIA-Honorare (${p.siaHonorareMin}–${p.siaHonorareMax}%)`, chf(siaMin), chf(siaMax)],
-              [`BKP5 Nebenkosten (${p.bkp5Min}–${p.bkp5Max}%)`, chf(bkp5Min), chf(bkp5Max)],
-              [`BKP6 Reserve (${p.bkp6Min}–${p.bkp6Max}%)`, chf(bkp6Min), chf(bkp6Max)],
-              ["Total Baukosten", chf(totalMin), chf(totalMax), true],
-              ["Nettowohnfläche (NWF)", `${Math.round(nwf)} m²`, "—"],
-              ...(p.aussenflaecheM2 > 0
-                ? ([[
-                    `Aussenflächen (${Math.round(p.aussenflaecheAnrechnungsfaktor * 100)}% von ${Math.round(p.aussenflaecheM2)} m²)`,
-                    chf(aussenErloes),
-                    "—",
-                  ]] as [string, string, string][])
-                : []),
-              [`Marktpreis ${chf(p.marktpreisProM2)}/m²`, "—", "—"],
-              ["Geschätzter Erlös", chf(erloesMitAussenflaeche), "—"],
-              ["Marge", chf(margeMin), chf(margeMax), true],
-              ["Erlös / Kosten Ratio", ratioMin.toFixed(2), ratioMax.toFixed(2), true],
-              ["Residualwert (unbereinigt)", chf(residualwert), "—", true],
-              [
-                `Risikoabschlag (−${p.risikoabschlagProzent}%)`,
-                chf(-(residualwert * p.risikoabschlagProzent) / 100),
-                "—",
-              ],
-              ["Residualwert bereinigt", chf(residualwertBereinigt), "—", true],
-              ...(residualwertProM2 != null
-                ? ([[
-                    "Residualwert / m² Grundstück",
-                    `${chf(residualwertProM2)}/m²`,
-                    "—",
-                  ]] as [string, string, string][])
-                : []),
-              ...(p.parzellenpreis != null && residualwertBereinigt !== 0
-                ? ([[
-                    "Angebotspreis Parzelle",
-                    chf(p.parzellenpreis),
-                    `${(((p.parzellenpreis - residualwertBereinigt) / residualwertBereinigt) * 100).toFixed(1)}%`,
-                    true,
-                  ]] as [string, string, string, boolean][])
-                : []),
-            ];
+            const { input, result: r, mode, zone } = wirt;
+            const rows = buildWirtschaftRows(r, input);
+            const residual = r.residualwertLand;
+            const bandbreite = Number(wirtschaft?.slider_bandbreite ?? 20) || 20;
+            const parzellenpreis = wirtschaft?.parzellenpreis != null ? Number(wirtschaft.parzellenpreis) : null;
+            const sliderMin = residual != null ? residual * (1 - bandbreite / 100) : null;
+            const sliderMax = residual != null ? residual * (1 + bandbreite / 100) : null;
+            const sliderPosition =
+              parzellenpreis != null && sliderMin != null && sliderMax != null && sliderMax !== sliderMin
+                ? Math.max(0, Math.min(100, ((parzellenpreis - sliderMin) / (sliderMax - sliderMin)) * 100))
+                : null;
+            const abwPct =
+              parzellenpreis != null && residual != null && residual > 0
+                ? ((parzellenpreis - residual) / residual) * 100
+                : null;
             return (
               <div className="space-y-4 break-inside-avoid">
                 {mode === "quick" && (
                   <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-                    <strong>Schnellschätzung</strong> auf Basis der Baurechts-Kennwerte
-                    (Grundstück {Math.round(grundstueck)} m² · ÜZ {uez} · max. Höhe {maxH} m ·
-                    Geschosshöhe {gH} m). Genauigkeit ±25–35%. Für präzise Werte im Projekt-Tab
-                    Geschossflächen erfassen.
+                    <strong>Schnellschätzung</strong> aus Zonenwerten: {zone.source}. Für präzise Werte im
+                    Projekt-Tab Geschossflächen erfassen.
                   </p>
+                )}
+                {r.warnings.length > 0 && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                    {r.warnings.map((m) => (
+                      <div key={m}>⚠ {m}</div>
+                    ))}
+                  </div>
                 )}
                 <div className="grid grid-cols-3 gap-3">
                   {(
                     [
-                      ["BGF total", `${Math.round(totalBgf)} m²`],
-                      ["Volumen oberirdisch", `${Math.round(totalVol)} m³`],
-                      ["Nettowohnfläche (NWF)", `${Math.round(nwf)} m²`],
+                      ["BGF oberirdisch", r.bgfOber == null ? "–" : `${fmtNum(r.bgfOber)} m²`],
+                      ["Anlagekosten mittel", fmtChf(r.anlagekosten.mittel)],
+                      ["NWF (nur oberirdisch)", r.nwf == null ? "–" : `${fmtNum(r.nwf)} m²`],
                     ] as const
                   ).map(([label, value]) => (
                     <div key={label} className="rounded-lg border bg-muted/30 p-3 text-center">
@@ -957,16 +857,15 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map(([label, min, max, bold], i) => (
-                      <tr key={label} className={i % 2 ? "bg-muted/20" : ""}>
-                        <td className={`px-4 py-2 ${bold ? "font-semibold" : ""}`}>{label}</td>
-                        <td className={`px-4 py-2 text-right ${bold ? "font-semibold" : ""}`}>{min}</td>
-                        <td className={`px-4 py-2 text-right ${bold ? "font-semibold" : ""}`}>{max}</td>
+                    {rows.map((row, i) => (
+                      <tr key={row.label} className={`${row.highlight ? "bg-primary/5" : i % 2 ? "bg-muted/20" : ""} ${row.strong ? "font-semibold" : ""}`}>
+                        <td className={`py-2 pr-4 ${row.indent ? "pl-8 text-xs text-muted-foreground" : "pl-4"}`}>{row.label}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{row.min}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{row.max}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-
 
                 <div className="rounded-lg border bg-muted/30 p-4 break-inside-avoid">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -974,51 +873,26 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                   </p>
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
                     <div>
-                      <p className="text-xs text-muted-foreground">
-                        Residualwert (Erlös − Ø Baukosten)
+                      <p className="text-xs text-muted-foreground">Residualwert Land</p>
+                      <p className={`mt-0.5 text-xl font-bold tabular-nums ${residual == null ? "" : residual > 0 ? "text-emerald-700" : "text-red-700"}`}>
+                        {fmtChf(residual)}
                       </p>
-                      <p className="mt-0.5 text-xl font-bold tabular-nums">{chf(residualwert)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">
-                        Bereinigt (−{p.risikoabschlagProzent}% Risikoabschlag)
-                      </p>
-                      <p
-                        className={`mt-0.5 text-xl font-bold tabular-nums ${
-                          residualwertBereinigt > 0 ? "text-emerald-700" : "text-red-700"
-                        }`}
-                      >
-                        {chf(residualwertBereinigt)}
+                      <p className="text-xs text-muted-foreground">Pro m² Grundstück</p>
+                      <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                        {r.residualwertProM2 == null ? "–" : `${fmtChf(r.residualwertProM2)}/m²`}
                       </p>
                     </div>
-                    {residualwertProM2 != null && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Pro m² Grundstück</p>
-                        <p className="mt-0.5 text-sm font-semibold tabular-nums">
-                          {chf(residualwertProM2)}/m²
-                        </p>
-                      </div>
-                    )}
-                    {p.parzellenpreis != null && (
+                    {parzellenpreis != null && (
                       <div>
                         <p className="text-xs text-muted-foreground">Effektiver Angebotspreis</p>
                         <p className="mt-0.5 text-sm font-semibold tabular-nums">
-                          {chf(p.parzellenpreis)}
-                          {residualwertBereinigt !== 0 && (
-                            <span
-                              className={`ml-2 text-xs font-medium ${
-                                p.parzellenpreis - residualwertBereinigt > 0
-                                  ? "text-red-700"
-                                  : "text-emerald-700"
-                              }`}
-                            >
-                              {p.parzellenpreis - residualwertBereinigt > 0 ? "+" : ""}
-                              {(
-                                ((p.parzellenpreis - residualwertBereinigt) /
-                                  residualwertBereinigt) *
-                                100
-                              ).toFixed(1)}
-                              %
+                          {fmtChf(parzellenpreis)}
+                          {abwPct != null && (
+                            <span className={`ml-2 text-xs font-medium ${abwPct > 0 ? "text-red-700" : "text-emerald-700"}`}>
+                              {abwPct > 0 ? "+" : ""}
+                              {abwPct.toFixed(1)}%
                             </span>
                           )}
                         </p>
@@ -1026,74 +900,46 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                     )}
                   </div>
                   <p className="mt-3 text-xs text-muted-foreground">
-                    Der Residualwert ist der maximal wirtschaftlich vertretbare Parzellenpreis.
-                    Der bereinigte Wert berücksichtigt einen Risikoabschlag von{" "}
-                    {p.risikoabschlagProzent}% für Unsicherheiten in Bau- und Marktpreisen.
+                    Residualwert Land = Erlös − Anlagekosten − Entwicklergewinn − Vermarktung − Finanzierung,
+                    bereinigt um Grundstücksnebenkosten und Sicherheitsabschlag. Herleitung siehe Anhang.
                   </p>
 
-                  {/* Visuelle Preis-Bandbreite */}
-                  {(() => {
-                    const sliderMin = residualwert * (1 - p.sliderBandbreite / 100);
-                    const sliderMax = residualwert * (1 + p.sliderBandbreite / 100);
-                    const sliderPosition =
-                      p.parzellenpreis != null && sliderMax !== sliderMin
-                        ? Math.max(
-                            0,
-                            Math.min(
-                              100,
-                              ((p.parzellenpreis - sliderMin) / (sliderMax - sliderMin)) * 100,
-                            ),
-                          )
-                        : null;
-                    return (
-                      <div className="mt-4 break-inside-avoid">
-                        <div className="mb-1.5 flex justify-between text-[10px] text-muted-foreground">
-                          <span>{chf(sliderMin)}</span>
-                          <span className="font-medium text-foreground">
-                            Residualwert: {chf(residualwert)}
-                          </span>
-                          <span>{chf(sliderMax)}</span>
-                        </div>
-                        <div
-                          className="relative h-5 overflow-hidden rounded-full border"
-                          style={{
-                            background:
-                              "linear-gradient(to right, #ef4444 0%, #f97316 25%, #fbbf24 45%, #d1d5db 50%, #86efac 55%, #22c55e 75%, #16a34a 100%)",
-                          }}
-                        >
-                          <div
-                            className="absolute bottom-0 top-0 w-0.5 bg-white/90"
-                            style={{ left: "50%", transform: "translateX(-50%)" }}
-                          />
-                          {sliderPosition != null && (
-                            <div
-                              className="absolute bottom-0 top-0 flex items-center"
-                              style={{
-                                left: `${sliderPosition}%`,
-                                transform: "translateX(-50%)",
-                              }}
-                            >
-                              <div className="flex h-7 w-3.5 items-center justify-center rounded-sm border border-gray-400 bg-white shadow">
-                                <div className="h-3 w-0.5 rounded bg-gray-600" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-1 flex justify-between text-[9px] text-muted-foreground">
-                          <span>← günstiger als Residualwert (attraktiv)</span>
-                          <span>teurer als Residualwert (unattraktiv) →</span>
-                        </div>
+                  {residual != null && sliderMin != null && sliderMax != null && (
+                    <div className="mt-4 break-inside-avoid">
+                      <div className="mb-1.5 flex justify-between text-[10px] text-muted-foreground">
+                        <span>{fmtChf(sliderMin)}</span>
+                        <span className="font-medium text-foreground">Residualwert: {fmtChf(residual)}</span>
+                        <span>{fmtChf(sliderMax)}</span>
                       </div>
-                    );
-                  })()}
+                      <div
+                        className="relative h-5 overflow-hidden rounded-full border"
+                        style={{
+                          background:
+                            "linear-gradient(to right, #ef4444 0%, #f97316 25%, #fbbf24 45%, #d1d5db 50%, #86efac 55%, #22c55e 75%, #16a34a 100%)",
+                        }}
+                      >
+                        <div className="absolute bottom-0 top-0 w-0.5 bg-white/90" style={{ left: "50%", transform: "translateX(-50%)" }} />
+                        {sliderPosition != null && (
+                          <div className="absolute bottom-0 top-0 flex items-center" style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}>
+                            <div className="flex h-7 w-3.5 items-center justify-center rounded-sm border border-gray-400 bg-white shadow">
+                              <div className="h-3 w-0.5 rounded bg-gray-600" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-1 flex justify-between text-[9px] text-muted-foreground">
+                        <span>← günstiger als Residualwert (attraktiv)</span>
+                        <span>teurer als Residualwert (unattraktiv) →</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-
                 <p className="text-xs text-muted-foreground">
-                  Baukostenkennwerte: CHF {p.kostenOberirdischProM3}.–/m³ oberirdisch, CHF{" "}
-                  {p.kostenUGProM3}.–/m³ UG (Quelle: SIA 416 / kantonale Richtwerte). Marktpreis{" "}
-                  {chf(p.marktpreisProM2)}/m² NWF ist ein Platzhalter — vor Baueingabe durch
-                  aktuelle Marktanalyse ersetzen.
+                  Baukostenkennwerte: CHF {fmtNum(input.cost.kennwertOberProM3)}.–/m³ oberirdisch, CHF{" "}
+                  {fmtNum(input.cost.kennwertUgProM3)}.–/m³ UG
+                  {input.cost.kennwertInklHonorare ? " (inkl. Honorare BKP 29)" : ""}. Marktpreis{" "}
+                  {input.revenue.marktpreisProM2 == null ? "nicht erfasst" : `${fmtChf(input.revenue.marktpreisProM2)}/m² NWF`}.
                 </p>
               </div>
             );
@@ -1195,6 +1041,38 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
                 ))}
               </tbody>
             </table>
+          )}
+        </Section>
+
+        <Section title="Anhang — Herleitung Wirtschaftlichkeit">
+          <p className="mb-3 text-xs text-muted-foreground">
+            Alle Werte aus der zentralen Rechen-Engine ({wirt.mode === "quick" ? "Schnellschätzung" : "Detailrechnung"}).
+          </p>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b text-left text-muted-foreground">
+                <th className="py-1.5 pr-3">Position</th>
+                <th className="py-1.5 pr-3">Formel</th>
+                <th className="py-1.5 text-right">Wert</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wirt.result.trace.map((t, i) => (
+                <tr key={`${t.label}-${i}`} className="border-b last:border-0 break-inside-avoid">
+                  <td className="py-1.5 pr-3 font-medium">{t.label}</td>
+                  <td className="py-1.5 pr-3 font-mono text-muted-foreground">{t.formula}</td>
+                  <td className="py-1.5 text-right tabular-nums">{fmtNum(t.value, Math.abs(t.value ?? 0) < 10 ? 2 : 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {wirt.result.warnings.length > 0 && (
+            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+              <p className="mb-1 font-semibold">Warnungen</p>
+              {wirt.result.warnings.map((m) => (
+                <div key={m}>⚠ {m}</div>
+              ))}
+            </div>
           )}
         </Section>
 

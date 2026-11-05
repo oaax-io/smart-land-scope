@@ -1105,17 +1105,6 @@ export function WirtschaftlichkeitCard({
   );
 }
 
-function ParamSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-2">
-      <h3 className="font-display text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </h3>
-      <div className="space-y-2 rounded-md border p-3">{children}</div>
-    </div>
-  );
-}
-
 function ParamRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
