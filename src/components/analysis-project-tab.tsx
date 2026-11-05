@@ -8,9 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { buildFloorsFromZone, resolveZoneInputs, type FloorInput } from "@/lib/wirtschaft-engine";
+import type { FloorInput } from "@/lib/wirtschaft-engine";
+import { zoneSuggestion, type WirtschaftRow } from "@/lib/wirtschaft-input";
+import { useWirtschaft } from "@/hooks/use-wirtschaft";
+import { buildWirtschaftRows, fmtChf } from "@/lib/wirtschaft-rows";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 import {
-  Building, Calculator, Download, FileUp, Loader2, Plus, Save, Trash2, TrendingUp, UploadCloud,
+  Building, Calculator, ChevronDown, Download, Info, FileUp, Loader2, Plus, Save, Trash2, TrendingUp, UploadCloud,
 } from "lucide-react";
 
 type AnalysisLite = {
@@ -176,24 +182,7 @@ export function FloorCalculatorCard({
   });
 
   // ---- BGF-Vorschlag aus Zonenwerten (Single Source: wirtschaft-engine) ----
-  const zone = useMemo(() => {
-    const z = resolveZoneInputs(analysis);
-    const r = buildFloorsFromZone({
-      parcelAreaM2: z.parcelAreaM2,
-      uez: z.uez,
-      az: z.az,
-      maxFloors: z.maxFloors,
-      maxHeightM: z.maxHeightM,
-      maxFacadeHeightM: z.maxFacadeHeightM,
-    });
-    const ug = r.floors.find((f) => f.index < 0)?.bgfM2 ?? null;
-    return {
-      ...r,
-      footprintOber: r.footprintM2 !== null ? Math.round(r.footprintM2) : null,
-      footprintUg: ug !== null ? Math.round(ug) : null,
-      nOber: r.floors.filter((f) => f.index >= 0).length,
-    };
-  }, [analysis]);
+  const zone = useMemo(() => zoneSuggestion(analysis), [analysis]);
   const suggestFor = (f: { floor_index: number }) =>
     f.floor_index < 0 ? zone.footprintUg : zone.footprintOber;
 
