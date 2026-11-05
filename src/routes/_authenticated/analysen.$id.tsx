@@ -36,6 +36,7 @@ import { SwissMap } from "@/components/swiss-map";
 import { LegalDisclaimer } from "@/components/legal-disclaimer";
 import { OEREBTopicsTable } from "@/components/oereb-topics-table";
 import { loadOEREBData } from "@/lib/oereb.functions";
+import type { FloorInput } from "@/lib/wirtschaft-engine";
 import { ProjectDataCard, FloorCalculatorCard, WirtschaftlichkeitCard, DocumentUploadsCard } from "@/components/analysis-project-tab";
 import { EasementsPanel } from "@/components/easements-panel";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
@@ -147,7 +148,11 @@ function AnalysisDetailPage() {
   const analyzeFn = useServerFn(runKnowledgeAnalysis);
   const [calcData, setCalcData] = useState({ bgfM2: 0, volumenM3: 0 });
   const handleCalcChange = useCallback(
-    (bgfM2: number, volumenM3: number) => setCalcData({ bgfM2, volumenM3 }),
+    (floors: FloorInput[]) =>
+      setCalcData({
+        bgfM2: floors.reduce((s, f) => s + (f.bgfM2 ?? 0), 0),
+        volumenM3: floors.reduce((s, f) => s + (f.bgfM2 ?? 0) * (f.heightM ?? 0), 0),
+      }),
     [],
   );
 
@@ -603,6 +608,7 @@ function AnalysisDetailPage() {
               building_coverage_ratio: (analysis.building_coverage_ratio as number | null) ?? null,
               utilization_ratio: (analysis.utilization_ratio as number | null) ?? null,
               max_height: (analysis.max_height as number | null) ?? null,
+              max_floors: (analysis.max_floors as number | null) ?? null,
               extracted_data: (analysis.extracted_data as Record<string, unknown> | null) ?? null,
             }}
             onCalcChange={handleCalcChange}
