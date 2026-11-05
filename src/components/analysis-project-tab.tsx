@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { buildFloorsFromZone, resolveZoneInputs, type FloorInput } from "@/lib/wirtschaft-engine";
 import {
   Building, Calculator, Download, FileUp, Loader2, Plus, Save, Trash2, TrendingUp, UploadCloud,
 } from "lucide-react";
@@ -25,6 +26,7 @@ type AnalysisLite = {
   building_coverage_ratio?: number | null;
   utilization_ratio?: number | null;
   max_height?: number | null;
+  max_floors?: number | null;
   extracted_data?: Record<string, unknown> | null;
 };
 
@@ -121,6 +123,11 @@ type Unit = {
   area_m2: number;
 };
 
+function floorLabelFor(index: number): string {
+  if (index < 0) return index === -1 ? "Untergeschoss" : `${-index}. Untergeschoss`;
+  return index === 0 ? "Erdgeschoss" : `${index}. Obergeschoss`;
+}
+
 const DEFAULT_FLOORS: Array<Omit<Floor, "id" | "volume_m3">> = [
   { floor_index: -1, floor_label: "Untergeschoss", gross_area_m2: null, floor_height_m: 2.6 },
   { floor_index: 0, floor_label: "Erdgeschoss", gross_area_m2: null, floor_height_m: 3.0 },
@@ -132,7 +139,7 @@ export function FloorCalculatorCard({
   onCalcChange,
 }: {
   analysis: AnalysisLite;
-  onCalcChange?: (bgfM2: number, volumenM3: number) => void;
+  onCalcChange?: (floors: FloorInput[]) => void;
 }) {
   const qc = useQueryClient();
   const { data: floors = [], refetch: refetchFloors, isFetched: floorsFetched } = useQuery({
@@ -168,6 +175,28 @@ export function FloorCalculatorCard({
     },
   });
 
+  // ---- BGF-Vorschlag aus Zonenwerten (Single Source: wirtschaft-engine) ----
+  const zone = useMemo(() => {
+    const z = resolveZoneInputs(analysis);
+    const r = buildFloorsFromZone({
+      parcelAreaM2: z.parcelAreaM2,
+      uez: z.uez,
+      az: z.az,
+      maxFloors: z.maxFloors,
+      maxHeightM: z.maxHeightM,
+      maxFacadeHeightM: z.maxFacadeHeightM,
+    });
+    const ug = r.floors.find((f) => f.index < 0)?.bgfM2 ?? null;
+    return {
+      ...r,
+      footprintOber: r.footprintM2 !== null ? Math.round(r.footprintM2) : null,
+      footprintUg: ug !== null ? Math.round(ug) : null,
+      nOber: r.floors.filter((f) => f.index >= 0).length,
+    };
+  }, [analysis]);
+  const suggestFor = (f: { floor_index: number }) =>
+    f.floor_index < 0 ? zone.footprintUg : zone.footprintOber;
+
   // Seed defaults the first time (idempotent: rechecks DB, um Duplikate durch Remounts zu vermeiden)
   const seededRef = useRef(false);
   useEffect(() => {
@@ -187,8 +216,17 @@ export function FloorCalculatorCard({
         refetchFloors();
         return;
       }
+      const seed =
+        zone.floors.length > 0
+          ? zone.floors.map((f) => ({
+              floor_index: f.index,
+              floor_label: floorLabelFor(f.index),
+              gross_area_m2: f.bgfM2 !== null ? Math.round(f.bgfM2) : null,
+              floor_height_m: f.heightM ?? 3.0,
+            }))
+          : DEFAULT_FLOORS;
       await supabase.from("analysis_floors").insert(
-        DEFAULT_FLOORS.map((f) => ({
+        seed.map((f) => ({
           ...f,
           analysis_id: analysis.id,
           organization_id: analysis.organization_id,
@@ -196,7 +234,7 @@ export function FloorCalculatorCard({
       );
       refetchFloors();
     })();
-  }, [floorsFetched, floors.length, analysis.id, analysis.organization_id, refetchFloors]);
+  }, [floorsFetched, floors.length, analysis.id, analysis.organization_id, refetchFloors, zone]);
 
   const debouncers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const debounceUpdate = (id: string, patch: Partial<Floor>) => {
@@ -240,61 +278,15 @@ export function FloorCalculatorCard({
     refetchFloors();
   };
 
-  // ---- BGF-Vorschlag aus Parzellendaten ----
-  const suggestion = useMemo(() => {
-    const parzelle = Number(analysis.area_size) || 0;
-    if (!parzelle) return null;
-    const normalize = (v: number | null | undefined) => {
-      const n = Number(v);
-      if (!Number.isFinite(n) || n <= 0) return 0;
-      return n > 1 ? n / 100 : n;
-    };
-    // Fallback: extracted_data.lu_zone_plan (offizielle LU-Werte oder KI-BZR-Vorschlag)
-    const luZonePlan =
-      analysis.extracted_data &&
-      typeof analysis.extracted_data === "object" &&
-      !Array.isArray(analysis.extracted_data) &&
-      "lu_zone_plan" in analysis.extracted_data
-        ? ((analysis.extracted_data as Record<string, unknown>).lu_zone_plan as Record<string, unknown> | null)
-        : null;
-    const bzrCand =
-      luZonePlan && typeof luZonePlan.bzr_ai_suggestion === "object" && luZonePlan.bzr_ai_suggestion !== null
-        ? ((luZonePlan.bzr_ai_suggestion as Record<string, unknown>).candidate as Record<string, unknown> | undefined)
-        : undefined;
-    const uz = normalize(
-      analysis.building_coverage_ratio ??
-        (luZonePlan?.building_coverage_ratio as number | null | undefined) ??
-        (bzrCand?.ueberbauungsziffer as number | null | undefined),
-    );
-    const az = normalize(
-      analysis.utilization_ratio ??
-        (luZonePlan?.utilization_ratio as number | null | undefined) ??
-        (bzrCand?.ausnuetzungsziffer as number | null | undefined),
-    );
-    const nOber = Math.max(1, displayFloors.filter((f) => f.floor_index >= 0).length);
-    let footprint = 0;
-    let source = "";
-    if (uz > 0) {
-      footprint = parzelle * uz;
-      source = `ÜZ ${(uz * 100).toFixed(0)}% × ${Math.round(parzelle)} m²`;
-    } else if (az > 0) {
-      footprint = (parzelle * az) / nOber;
-      source = `AZ ${(az * 100).toFixed(0)}% × ${Math.round(parzelle)} m² / ${nOber} G.`;
-    } else {
-      return null;
-    }
-    return { footprint: Math.round(footprint), source };
-  }, [analysis.area_size, analysis.building_coverage_ratio, analysis.utilization_ratio, analysis.extracted_data, displayFloors]);
-
   const getEffectiveGrossArea = (floor: Floor) => {
     const entered = Number(floor.gross_area_m2);
     if (Number.isFinite(entered) && entered > 0) return entered;
-    return suggestion?.footprint ?? 0;
+    return suggestFor(floor) ?? 0;
   };
 
   const totalArea = useMemo(
     () => displayFloors.reduce((s, f) => s + getEffectiveGrossArea(f), 0),
-    [displayFloors, suggestion],
+    [displayFloors, zone],
   );
   const totalVolume = useMemo(
     () =>
@@ -302,38 +294,54 @@ export function FloorCalculatorCard({
         (s, f) => s + getEffectiveGrossArea(f) * (Number(f.floor_height_m) || 0),
         0,
       ),
-    [displayFloors, suggestion],
+    [displayFloors, zone],
   );
   const totalUnitArea = useMemo(
     () => units.reduce((s, u) => s + (Number(u.area_m2) || 0), 0),
     [units],
   );
 
+  const effectiveFloors = useMemo<FloorInput[]>(
+    () =>
+      displayFloors.map((f) => {
+        const bgf = getEffectiveGrossArea(f);
+        const h = Number(f.floor_height_m);
+        return { index: f.floor_index, bgfM2: bgf > 0 ? bgf : null, heightM: h > 0 ? h : null };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [displayFloors, zone],
+  );
+  const bgfOber = useMemo(
+    () => effectiveFloors.filter((f) => f.index >= 0).reduce((s, f) => s + (f.bgfM2 ?? 0), 0),
+    [effectiveFloors],
+  );
+
   useEffect(() => {
-    onCalcChange?.(totalArea, totalVolume);
-  }, [totalArea, totalVolume, onCalcChange]);
+    onCalcChange?.(effectiveFloors);
+  }, [effectiveFloors, onCalcChange]);
 
   const applySuggestions = async () => {
-    if (!suggestion) return;
-    const targets = displayFloors.filter((f) => !f.gross_area_m2 || Number(f.gross_area_m2) <= 0);
+    const targets = displayFloors.filter(
+      (f) => (!f.gross_area_m2 || Number(f.gross_area_m2) <= 0) && suggestFor(f) !== null,
+    );
     if (targets.length === 0) {
       toast.info("Alle Geschosse haben bereits einen BGF-Wert.");
       return;
     }
     const targetIds = new Set(targets.map((f) => f.id));
     setDraftFloors((current) =>
-      current.map((floor) => (targetIds.has(floor.id) ? { ...floor, gross_area_m2: suggestion.footprint } : floor)),
+      current.map((floor) => (targetIds.has(floor.id) ? { ...floor, gross_area_m2: suggestFor(floor) } : floor)),
     );
     await Promise.all(
       targets.map((f) =>
         supabase
           .from("analysis_floors")
-          .update({ gross_area_m2: suggestion.footprint })
+          .update({ gross_area_m2: suggestFor(f) })
           .eq("id", f.id),
       ),
     );
     toast.success(`${targets.length} Geschoss(e) mit Vorschlag befüllt`, {
-      description: suggestion.source,
+      description: zone.source,
     });
     refetchFloors();
     qc.invalidateQueries({ queryKey: ["floors-wirt", analysis.id] });
@@ -357,17 +365,23 @@ export function FloorCalculatorCard({
   };
 
   const applyToAnalysis = async () => {
+    const { data: w } = await supabase
+      .from("analysis_wirtschaft")
+      .select("nwf_faktor")
+      .eq("analysis_id", analysis.id)
+      .maybeSingle();
+    const nwf = Number(w?.nwf_faktor) > 0 ? Number(w?.nwf_faktor) : 0.65;
     const { error } = await supabase
       .from("analyses")
       .update({
-        floor_area: Math.round(totalArea),
-        living_area: Math.round(totalArea * 0.8),
+        floor_area: Math.round(bgfOber),
+        living_area: Math.round(bgfOber * nwf),
         unit_count: units.length,
       })
       .eq("id", analysis.id);
     if (error) return toast.error("Fehler", { description: error.message });
     toast.success("In Analyse übernommen", {
-      description: `GF ${Math.round(totalArea)} m² · ${units.length} WE`,
+      description: `BGF oberirdisch ${Math.round(bgfOber)} m² · NWF ×${nwf} · ${units.length} WE`,
     });
     qc.invalidateQueries({ queryKey: ["analysis", analysis.id] });
   };
@@ -384,6 +398,26 @@ export function FloorCalculatorCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div
+          className={`rounded-md border px-3 py-2 text-xs ${
+            zone.warnings.length > 0
+              ? "border-warning/40 bg-warning/10 text-foreground"
+              : "border-border bg-muted/30 text-muted-foreground"
+          }`}
+        >
+          <div>
+            <span className="font-medium">Vorschlag:</span> {zone.source}
+            {zone.nOber > 0 && (
+              <>
+                {" "}· {zone.nOber} Obergeschosse à {zone.footprintOber?.toLocaleString("de-CH")} m² · UG{" "}
+                {zone.footprintUg?.toLocaleString("de-CH")} m²
+              </>
+            )}
+          </div>
+          {zone.warnings.map((w) => (
+            <div key={w}>⚠ {w}</div>
+          ))}
+        </div>
         {/* Floors table */}
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
@@ -420,11 +454,15 @@ export function FloorCalculatorCard({
                       />
                     </td>
                     <td className="px-3 py-2">
+                      <div className="flex items-center justify-end gap-1">
+                      {(f.gross_area_m2 === null || Number(f.gross_area_m2) <= 0) && suggestFor(f) !== null && (
+                        <Badge variant="outline" className="shrink-0 text-[10px]">Vorschlag</Badge>
+                      )}
                       <Input
                         key={`${f.id}-${f.gross_area_m2 ?? "empty"}`}
                         type="number"
                         defaultValue={f.gross_area_m2 ?? ""}
-                        placeholder={suggestion ? `≈ ${suggestion.footprint}` : ""}
+                        placeholder={suggestFor(f) !== null ? `≈ ${suggestFor(f)}` : ""}
                         className="h-8 text-right"
                         onChange={(e) =>
                           debounceUpdate(f.id, {
@@ -432,6 +470,7 @@ export function FloorCalculatorCard({
                           })
                         }
                       />
+                      </div>
                     </td>
                     <td className="px-3 py-2">
                       <Input
@@ -482,16 +521,16 @@ export function FloorCalculatorCard({
             <Button variant="outline" size="sm" onClick={addFloor}>
               <Plus className="mr-2 h-4 w-4" />Geschoss hinzufügen
             </Button>
-            {suggestion && (
-              <Button variant="secondary" size="sm" onClick={applySuggestions} title={suggestion.source}>
+            {zone.footprintOber !== null && (
+              <Button variant="secondary" size="sm" onClick={applySuggestions} title={zone.source}>
                 <Calculator className="mr-2 h-4 w-4" />
-                BGF-Vorschlag übernehmen (≈ {suggestion.footprint} m²/Geschoss)
+                BGF-Vorschlag übernehmen (≈ {zone.footprintOber} m²/Geschoss)
               </Button>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            {suggestion
-              ? `Vorschlag basiert auf: ${suggestion.source}`
+            {zone.footprintOber !== null
+              ? `Vorschlag basiert auf: ${zone.source}`
               : "Indikative Volumenberechnung – kein Ersatz für ein CAD-Programm."}
           </p>
         </div>
