@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { FloorInput } from "@/lib/wirtschaft-engine";
-import { zoneSuggestion, type WirtschaftRow } from "@/lib/wirtschaft-input";
+import { computeWirtschaft, type FloorInput } from "@/lib/wirtschaft-engine";
+import { buildEngineInput, zoneSuggestion, type WirtschaftRow } from "@/lib/wirtschaft-input";
 import { useWirtschaft } from "@/hooks/use-wirtschaft";
 import { buildWirtschaftRows, fmtChf } from "@/lib/wirtschaft-rows";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -356,21 +356,21 @@ export function FloorCalculatorCard({
   const applyToAnalysis = async () => {
     const { data: w } = await supabase
       .from("analysis_wirtschaft")
-      .select("nwf_faktor")
+      .select("*")
       .eq("analysis_id", analysis.id)
       .maybeSingle();
-    const nwf = Number(w?.nwf_faktor) > 0 ? Number(w?.nwf_faktor) : 0.65;
+    const r = computeWirtschaft(buildEngineInput(analysis, [], w as WirtschaftRow | null, "detail", effectiveFloors));
     const { error } = await supabase
       .from("analyses")
       .update({
-        floor_area: Math.round(bgfOber),
-        living_area: Math.round(bgfOber * nwf),
+        floor_area: r.bgfOber != null ? Math.round(r.bgfOber) : null,
+        living_area: r.nwf != null ? Math.round(r.nwf) : null,
         unit_count: units.length,
       })
       .eq("id", analysis.id);
     if (error) return toast.error("Fehler", { description: error.message });
     toast.success("In Analyse übernommen", {
-      description: `BGF oberirdisch ${Math.round(bgfOber)} m² · NWF ×${nwf} · ${units.length} WE`,
+      description: `BGF oberirdisch ${Math.round(r.bgfOber ?? 0)} m² · NWF ${Math.round(r.nwf ?? 0)} m² · ${units.length} WE`,
     });
     qc.invalidateQueries({ queryKey: ["analysis", analysis.id] });
   };
