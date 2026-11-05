@@ -300,10 +300,6 @@ export function FloorCalculatorCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [displayFloors, zone],
   );
-  const bgfOber = useMemo(
-    () => effectiveFloors.filter((f) => f.index >= 0).reduce((s, f) => s + (f.bgfM2 ?? 0), 0),
-    [effectiveFloors],
-  );
 
   useEffect(() => {
     onCalcChange?.(effectiveFloors);
