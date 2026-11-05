@@ -320,6 +320,11 @@ export function computeWirtschaft(input: EngineInput): EngineResult {
 
 // --- Schnellschätzung aus Zonenwerten ---
 
+export const HEIGHT_WARNING =
+  "Geschosszahl aus Gesamthöhe abgeleitet (inkl. Dach) – vermutlich zu optimistisch, bitte prüfen";
+
+const fmtH = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+
 function normZiffer(v: number | null | undefined): number | null {
   if (!isNum(v) || v <= 0) return null;
   return v > 10 ? v / 100 : v;
@@ -331,6 +336,7 @@ export function buildFloorsFromZone(args: {
   az: number | null;
   maxFloors: number | null;
   maxHeightM: number | null;
+  maxFacadeHeightM?: number | null;
   geschossHoeheM?: number;
   ugFaktor?: number;
 }): { floors: FloorInput[]; footprintM2: number | null; source: string; warnings: string[] } {
@@ -342,6 +348,7 @@ export function buildFloorsFromZone(args: {
   const parcel = isNum(args.parcelAreaM2) && args.parcelAreaM2 > 0 ? args.parcelAreaM2 : null;
   const maxFloors = isNum(args.maxFloors) && args.maxFloors > 0 ? Math.floor(args.maxFloors) : null;
   const maxH = isNum(args.maxHeightM) && args.maxHeightM > 0 ? args.maxHeightM : null;
+  const maxFH = isNum(args.maxFacadeHeightM) && args.maxFacadeHeightM > 0 ? args.maxFacadeHeightM : null;
 
   const empty = (msg: string) => {
     warnings.push(msg);
@@ -358,10 +365,14 @@ export function buildFloorsFromZone(args: {
     let nSrc: string;
     if (maxFloors !== null) {
       n = maxFloors;
-      nSrc = "aus max. Geschosszahl";
+      nSrc = "aus Vollgeschossen";
+    } else if (maxFH !== null) {
+      n = Math.floor(maxFH / gh);
+      nSrc = `aus Fassadenhöhe ${fmtH(maxFH)} m`;
     } else if (maxH !== null) {
       n = Math.floor(maxH / gh);
-      nSrc = `aus Höhe ${fmt(maxH, 0)} m`;
+      nSrc = `aus Gesamthöhe ${fmtH(maxH)} m`;
+      warnings.push(HEIGHT_WARNING);
     } else {
       return empty("Weder max. Geschosszahl noch max. Höhe vorhanden – Geschosse nicht ableitbar");
     }
@@ -369,13 +380,24 @@ export function buildFloorsFromZone(args: {
     source = `ÜZ ${uez.toFixed(2)} × ${fmt(parcel)} m² = ${fmt(footprint)} m² pro Obergeschoss, ${n} Obergeschosse (${nSrc})`;
   } else if (az !== null) {
     const bgf = parcel * az;
-    if (maxFloors !== null) n = maxFloors;
-    else {
+    let nSrc: string;
+    if (maxFloors !== null) {
+      n = maxFloors;
+      nSrc = "aus Vollgeschossen";
+    } else if (maxFH !== null && Math.floor(maxFH / gh) > 0) {
+      n = Math.floor(maxFH / gh);
+      nSrc = `aus Fassadenhöhe ${fmtH(maxFH)} m`;
+    } else if (maxH !== null && Math.floor(maxH / gh) > 0) {
+      n = Math.floor(maxH / gh);
+      nSrc = `aus Gesamthöhe ${fmtH(maxH)} m`;
+      warnings.push(HEIGHT_WARNING);
+    } else {
       n = 3;
+      nSrc = "Annahme";
       warnings.push("Keine max. Geschosszahl – Annahme 3 Obergeschosse");
     }
     footprint = bgf / n;
-    source = `AZ ${az.toFixed(2)} × ${fmt(parcel)} m² = ${fmt(bgf)} m² BGF oberirdisch, verteilt auf ${n} Obergeschosse à ${fmt(footprint)} m²`;
+    source = `AZ ${az.toFixed(2)} × ${fmt(parcel)} m² = ${fmt(bgf)} m² BGF oberirdisch, verteilt auf ${n} Obergeschosse à ${fmt(footprint)} m² (${nSrc})`;
   } else {
     return empty("Weder ÜZ noch AZ vorhanden – keine Schnellschätzung möglich");
   }
@@ -383,4 +405,46 @@ export function buildFloorsFromZone(args: {
   const floors: FloorInput[] = [{ index: -1, bgfM2: footprint * ugF, heightM: 3.0 }];
   for (let i = 0; i < n; i++) floors.push({ index: i, bgfM2: footprint, heightM: gh });
   return { floors, footprintM2: footprint, source, warnings };
+}
+
+// --- Zonenwerte aus einer Analyse zusammensuchen ---
+
+const obj = (v: unknown): Record<string, unknown> | null =>
+  v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+
+const pos = (...vs: unknown[]): number | null => {
+  for (const v of vs) {
+    const n = typeof v === "string" ? Number(v) : v;
+    if (typeof n === "number" && Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+};
+
+export type ZoneInputs = {
+  parcelAreaM2: number | null;
+  uez: number | null;
+  az: number | null;
+  maxFloors: number | null;
+  maxFacadeHeightM: number | null;
+  maxHeightM: number | null;
+};
+
+export function resolveZoneInputs(analysis: {
+  area_size?: unknown;
+  building_coverage_ratio?: unknown;
+  utilization_ratio?: unknown;
+  max_floors?: unknown;
+  max_height?: unknown;
+  extracted_data?: unknown;
+}): ZoneInputs {
+  const lz = obj(obj(analysis.extracted_data)?.lu_zone_plan);
+  const cand = obj(obj(lz?.bzr_ai_suggestion)?.candidate);
+  return {
+    parcelAreaM2: pos(analysis.area_size),
+    uez: pos(analysis.building_coverage_ratio, lz?.building_coverage_ratio, cand?.ueberbauungsziffer),
+    az: pos(analysis.utilization_ratio, lz?.utilization_ratio, cand?.ausnuetzungsziffer),
+    maxFloors: pos(analysis.max_floors, lz?.max_floors, cand?.vollgeschosse),
+    maxFacadeHeightM: pos(lz?.max_facade_height_m, cand?.fassadenhoehe),
+    maxHeightM: pos(analysis.max_height, lz?.max_height_m),
+  };
 }

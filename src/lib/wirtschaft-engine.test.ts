@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   computeWirtschaft,
   buildFloorsFromZone,
+  resolveZoneInputs,
+  HEIGHT_WARNING,
   DEFAULT_COST,
   DEFAULT_REVENUE,
   DEFAULT_RESIDUAL,
@@ -99,5 +101,46 @@ describe("buildFloorsFromZone", () => {
     ober.forEach((f) => expect(f.bgfM2).toBeCloseTo(787));
     expect(r.floors.find((f) => f.index === -1)?.bgfM2).toBeCloseTo(787);
     expect(r.source).toContain("7 Obergeschosse");
+  });
+});
+
+describe("Geschosszahl-Priorität", () => {
+  const b = { parcelAreaM2: 1000, uez: 0.4, az: null };
+  const ober = (r: ReturnType<typeof buildFloorsFromZone>) => r.floors.filter((f) => f.index >= 0).length;
+  it("maxFloors gewinnt vor Höhe", () => {
+    const r = buildFloorsFromZone({ ...b, maxFloors: 2, maxHeightM: 21, maxFacadeHeightM: 13.5 });
+    expect(ober(r)).toBe(2);
+    expect(r.source).toContain("aus Vollgeschossen");
+  });
+  it("Fassadenhöhe 13.5 m → 4 OG", () => {
+    const r = buildFloorsFromZone({ ...b, maxFloors: null, maxHeightM: 21, maxFacadeHeightM: 13.5 });
+    expect(ober(r)).toBe(4);
+    expect(r.source).toContain("aus Fassadenhöhe 13.5 m");
+    expect(r.warnings).not.toContain(HEIGHT_WARNING);
+  });
+  it("nur Gesamthöhe 21 m → 7 OG + Warnung", () => {
+    const r = buildFloorsFromZone({ ...b, maxFloors: null, maxHeightM: 21, maxFacadeHeightM: null });
+    expect(ober(r)).toBe(7);
+    expect(r.warnings).toContain(HEIGHT_WARNING);
+    expect(r.source).toContain("aus Gesamthöhe 21 m");
+  });
+  it("resolveZoneInputs ignoriert 0-Werte", () => {
+    const z = resolveZoneInputs({
+      area_size: "864",
+      building_coverage_ratio: 0,
+      utilization_ratio: 0,
+      max_floors: 0,
+      max_height: 0,
+      extracted_data: {
+        lu_zone_plan: {
+          building_coverage_ratio: 0,
+          utilization_ratio: 0.35,
+          max_floors: 0,
+          max_facade_height_m: 0,
+          bzr_ai_suggestion: { candidate: { ueberbauungsziffer: 0.3, vollgeschosse: 2, fassadenhoehe: 0 } },
+        },
+      },
+    });
+    expect(z).toEqual({ parcelAreaM2: 864, uez: 0.3, az: 0.35, maxFloors: 2, maxFacadeHeightM: null, maxHeightM: null });
   });
 });
