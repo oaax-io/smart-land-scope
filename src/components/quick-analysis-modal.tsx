@@ -445,7 +445,7 @@ function CoverageHint({
 
   const captureBtn = isAdmin ? (
     <Button asChild size="sm" variant="default" className="mt-2">
-      <Link to="/admin/reglemente" search={{ canton, gemeinde: municipality }}>
+      <Link to="/platform/reglemente">
         <Upload className="mr-2 h-4 w-4" /> Reglemente erfassen
       </Link>
     </Button>

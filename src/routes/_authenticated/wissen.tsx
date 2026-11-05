@@ -222,7 +222,7 @@ function WissenPage() {
               <CardContent className="py-12 text-center text-muted-foreground">
                 Noch keine Gemeinde erfasst. Lege im Admin-Bereich ein Reglement an.
                 <div className="mt-4">
-                  <Link to="/admin/reglemente" className="text-primary underline">
+                  <Link to="/platform/reglemente" className="text-primary underline">
                     Zum Reglemente-Modul
                   </Link>
                 </div>
@@ -428,7 +428,7 @@ function MunicipalityWiki(props: {
           <CardContent className="py-12 text-center text-muted-foreground">
             Für diese Gemeinde wurden noch keine Wissenseinträge extrahiert.
             <div className="mt-4">
-              <Link to="/admin/reglemente" className="text-primary underline">
+              <Link to="/platform/reglemente" className="text-primary underline">
                 Reglement im Admin erneut analysieren
               </Link>
             </div>
