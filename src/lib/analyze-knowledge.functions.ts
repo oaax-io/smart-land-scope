@@ -522,7 +522,7 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
 
         "3) Berechne das Wohnungspotenzial konkret:",
         "   - floor_area_m2 = Grundstücksfläche × utilization_ratio (falls beide Werte verfügbar)",
-        "   - living_area_m2 = floor_area_m2 × 0.8 (Nettowohnfläche-Faktor)",
+        "   - living_area_m2 = floor_area_m2 × 0.65 (Nettowohnfläche-Faktor)",
         "   - unit_count = round(living_area_m2 / 90)  (Annahme 90 m² pro Wohnung)",
         "   Liefere diese Zahlen immer, sobald Fläche und AZ bekannt sind.",
         "4) Wie hoch ist das Entwicklungspotenzial? (potential_level)",
