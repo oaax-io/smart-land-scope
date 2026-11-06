@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { toPositiveOrNull, DEFAULT_REVENUE } from "@/lib/wirtschaft-engine";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
 import { z } from "zod";
@@ -306,10 +307,10 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
             if (zone.zoneMunicipalityLabel != null) patch.detected_zone_precise = zone.zoneMunicipalityLabel;
             patch.detected_zone_source = "Amtlicher Zonenplan Kanton Luzern";
             patch.regulation_basis = "Amtlicher Zonenplan Kanton Luzern (ZPGNDNTZ) / Bau- und Zonenreglement Luzern";
-            if (zone.az != null) patch.utilization_ratio = zone.az;
-            if (zone.uezMax != null) patch.building_coverage_ratio = zone.uezMax;
-            if (zone.floors != null) patch.max_floors = zone.floors;
-            if (luEffectiveHeight != null) patch.max_height = luEffectiveHeight;
+            if (toPositiveOrNull(zone.az) != null) patch.utilization_ratio = toPositiveOrNull(zone.az);
+            if (toPositiveOrNull(zone.uezMax) != null) patch.building_coverage_ratio = toPositiveOrNull(zone.uezMax);
+            if (toPositiveOrNull(zone.floors) != null) patch.max_floors = toPositiveOrNull(zone.floors);
+            if (toPositiveOrNull(luEffectiveHeight) != null) patch.max_height = toPositiveOrNull(luEffectiveHeight);
             if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
             const specialParts = [
               zone.bzrArticle ? `BZR Art. ${zone.bzrArticle}` : null,
@@ -348,10 +349,10 @@ export const runKnowledgeAnalysis = createServerFn({ method: "POST" })
                   });
                   if (suggestion) {
                     const c = suggestion.candidate;
-                    if (c.ausnuetzungsziffer != null) patch.utilization_ratio = c.ausnuetzungsziffer;
-                    if (c.ueberbauungsziffer != null) patch.building_coverage_ratio = c.ueberbauungsziffer;
-                    if (c.vollgeschosse != null && patch.max_floors == null) patch.max_floors = c.vollgeschosse;
-                    if (c.gesamthoehe_flach != null && patch.max_height == null) patch.max_height = c.gesamthoehe_flach;
+                    if (toPositiveOrNull(c.ausnuetzungsziffer) != null) patch.utilization_ratio = toPositiveOrNull(c.ausnuetzungsziffer);
+                    if (toPositiveOrNull(c.ueberbauungsziffer) != null) patch.building_coverage_ratio = toPositiveOrNull(c.ueberbauungsziffer);
+                    if (toPositiveOrNull(c.vollgeschosse) != null && patch.max_floors == null) patch.max_floors = toPositiveOrNull(c.vollgeschosse);
+                    if (toPositiveOrNull(c.gesamthoehe_flach) != null && patch.max_height == null) patch.max_height = toPositiveOrNull(c.gesamthoehe_flach);
                     patch.zone = c.code;
                     luEffectiveZone = c.code;
                     patch.detected_zone_precise = `${c.code} — ${c.zone ?? zone.zoneMunicipalityLabel ?? ""}`.trim();
@@ -581,6 +582,17 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
         if (typeof luPatch.max_floors === "number") object.max_floors = luPatch.max_floors;
         if (typeof luPatch.max_height === "number") object.max_height_m = luPatch.max_height;
       }
+      // ÜZ darf nie als AZ gespeichert werden: Gibt es eine amtliche ÜZ, aber keine
+      // amtliche AZ, oder hat die KI die ÜZ in die AZ kopiert, bleibt die AZ leer.
+      const officialAz = toPositiveOrNull(luPatch.utilization_ratio);
+      const uezVal = toPositiveOrNull(object.building_coverage_ratio);
+      if (
+        officialAz == null &&
+        uezVal != null &&
+        (toPositiveOrNull(luPatch.building_coverage_ratio) != null || object.utilization_ratio === uezVal)
+      ) {
+        object.utilization_ratio = 0;
+      }
       if (typeof luPatch.noise_zone === "string") object.noise_zone = luPatch.noise_zone;
       if (typeof luPatch.special_provisions === "string") object.special_provisions = luPatch.special_provisions;
 
@@ -594,7 +606,7 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
       let unitCount = object.unit_count;
       if (parcelArea > 0 && azForCalc > 0) {
         if (!(floorArea > 0)) floorArea = parcelArea * azForCalc;
-        if (!(livingArea > 0)) livingArea = floorArea * 0.8;
+        if (!(livingArea > 0)) livingArea = floorArea * DEFAULT_REVENUE.nwfFaktor;
         if (!(unitCount > 0)) unitCount = Math.round(livingArea / 90);
       }
 
@@ -609,19 +621,16 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
           feasibility: object.feasibility,
           zone: luEffectiveZone ?? object.zone,
           usage_type: object.usage_types,
-          max_floors: object.max_floors > 0 ? clamp(Math.round(object.max_floors), 0, 50) : null,
-          max_height: object.max_height_m > 0 ? clamp(object.max_height_m, 0, 300) : null,
-          utilization_ratio: object.utilization_ratio > 0 ? clamp(object.utilization_ratio, 0, 10) : null,
-          building_coverage_ratio:
-            object.building_coverage_ratio != null && object.building_coverage_ratio > 0
-              ? object.building_coverage_ratio
-              : null,
+          max_floors: toPositiveOrNull(clamp(Math.round(object.max_floors), 0, 50)),
+          max_height: toPositiveOrNull(clamp(object.max_height_m, 0, 300)),
+          utilization_ratio: toPositiveOrNull(clamp(object.utilization_ratio, 0, 10)),
+          building_coverage_ratio: toPositiveOrNull(object.building_coverage_ratio),
           setbacks: object.setbacks as Json | null,
           special_provisions: object.special_provisions,
           noise_zone: object.noise_zone,
           water_setbacks: object.water_setbacks,
-          floor_area: clamp(floorArea, 0, 1_000_000),
-          living_area: clamp(livingArea, 0, 1_000_000),
+          floor_area: toPositiveOrNull(clamp(floorArea, 0, 1_000_000)),
+          living_area: toPositiveOrNull(clamp(livingArea, 0, 1_000_000)),
           unit_count: clamp(Math.round(unitCount), 0, 10_000),
           potential_level: normalizePotential(object.potential_level),
           ai_summary: object.ai_summary,
