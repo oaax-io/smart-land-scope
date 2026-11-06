@@ -144,3 +144,16 @@ describe("Geschosszahl-Priorität", () => {
     expect(z).toEqual({ parcelAreaM2: 864, uez: 0.3, az: 0.35, maxFloors: 2, maxFacadeHeightM: null, maxHeightM: null });
   });
 });
+
+import { toPositiveOrNull } from "./wirtschaft-engine";
+describe("toPositiveOrNull", () => {
+  it("0, NaN, leerer String, undefined → null; positive Zahl bleibt", () => {
+    expect(toPositiveOrNull(0)).toBeNull();
+    expect(toPositiveOrNull(NaN)).toBeNull();
+    expect(toPositiveOrNull("")).toBeNull();
+    expect(toPositiveOrNull(undefined)).toBeNull();
+    expect(toPositiveOrNull(-1)).toBeNull();
+    expect(toPositiveOrNull("0.35")).toBe(0.35);
+    expect(toPositiveOrNull(21)).toBe(21);
+  });
+});

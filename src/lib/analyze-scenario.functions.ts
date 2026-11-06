@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { toPositiveOrNull } from "@/lib/wirtschaft-engine";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
 import { z } from "zod";
@@ -229,12 +230,15 @@ Antworte ausschliesslich als reines JSON-Objekt ohne Markdown-Fences:
           error_message: null,
           zone: analysis.zone,
           usage_types: object.usage_types,
-          max_floors: clamp(Math.round(object.max_floors), 0, 50),
-          max_height: clamp(object.max_height_m, 0, 300),
-          utilization_ratio: clamp(object.utilization_ratio, 0, 10),
-          building_coverage_ratio: object.building_coverage_ratio,
-          floor_area: clamp(object.floor_area_m2, 0, 1_000_000),
-          living_area: clamp(object.living_area_m2, 0, 1_000_000),
+          max_floors: toPositiveOrNull(clamp(Math.round(object.max_floors), 0, 50)),
+          max_height: toPositiveOrNull(clamp(object.max_height_m, 0, 300)),
+          utilization_ratio:
+            toPositiveOrNull(object.utilization_ratio) === toPositiveOrNull(object.building_coverage_ratio)
+              ? null
+              : toPositiveOrNull(clamp(object.utilization_ratio, 0, 10)),
+          building_coverage_ratio: toPositiveOrNull(object.building_coverage_ratio),
+          floor_area: toPositiveOrNull(clamp(object.floor_area_m2, 0, 1_000_000)),
+          living_area: toPositiveOrNull(clamp(object.living_area_m2, 0, 1_000_000)),
           commercial_area: clamp(object.commercial_area_m2, 0, 1_000_000),
           unit_count: clamp(Math.round(object.unit_count), 0, 10_000),
           potential_level: normalizePotential(object.potential_level),

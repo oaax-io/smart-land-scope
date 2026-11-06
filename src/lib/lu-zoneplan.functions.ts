@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { toPositiveOrNull } from "@/lib/wirtschaft-engine";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { luZonePlanToRegulationRecord, queryLuZonePlan } from "@/lib/swiss-geo";
@@ -67,10 +68,10 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
     if (zone.zoneMunicipalityLabel != null) patch.detected_zone_precise = zone.zoneMunicipalityLabel;
     patch.detected_zone_source = "Amtlicher Zonenplan Kanton Luzern";
     patch.regulation_basis = "Amtlicher Zonenplan Kanton Luzern (ZPGNDNTZ) / Bau- und Zonenreglement Luzern";
-    if (zone.az != null) patch.utilization_ratio = zone.az;
-    if (zone.uezMax != null) patch.building_coverage_ratio = zone.uezMax;
-    if (zone.floors != null) patch.max_floors = zone.floors;
-    if (effectiveHeight != null) patch.max_height = effectiveHeight;
+    if (toPositiveOrNull(zone.az) != null) patch.utilization_ratio = toPositiveOrNull(zone.az);
+    if (toPositiveOrNull(zone.uezMax) != null) patch.building_coverage_ratio = toPositiveOrNull(zone.uezMax);
+    if (toPositiveOrNull(zone.floors) != null) patch.max_floors = toPositiveOrNull(zone.floors);
+    if (toPositiveOrNull(effectiveHeight) != null) patch.max_height = toPositiveOrNull(effectiveHeight);
     if (zone.noiseClass != null) patch.noise_zone = zone.noiseClass;
     if (specialProvisions != null) patch.special_provisions = specialProvisions;
     if (zone.geometry != null) patch.parcel_geometry = zone.geometry as unknown as Json;
@@ -126,10 +127,10 @@ export const loadLuZonePlanForAnalysis = createServerFn({ method: "POST" })
               });
               if (suggestion) {
                 const c = suggestion.candidate;
-                if (c.ausnuetzungsziffer != null) patch.utilization_ratio = c.ausnuetzungsziffer;
-                if (c.ueberbauungsziffer != null) patch.building_coverage_ratio = c.ueberbauungsziffer;
-                if (c.vollgeschosse != null && patch.max_floors == null) patch.max_floors = c.vollgeschosse;
-                if (c.gesamthoehe_flach != null && patch.max_height == null) patch.max_height = c.gesamthoehe_flach;
+                if (toPositiveOrNull(c.ausnuetzungsziffer) != null) patch.utilization_ratio = toPositiveOrNull(c.ausnuetzungsziffer);
+                if (toPositiveOrNull(c.ueberbauungsziffer) != null) patch.building_coverage_ratio = toPositiveOrNull(c.ueberbauungsziffer);
+                if (toPositiveOrNull(c.vollgeschosse) != null && patch.max_floors == null) patch.max_floors = toPositiveOrNull(c.vollgeschosse);
+                if (toPositiveOrNull(c.gesamthoehe_flach) != null && patch.max_height == null) patch.max_height = toPositiveOrNull(c.gesamthoehe_flach);
                 patch.zone = c.code;
                 patch.detected_zone_precise = `${c.code} — ${c.zone ?? zone.zoneMunicipalityLabel ?? ""}`.trim();
                 const conf = Math.round(suggestion.confidence * 100);

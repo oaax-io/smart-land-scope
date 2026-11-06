@@ -713,7 +713,7 @@ export function AnalysisReport({ analysisId, showToolbar = true, domId = "report
             <Kpi label="Wohnungsanzahl" value={a.unit_count?.toString() ?? "—"} />
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Berechnung auf Basis Grundstücksfläche × Ausnützungsziffer; Wohnfläche ≈ 80 % der Geschossfläche.
+            Geschossfläche aus Zonenwerten (Geschossrechner); Wohnfläche = Geschossfläche × Nettowohnflächen-Faktor (Standard 0.65).
           </p>
 
           {units.length > 0 && (

@@ -36,7 +36,7 @@ import { SwissMap } from "@/components/swiss-map";
 import { LegalDisclaimer } from "@/components/legal-disclaimer";
 import { OEREBTopicsTable } from "@/components/oereb-topics-table";
 import { loadOEREBData } from "@/lib/oereb.functions";
-import type { FloorInput } from "@/lib/wirtschaft-engine";
+import { type FloorInput, buildFloorsFromZone, resolveZoneInputs, DEFAULT_REVENUE } from "@/lib/wirtschaft-engine";
 import { ProjectDataCard, FloorCalculatorCard, WirtschaftlichkeitCard, DocumentUploadsCard } from "@/components/analysis-project-tab";
 import { EasementsPanel } from "@/components/easements-panel";
 import { loadLuZonePlanForAnalysis } from "@/lib/lu-zoneplan.functions";
@@ -562,9 +562,8 @@ function AnalysisDetailPage() {
               onReanalyzed={() => queryClient.invalidateQueries({ queryKey: ["analysis", id] })}
             />
             <UnitsPotential
-              areaSize={Number(analysis.area_size ?? 0) || 0}
-              utilizationRatio={Number(analysis.utilization_ratio ?? 0) || 0}
-              maxFloors={Number(analysis.max_floors ?? 0) || 0}
+              analysisId={id}
+              analysis={analysis}
               floorArea={Number(analysis.floor_area ?? 0) || 0}
               livingArea={Number(analysis.living_area ?? 0) || 0}
               unitCount={Number(analysis.unit_count ?? 0) || 0}
@@ -824,16 +823,14 @@ function AiAnswerCard({ answer }: { answer: AiAnswer | null }) {
 }
 
 function UnitsPotential({
-  areaSize,
-  utilizationRatio,
-  maxFloors,
+  analysisId,
+  analysis,
   floorArea,
   livingArea,
   unitCount,
 }: {
-  areaSize: number;
-  utilizationRatio: number;
-  maxFloors: number;
+  analysisId: string;
+  analysis: Parameters<typeof resolveZoneInputs>[0];
   floorArea: number;
   livingArea: number;
   unitCount: number;
@@ -844,8 +841,23 @@ function UnitsPotential({
     { key: "gross", label: "Gross", area: 120, description: "4.5–5.5 Zimmer · Premium" },
   ] as const;
 
-  const computedFloor = floorArea > 0 ? floorArea : areaSize > 0 && utilizationRatio > 0 ? areaSize * utilizationRatio : 0;
-  const computedLiving = livingArea > 0 ? livingArea : computedFloor * 0.8;
+  const { data: nwfRow } = useQuery({
+    queryKey: ["analysis-wirtschaft-nwf", analysisId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analysis_wirtschaft")
+        .select("nwf_faktor")
+        .eq("analysis_id", analysisId)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const nwfFaktor = Number(nwfRow?.nwf_faktor) > 0 ? Number(nwfRow?.nwf_faktor) : DEFAULT_REVENUE.nwfFaktor;
+  const zi = resolveZoneInputs(analysis);
+  const zoneFloors = buildFloorsFromZone(zi).floors;
+  const bgfOber = zoneFloors.filter((f) => f.index >= 0).reduce((s, f) => s + (f.bgfM2 ?? 0), 0);
+  const computedFloor = floorArea > 0 ? floorArea : bgfOber;
+  const computedLiving = livingArea > 0 ? livingArea : bgfOber * nwfFaktor;
   const computedUnits = unitCount > 0 ? unitCount : computedLiving > 0 ? Math.round(computedLiving / 90) : 0;
   const ready = computedLiving > 0;
 
@@ -867,7 +879,7 @@ function UnitsPotential({
       </div>
 
       {!ready && (
-        <Placeholder text="Wohnungspotenzial kann erst berechnet werden, wenn Grundstücksfläche und Ausnützungsziffer bekannt sind." />
+        <Placeholder text="Wohnungspotenzial kann erst berechnet werden, wenn Grundstücksfläche und Ausnützungsziffer bzw. Überbauungsziffer mit Geschosszahl oder Höhe bekannt sind." />
       )}
 
       {ready && (
@@ -875,8 +887,7 @@ function UnitsPotential({
           <CardHeader>
             <CardTitle className="font-display text-lg">Wohnungsvarianten</CardTitle>
             <CardDescription>
-              Berechnet aus {fmt(areaSize)} m² × AZ {utilizationRatio}
-              {maxFloors > 0 ? ` · ${maxFloors} Vollgeschosse` : ""} · 80% Nettowohnfläche · ø 90 m²/WHG
+              Berechnet aus {fmt(computedFloor)} m² Geschossfläche · {Math.round(nwfFaktor * 100)}% Nettowohnfläche · ø 90 m²/WHG
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-3">
