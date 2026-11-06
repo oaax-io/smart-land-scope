@@ -887,8 +887,7 @@ function UnitsPotential({
           <CardHeader>
             <CardTitle className="font-display text-lg">Wohnungsvarianten</CardTitle>
             <CardDescription>
-              Berechnet aus {fmt(areaSize)} m² × AZ {utilizationRatio}
-              {maxFloors > 0 ? ` · ${maxFloors} Vollgeschosse` : ""} · 80% Nettowohnfläche · ø 90 m²/WHG
+              Berechnet aus {fmt(computedFloor)} m² Geschossfläche · {Math.round(nwfFaktor * 100)}% Nettowohnfläche · ø 90 m²/WHG
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-3">
